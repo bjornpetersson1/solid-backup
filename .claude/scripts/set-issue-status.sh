@@ -4,7 +4,7 @@
 set -euo pipefail
 
 OWNER=bjornpetersson1
-PROJECT=TBD  # set when the project board is created
+PROJECT=6
 ISSUE=${1:?issue number required}
 STATUS=${2:?status name required}
 
