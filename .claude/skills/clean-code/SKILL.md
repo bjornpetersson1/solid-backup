@@ -16,10 +16,10 @@ Stage everything so new files are part of the diff (`git add -A`), then invoke t
 
 Then go through the changed files once more against this list and fix what you find:
 
-- **Names** say what things are; no abbreviations other than domain terms (SMA, EMA, RSI, OHLC, OMXS30). Follow .NET naming: PascalCase for types and members, `I` prefix for interfaces, `Async` suffix for async methods.
+- **Names** say what things are; no abbreviations other than domain terms and units (RMS, dBFS, YIN, BPM, MIDI, WAV, ADSR, Hz, ms). Follow .NET naming: PascalCase for types and members, `I` prefix for interfaces, `Async` suffix for async methods.
 - **Functions** do one thing; split anything that needs a comment to explain its sections. Prefer early returns over nesting.
 - **No duplication** — reuse existing helpers and types in the repo before adding new ones.
-- **Types**: no `dynamic` or `object` where a type exists, no null-forgiving `!` to silence the compiler, no unnecessary casts; prefer records for data; shared shapes defined once. Use `decimal` or `double` consistently for prices, not a mix.
+- **Types**: no `dynamic` or `object` where a type exists, no null-forgiving `!` to silence the compiler, no unnecessary casts; prefer records for data; shared shapes defined once. Use `float` or `double` consistently for audio samples, not a mix.
 - **Boundaries**: audio only through `IAudioInput` and `IAudioOutput`; no allocation, locks or I/O in the audio callback; each level feature a separate, switchable component; config only through the config loader; no magic numbers in code (thresholds, ranges, buffer sizes, targets come from config).
 - **Async**: no `.Result` or `.Wait()`; pass `CancellationToken` through I/O calls.
 - **Errors** are handled where they can be acted on, with a useful message; no swallowed errors.

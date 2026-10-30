@@ -25,7 +25,7 @@ echo "== test =="; dotnet test --no-build
 echo "ALL GREEN"
 ```
 
-If tests skip themselves (e.g. a missing API key), say so and treat the dependent criteria as unverified, not passed.
+If tests skip themselves, say so and treat the dependent criteria as unverified, not passed. Tests need no audio hardware and the WAV corpus is in the repo, so a test that skips for a missing device or corpus file is a FAIL to fix, not a skip.
 
 ## 3. Walk the criteria
 
