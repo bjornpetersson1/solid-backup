@@ -4,7 +4,7 @@
 - **Labels:** `E1 Foundation`
 - **Phase:** 1. Foundation
 - **Depends on:** none
-- **Status:** Implemented — all acceptance criteria verified locally (format, build with 0 warnings, 1 test passed); the CI run on the PR is checked before merge
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 1 test passed; CI passed on #23)
 
 ## Summary
 A .NET 8 solution with a console app project and an xUnit test project, shared build settings, and a GitHub Actions workflow that runs the canonical checks on every PR and on pushes to `develop` and `main`.
@@ -47,6 +47,7 @@ A .NET 8 solution with a console app project and an xUnit test project, shared b
 - **Analyzers as in BörsMönster:** `Nullable`, `TreatWarningsAsErrors`, `EnforceCodeStyleInBuild` and the .NET 8 SDK's default analyzers; no `AnalysisLevel` change and no extra analyzer packages. (Owner's choice.)
 - **`global.json` pins SDK `8.0.402` (`latestPatch`)**, and CI installs it with `global-json-file`, so `dotnet format` and the style analyzers are the same locally and in CI. (Code review; replaces the earlier default of no `global.json`.)
 - **Smoke test** (default): a trivial test that touches the app assembly, so `dotnet test` proves the reference works; it is replaced by real tests as features arrive.
+- *Superseded by E1-4 and the E1 release check:* `Program.Main(string[] args)` now runs the command line, and the smoke test was removed once real tests covered the app assembly.
 - **Explicit `Program` class** (implementation): `public static class Program` with a parameterless `Main` returning `0`; E1-4 replaces the body. The smoke test only checks the assembly reference through `typeof(Program)` and never runs `Main`, so it will not start the menu once E1-4 lands. (Code review.)
 - **No `coverlet.collector`** (implementation): removed from the xUnit template, since coverage is a non-goal.
 - **`.editorconfig` keeps its own CRLF line endings** (implementation): only the two C# settings changed, to keep the diff minimal.
