@@ -41,7 +41,7 @@ git fetch origin
 gh issue list --label "<label>" --state all --limit 100 --json number,title,state,body
 ```
 
-- **Find the label.** It is the one starting with the epic key, e.g. `E2 Market data` (`gh label list`).
+- **Find the label.** It is the one starting with the epic key, e.g. `E2 Audio` (`gh label list`).
 - **Find the issues.** They are the label's issues; the KEY is the start of each title, e.g. `E2-1`.
   - If any issue is already closed, leave it out and say so.
   - If none is open, stop.
@@ -124,7 +124,7 @@ For each issue:
 
 1. **Open the release PR**, with an empty body (`/release-check` writes the description):
    ```bash
-   gh pr create --base main --head develop --title "<label, e.g. E2 Market data>" --body ""
+   gh pr create --base main --head develop --title "<label, e.g. E2 Audio>" --body ""
    ```
 2. **Run the check.** Invoke `release-check` with the release PR number. It verifies the release, fixes what it can, merges its fix PR into `develop` and reviews the release PR.
 
