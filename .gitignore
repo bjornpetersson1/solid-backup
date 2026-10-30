@@ -489,3 +489,6 @@ $RECYCLE.BIN/
 *.db
 *.db-shm
 *.db-wal
+
+# User settings written by the menu (normally outside the repo)
+usersettings.json
