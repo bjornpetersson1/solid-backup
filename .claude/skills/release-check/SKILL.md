@@ -1,0 +1,142 @@
+---
+name: release-check
+description: Check a release pull request from develop into main when an epic is done - verify the whole release, run clean code over all of it, fix what is wrong on a fix branch and merge it into develop, and post a review on the release PR, so the owner only has to merge develop into main. Use for /release-check <PR number> whenever an epic is finished and develop is about to be merged into main.
+argument-hint: <release PR number — optional, defaults to the open PR from develop into main>
+---
+
+# Release check: develop → main
+
+Release PR: $ARGUMENTS — if none was given, find the open PR with base `main` and head `develop` (`gh pr list --base main --head develop --state open`). If there is none, or more than one, stop and ask.
+
+Every feature PR has already had its own spec, code review and PR review. This check looks at the **release as a whole**:
+
+- Does everything still work together?
+- Is the epic actually done?
+- Is the code clean across issues, not just within each one?
+- Is the release ready for `main`?
+
+The goal is that the owner's only step is merging the release PR into `main`. So you merge your own fix PR into `develop` (step 5) — the one exception to the no-merge rule in `CLAUDE.md`. You never push directly to `develop` or `main`, and never merge anything into `main`.
+
+## 0. Preflight
+
+```bash
+git fetch origin
+gh pr view <PR> --json number,title,state,baseRefName,headRefName,headRefOid,body,url
+```
+
+- The PR must be open, with base `main` and head `develop`.
+- Work in a separate git worktree, so the owner's checkout is never switched or touched. Put it in the scratchpad if one is available, otherwise in a temporary directory:
+  ```bash
+  git worktree add --no-track -b feature/<EPIC>-release-check <scratchpad>/wt-release origin/develop
+  ```
+  `<EPIC>` is the epic key, e.g. `E1` (see step 1). Run every later command inside the worktree, and `dotnet restore` there first.
+
+## 1. Gather
+
+- **The epic.** Take it from the PR title, or from the issue keys in `git log --oneline origin/main..origin/develop` (e.g. `E1-1`, `E1-2` → epic `E1`). If the release spans more than one epic, check each one.
+- **Its issues.** Every issue with the epic's label, e.g. `E1 Foundation`:
+  ```bash
+  gh issue list --label "<label>" --state all --json number,title,state
+  ```
+- **The specs** in `specs/` for those issues, and the epic's "Done when" lines in `Constitution/Requirements-and-goal.md`.
+  - Also read the phase row in the delivery-plan table if this epic completes a phase.
+- **The release diff**:
+  ```bash
+  git diff --stat origin/main...origin/develop
+  git diff origin/main...origin/develop
+  ```
+
+## 2. Verify the release (on the worktree, before any change)
+
+1. **Full checks**, offline:
+   ```bash
+   dotnet restore && dotnet format --verify-no-changes --no-restore && dotnet build -warnaserror --no-restore && dotnet test --no-build
+   ```
+   On macOS, run `dotnet test --no-build` under `sandbox-exec -p '(version 1)(allow default)(deny network-outbound (remote ip))'` to prove it needs no network and no audio hardware.
+2. **Fresh-clone path.** Follow the README's build-and-run instructions on the worktree. Every documented command must work:
+   - `dotnet run --project src/SolidBackup -- --help` works, and starting without arguments shows the menu (quit it).
+   - Every documented command that does not need live audio, with the user settings file pointed at a temporary path. Live mode needs a microphone and headphones: list it as a manual check for the owner instead of running it.
+
+   Stop every process you start.
+3. **Issues and specs.**
+   - Every issue of the epic is closed, or its PR is merged into `develop`.
+   - Every spec's Status says all acceptance criteria are verified.
+   - Each spec's acceptance criteria still hold on `develop`. A later issue may have broken an earlier one.
+4. **Epic "Done when".** Prove each line from the requirements with a command or a named test.
+5. **Hygiene.**
+   - No secrets in the diff (`grep -nE 'sk-ant-|api[_-]?key\s*=\s*\S'`), and no user settings file, recordings, logs or build output tracked. WAV files are tracked only under the test corpus.
+   - `dotnet list package --vulnerable --include-transitive` shows no high or critical issues.
+   - `appsettings.json` and the README document every setting the code reads (grep for the config loader's keys).
+
+Record each item as PASS or FAIL with its evidence.
+
+## 3. Clean code over the whole release
+
+Invoke `clean-code` with the argument `base origin/main`, so its scope is the whole release (`git diff origin/main...`), not one issue.
+
+- Code files only: skip `specs/`, `Constitution/` and `.claude/`.
+- The built-in `simplify` reviews the diff of the directory it runs in. Run it from the worktree; if it would look at the owner's checkout instead, do its review by hand over the release diff.
+- Look especially for what a single-issue review cannot see: the same helper written twice in different issues, inconsistent config or error-handling patterns, naming that drifted between issues, and dead code an earlier issue left behind.
+
+## 4. Review the release
+
+Read the release diff as a strict senior reviewer who did not write it. Check:
+
+1. **Docs**: README, `appsettings.json` and `CLAUDE.md` describe the code as it is now; nothing describes a state an earlier issue had.
+2. **Specs**: Decisions that a later issue overrode are marked as superseded, not left contradicting the code.
+3. **Architecture**: the constraints in `CLAUDE.md` hold:
+   - audio only through `IAudioInput` and `IAudioOutput`,
+   - no allocation, locks or I/O in the audio callback,
+   - analysis, harmony and synthesis are pure and deterministic per buffer,
+   - every level feature is a separate, switchable component,
+   - config only through the config loaders,
+   - everything local, no network calls.
+4. **Readiness**: the next epic's issues (read their text) can build on this without reworking it.
+
+## 5. Fix
+
+Fix every FAIL from steps 2–4 that has a clear fix, on the worktree branch `feature/<EPIC>-release-check`.
+
+- **Ask the owner** with `AskUserQuestion` before:
+  - changing behaviour,
+  - adding a dependency,
+  - changing an acceptance criterion,
+  - making a fix larger than a small, local change.
+- Things that need a decision are reported, not fixed.
+- After the fixes, run the full checks from step 2.1 again; all must pass.
+- Commit as `<EPIC>: <imperative summary>`, with a body listing the fixes and the Co-Authored-By trailer from `CLAUDE.md`.
+- Push and open a PR **against `develop`** with title `<EPIC> · release-check fixes`. Its body lists each fix and the verification, and ends with the Claude Code line.
+- **Merge the fix PR into `develop`** yourself:
+  1. `git fetch origin` and check that `origin/develop` has not moved since the worktree was created (it is an ancestor of the fix branch). If it moved, stop and ask the owner.
+  2. Check `gh pr view <fix PR> --json mergeable,statusCheckRollup`: it must be `MERGEABLE` and no check may be failing. Otherwise stop and ask.
+  3. `gh pr merge <fix PR> --merge` (a merge commit, like the feature PRs; keep the branch).
+  4. `git fetch origin` and confirm that the release PR's `headRefOid` is now the new `origin/develop`.
+
+If nothing needs fixing, skip this step and delete the empty branch.
+
+## 6. Comment on the release PR
+
+Post one review on the release PR with `event: "COMMENT"` (the owner cannot request changes on their own PR), through `gh api repos/<owner>/<repo>/pulls/<PR>/reviews --method POST --input <file>`. Build the JSON payload in the scratchpad.
+
+- **Body**: verdict (ready to merge, or blocked), the epic's "Done when" lines with PASS/FAIL, and the merged fix PR link.
+- **Inline comments**: one per finding, on a line of the release diff:
+  - for a fixed finding, what was wrong and "fixed in #<fix PR> (merged into `develop`)";
+  - for an open finding, what is wrong, why it matters and what to do.
+
+  Mark minor ones `nit:`.
+- **Release PR description**: if it is empty or only a title, write one with `gh pr edit <PR> --body-file <file>`. Include:
+  - the epic and its issues;
+  - what the release delivers (one line per issue);
+  - how it was verified;
+  - the merged fix PR, if there is one (its changes are already part of this PR);
+  - the Claude Code line.
+
+## 7. Report to the owner (in Swedish)
+
+- Release PR link, and the merged fix PR link if there is one.
+- One line per check from step 2 and per "Done when" line: PASS or FAIL and the evidence.
+- What clean code and the review found; what was fixed and what is left for the owner.
+- Before reporting, move every epic issue not yet `Done` on the board to `Done` (`.claude/scripts/set-issue-status.sh <issue> Done`).
+- What the owner does next: only merge the release PR into `main` — or, if the verdict is blocked, what has to be decided first.
+- Anything unverified, plainly.
+- Remove the worktree when done (`git worktree remove <path>`), keeping the branch.
