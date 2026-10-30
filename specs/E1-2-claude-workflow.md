@@ -27,19 +27,21 @@ The Claude workflow ported from BörsMönster (`CLAUDE.md`, the skills, `set-iss
    - The command appears verbatim under Verification in `CLAUDE.md`.
    - The steps in `.github/workflows/ci.yml` (E1-1) are the same checks, so `CLAUDE.md`'s statement "the same steps as CI" is true.
 3. **No BörsMönster leftovers.**
-   - `grep -rniE "börs|bors|market|stock|alpha vantage|sqlite" .claude CLAUDE.md` finds nothing that describes BörsMönster (examples use solid-backup's labels and keys, e.g. `E2 Audio`).
+   - `grep -rniE "börs|bors|market data|stock|alpha vantage|sqlite|price|omxs" .claude CLAUDE.md` and `grep -rnwE "SMA|EMA|RSI|OHLC" .claude CLAUDE.md` find nothing that describes BörsMönster (examples use solid-backup's labels and keys, e.g. `E2 Audio`; the `clean-code` checklist names solid-backup's domain terms).
    - The architecture checks in `review-pr` and `release-check` name solid-backup's constraints (`IAudioInput`/`IAudioOutput`, no allocation, locks or I/O in the audio callback, switchable level features, local only).
 
 ## Tasks
 - [ ] Bring the existing commit that points `set-issue-status.sh` at board 6 into this issue's PR.
 - [ ] Replace the BörsMönster example label (`E2 Market data`) in `ship-epic` with a solid-backup one.
+- [ ] Replace the BörsMönster domain terms (SMA, EMA, RSI, OHLC, OMXS30, prices) in the `clean-code` checklist with solid-backup's.
 - [ ] Check the rest of `.claude/` and `CLAUDE.md` with the grep above; fix any leftovers.
 - [ ] Confirm `CLAUDE.md`'s canonical check matches `ci.yml` from E1-1.
 
 ## Decisions
-- **Branch** (default): the branch `feature/E1-2-claude-workflow` already exists, is pushed, and is `origin/develop` plus one commit (board 6). The issue continues on it instead of creating a new branch, so that commit is kept.
+- **Branch** (default): the branch `feature/E1-2-claude-workflow` already exists, is pushed, and is `origin/develop` plus one commit (board 6). The issue continues on it instead of creating a new branch, so that commit is kept. `origin/develop` is merged into it (not rebased), since the branch is already pushed and history is never rewritten.
 - **Proof for criterion 1** (default): running this epic is the proof; no test is written for a skill.
 - **No questions asked:** the issue has no open questions, and its scope is a verification of files that already exist.
+- **Wider leftover check** (spec update before implementing): verifying E1-1 showed that the `clean-code` checklist still names BörsMönster's domain terms and prices, which the original grep missed. The grep in criterion 3 now covers them; the criterion's intent is unchanged.
 
 ## Open Questions
 - None
