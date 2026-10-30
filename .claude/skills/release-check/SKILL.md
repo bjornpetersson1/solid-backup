@@ -52,7 +52,7 @@ gh pr view <PR> --json number,title,state,baseRefName,headRefName,headRefOid,bod
    ```bash
    dotnet restore && dotnet format --verify-no-changes --no-restore && dotnet build -warnaserror --no-restore && dotnet test --no-build
    ```
-   On macOS, run `dotnet test --no-build` under `sandbox-exec -p '(version 1)(allow default)(deny network-outbound (remote ip))'` to prove it needs no network and no audio hardware.
+   On macOS, run `dotnet test --no-build` under `sandbox-exec -p '(version 1)(allow default)(deny network-outbound (remote ip4))(deny network-outbound (remote ip6 "*:80"))(deny network-outbound (remote ip6 "*:443"))'` to prove it needs no network and no audio hardware. (VSTest talks to its test host over an IPv4-mapped IPv6 loopback socket, so a profile that denies all `remote ip` aborts the run.)
 2. **Fresh-clone path.** Follow the README's build-and-run instructions on the worktree. Every documented command must work:
    - `dotnet run --project src/SolidBackup -- --help` works, and starting without arguments shows the menu (quit it).
    - Every documented command that does not need live audio, with the user settings file pointed at a temporary path. Live mode needs a microphone and headphones: list it as a manual check for the owner instead of running it.
