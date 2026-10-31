@@ -87,6 +87,24 @@ public sealed class AudioPipelineTests : IDisposable
     }
 
     [Fact]
+    public void StopTwiceThenDispose_IsHarmless()
+    {
+        string path = Temp(TestWav.Float32(SampleRate, 1, Sine(BufferSize)));
+        WavFileInput input = new(path, SampleRate, BufferSize);
+        MemoryAudioOutput output = new(SampleRate, BufferSize, capacityFrames: BufferSize);
+        AudioPipeline pipeline = new(input, output, new PassThroughProcessor());
+        pipeline.Start();
+
+        pipeline.Stop();
+        pipeline.Stop();
+        input.Dispose();
+        output.Dispose();
+
+        Assert.Equal(BufferSize, output.Samples.Length);
+        Assert.Throws<InvalidOperationException>(() => output.Write(new float[BufferSize]));
+    }
+
+    [Fact]
     public void WavFileWithOtherSampleRate_ThrowsWithoutResampling()
     {
         string path = Temp(TestWav.Float32(44_100, 1, 0f));

@@ -4,7 +4,7 @@
 - **Labels:** `E2 Audio`
 - **Phase:** 2. Audio
 - **Depends on:** E2-1 (#5)
-- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 88 tests passed; real PortAudio path smoke-tested for 60 s on the owner's Mac); hearing the microphone in the headphones and Ctrl+C in a real terminal are manual checks for the owner
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 90 tests passed; real PortAudio path smoke-tested for 60 s on the owner's Mac); hearing the microphone in the headphones and Ctrl+C in a real terminal are manual checks for the owner
 
 ## Summary
 `IAudioInput` and `IAudioOutput` as callback-based interfaces, a PortAudio implementation with one input stream and one output stream joined by a lock-free hand-over, a WAV-file input and an in-memory output for tests, and a minimal pipeline that connects them. A `--passthrough` flag lets the owner hear the microphone in the headphones.
@@ -85,6 +85,7 @@
 - **Code review fixes:** closing a stream is exception-safe and PortAudio is always terminated, even if stopping fails; the pipeline stops the output before the input (so the stop itself is not counted as dropouts) and stops the output again if the input fails to start; Ctrl+C is only taken over once the streams run, so it can still end the process while macOS's permission dialog blocks the open; the output callback copes with a different `frameCount`; a WAV data size of `0xFFFFFFFF` (streaming writers) reads to the end of the file; the hand-over is reset when the output restarts; more PortAudio load and device errors become `AudioDeviceException`; the unused device-name state was removed.
 - **No larger cushion in the hand-over yet** (code review finding deferred): a cushion above one buffer would absorb the few underruns after a drift correction (5 a minute in the smoke test). It would cost latency, though, and an output clock that runs faster would drain any cushion; only resampling that follows the drift removes that case. The balance belongs to E6-1, where the latency and 0-dropout targets are measured together.
 - **`PortAudioOutput` keeps its hand-over private and forwards its three counters** (code review finding declined): the clean-code pass made it private on purpose, so each stream reports its own part of `AudioCounters`.
+- **PR review fixes:** an audio error while running or stopping now reads "Ljudfel: …" (the message says whether opening or closing failed) instead of "Ljudet kunde inte startas", with a test for a failing stop; a test stops the pipeline twice and disposes both ends, as evidence for the idempotent stop in criterion 1.
 
 ## Open Questions
 - None

@@ -41,7 +41,7 @@ public sealed class PassThroughCommand(
         }
         catch (AudioDeviceException exception)
         {
-            console.MarkupLineInterpolated($"[red]Ljudet kunde inte startas: {exception.Message}[/]");
+            console.MarkupLineInterpolated($"[red]Ljudfel: {exception.Message}[/]");
             return 1;
         }
     }

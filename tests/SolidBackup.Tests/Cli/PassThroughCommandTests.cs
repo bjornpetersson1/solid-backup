@@ -74,7 +74,7 @@ public class PassThroughCommandTests
             console, () => new(Settings, null), _ => throw new AudioDeviceException("Det finns ingen ljudingång.")).Run();
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("Ljudet kunde inte startas: Det finns ingen ljudingång.", console.Output);
+        Assert.Contains("Ljudfel: Det finns ingen ljudingång.", console.Output);
     }
 
     [Fact]
@@ -86,7 +86,21 @@ public class PassThroughCommandTests
         int exitCode = new PassThroughCommand(console, () => new(Settings, null), _ => devices).Run();
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("Ljudet kunde inte startas: Ljudingången kunde inte öppnas.", console.Output);
+        Assert.Contains("Ljudfel: Ljudingången kunde inte öppnas.", console.Output);
+        Assert.True(devices.Disposed);
+    }
+
+    [Fact]
+    public void StreamCannotStop_ShowsSwedishErrorClosesDevicesAndExitsOne()
+    {
+        TestConsole console = WideConsole();
+        console.Input.PushKey(ConsoleKey.Escape);
+        FakeDevices devices = new(failOnStop: true);
+
+        int exitCode = new PassThroughCommand(console, () => new(Settings, null), _ => devices).Run();
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Ljudfel: Ljudingången kunde inte stängas.", console.Output);
         Assert.True(devices.Disposed);
     }
 
@@ -126,9 +140,9 @@ public class PassThroughCommandTests
         return console;
     }
 
-    private sealed class FakeDevices(bool failOnStart = false) : IAudioDevices
+    private sealed class FakeDevices(bool failOnStart = false, bool failOnStop = false) : IAudioDevices
     {
-        public FakeInput Input { get; } = new(failOnStart);
+        public FakeInput Input { get; } = new(failOnStart, failOnStop);
 
         public FakeOutput Output { get; } = new();
 
@@ -146,7 +160,7 @@ public class PassThroughCommandTests
         }
     }
 
-    private sealed class FakeInput(bool failOnStart) : IAudioInput
+    private sealed class FakeInput(bool failOnStart, bool failOnStop) : IAudioInput
     {
         public int SampleRate => Settings.SampleRate;
 
@@ -169,6 +183,11 @@ public class PassThroughCommandTests
 
         public void Stop()
         {
+            if (failOnStop)
+            {
+                throw new AudioDeviceException("Ljudingången kunde inte stängas.");
+            }
+
             Stopped = true;
         }
 
