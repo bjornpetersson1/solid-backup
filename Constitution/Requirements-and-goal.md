@@ -18,8 +18,8 @@ The experiment should show whether a local console app can follow a single live 
   - onsets: a sudden rise in level triggers a new chord
   - chord character: a soft note gives a sparse chord, a loud note a fuller chord, a tension note or a different timbre
   - more level-driven features can be added later behind the same switch mechanism
-- Chord choice from the detected note, within a key (how exactly is an open point, see below)
-- Key: chosen in the menu, either a fixed key or `auto`, where the app estimates the key from what you sing, shows it, and follows a modulation
+- Chord choice from the detected note, within a key, in a harmony style chosen in the menu (Church, Campfire, Drone, Pop, Modal, Blues, Jazz, Free; decided in E4-1, see `docs/harmony.md`)
+- Key: chosen in the menu, either a fixed key (a tonic and a mode) or `auto`, where the app estimates the key from what you sing, shows it, and follows a modulation
 - Rhythm accompaniment: chords can be played in a pattern (held, arpeggio, strum) at a tempo (where the tempo comes from is an open point)
 - A built-in synthesizer (oscillators, envelope, a few sounds such as pad, organ and pluck), with no external instruments
 - Recording a session to WAV (the microphone signal and the chords)
@@ -40,7 +40,7 @@ The experiment should show whether a local console app can follow a single live 
 
 | Point | Assumption in the spec | Needs confirmation |
 | --- | --- | --- |
-| Chord choice (music theory) | The detected note is mapped to a chord that contains the note and fits the key. How the chord is chosen (which degrees, how the previous chord and the melody's direction matter, when a non-diatonic note gets a borrowed chord or is ignored, how often the chord may change) is decided in a dedicated discussion issue (E4-1) before any harmony code is written. | Discussion in E4-1 |
+| Chord choice (music theory) | The detected note is mapped to a chord by the chosen harmony style. In the styles whose rules say so (Church, Campfire, Pop, Jazz) the chord contains the note and fits the key; Drone and Modal work as a pedal, Blues keeps the chord on blue notes, and Free has no key and adds tensions. The rules, including how the previous chord matters and how often the chord may change, are in `docs/harmony.md`. | Decided in E4-1 |
 | Tempo source | Rhythm patterns need a tempo. Whether it is a fixed BPM in the menu, tap tempo, derived from onsets, or followed live, is decided in a dedicated discussion issue (E5-4). | Discussion in E5-4 |
 | Feedback | The chords are played in headphones. If the output device is the built-in speakers, the app shows a warning in the menu and on the dashboard. There is no echo cancellation. | None |
 | Platform | macOS on Intel and Apple Silicon. PortAudio's CoreAudio backend through `PortAudioSharp2`, which ships the native library for `osx-x64` and `osx-arm64`, so no Homebrew step. macOS asks for microphone access on behalf of the terminal app that runs the process. Verified in E2-1 on an Intel Mac; the findings are in the README ("Audio on macOS"). | Apple Silicon is a manual check (E2-1) |
@@ -120,10 +120,16 @@ Six parts (E1–E6). Each item is meant to be one issue that takes roughly half 
 
 - [ ] **E4-1 Music theory discussion**: decide how a note becomes a chord (see Open points). This issue gives a written decision in `docs/harmony.md`, not code.
   - Done when: the owner has approved `docs/harmony.md`, and E4-2 is updated to match it.
-- [ ] **E4-2 Chord choice**: the decided rules from E4-1, as pure functions from note, key and state to a chord.
-  - Done when: the examples in `docs/harmony.md` are tests that pass.
-- [ ] **E4-3 Key detection**: `auto` estimates the key from the recent notes, shows it, and changes it on a modulation without flickering.
+- [ ] **E4-2 Chord choice**: the harmony engine and common rules from `docs/harmony.md`, as pure functions from note, key and state to a chord, with the settings and the styles Church, Campfire and Drone.
+  - Done when: the timing, Church, Campfire and Drone examples in `docs/harmony.md` are tests that pass.
+- [ ] **E4-3 Key detection**: `auto` estimates the tonic and major or minor from the recent notes, shows it, and changes it on a modulation without flickering.
   - Done when: a melody in a known key in the corpus gives that key, and a melody that modulates gives the new key within a configurable number of seconds.
+- [ ] **E4-4 Pop and Modal styles**: the Pop and Modal rules from `docs/harmony.md`.
+  - Done when: the Pop and Modal examples in `docs/harmony.md` are tests that pass.
+- [ ] **E4-5 Blues style**: the Blues rules from `docs/harmony.md`, including blue notes and moving the key.
+  - Done when: the Blues examples in `docs/harmony.md` are tests that pass.
+- [ ] **E4-6 Free style**: the Free rules from `docs/harmony.md`, with no key and chosen by voice leading.
+  - Done when: the Free examples in `docs/harmony.md` are tests that pass.
 
 ### E5 Sound
 
@@ -137,6 +143,8 @@ Six parts (E1–E6). Each item is meant to be one issue that takes roughly half 
   - Done when: the owner has approved `docs/rhythm.md`, and E5-5 is updated to match it.
 - [ ] **E5-5 Rhythm patterns**: held, arpeggio and strum at the tempo decided in E5-4.
   - Done when: a rendered pattern has its notes on the expected samples within 1 ms.
+- [ ] **E5-6 Jazz style**: the Jazz rules, whose details are decided in this issue from the direction in `docs/harmony.md` and the tempo in `docs/rhythm.md`.
+  - Done when: `docs/harmony.md` has the detailed Jazz rules with examples, approved by the owner, and the examples are tests that pass.
 
 ### E6 Live mode
 
@@ -156,8 +164,8 @@ Verify the audio stack first, because everything else assumes that PortAudio wor
 | 1. Foundation | E1-1 to E1-4 | – | Build, tests, CI and the Claude workflow run |
 | 2. Audio | E2-1 to E2-3 | E1-1 | The microphone can be heard in the headphones through the app |
 | 3. Analysis | E3-1 to E3-3 | E2-2 | Note and level are detected correctly on the corpus |
-| 4. Harmony | E4-1 to E4-3 | E3-2 (E4-2, E4-3) | A melody gives chords that follow the rules in `docs/harmony.md` |
-| 5. Sound | E5-1 to E5-5 | E4-2 | Chords are heard with the chosen sound, dynamics and pattern |
+| 4. Harmony | E4-1 to E4-6 | E3-2 (E4-2, E4-3); E4-2 (E4-4 to E4-6) | A melody gives chords that follow the rules in `docs/harmony.md` |
+| 5. Sound | E5-1 to E5-6 | E4-2; E5-4 (E5-6) | Chords are heard with the chosen sound, dynamics and pattern |
 | 6. Live mode | E6-1 to E6-3 | Phase 5 | The demo can be run from the menu |
 
 ## Measurement

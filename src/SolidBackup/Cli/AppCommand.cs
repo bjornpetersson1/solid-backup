@@ -17,6 +17,8 @@ public static class AppCommand
     public const string Description = "Lyssnar på en melodistämma i mikrofonen och spelar ackord till den.";
     public const string HelpHint = "Kör med --help för att se vad som finns.";
     public const string DeviceOptionsAloneMessage = "--input och --output gäller bara tillsammans med --passthrough eller --devices.";
+    public const string HarmonyOptionsAloneMessage = "--style, --key och --mode gäller bara tillsammans med --harmonize.";
+    public const string HarmonizeCombinedMessage = "--harmonize kan inte kombineras med --passthrough eller --devices.";
 
     /// <summary>
     /// Parses and runs the command line. Parse errors and unexpected exceptions get a Swedish
@@ -67,10 +69,31 @@ public static class AppCommand
         {
             Description = "Ljudutgång att använda den här gången (enhetens namn).",
         };
+        Option<string> harmonizeOption = new("--harmonize")
+        {
+            Description = "Kör tonhöjdsanalys och harmoni på en WAV-fil och skriv ut ackordbytena.",
+            HelpName = "wav",
+        };
+        Option<string> styleOption = new("--style")
+        {
+            Description = "Harmonistil att använda den här gången: Church, Campfire, Drone, Pop, Modal, Blues eller Free.",
+        };
+        Option<string> keyOption = new("--key")
+        {
+            Description = "Tonart att använda den här gången: en grundton (t.ex. C, F#, Bb) eller auto.",
+        };
+        Option<string> modeOption = new("--mode")
+        {
+            Description = "Modus att använda den här gången (t.ex. Ionian, Dorian, Aeolian).",
+        };
         root.Options.Add(passThroughOption);
         root.Options.Add(devicesOption);
         root.Options.Add(inputOption);
         root.Options.Add(outputOption);
+        root.Options.Add(harmonizeOption);
+        root.Options.Add(styleOption);
+        root.Options.Add(keyOption);
+        root.Options.Add(modeOption);
         root.SetAction(parseResult =>
         {
             bool playsOrLists = parseResult.GetValue(devicesOption) || parseResult.GetValue(passThroughOption);
@@ -78,6 +101,27 @@ public static class AppCommand
             {
                 parseResult.InvocationConfiguration.Error.WriteLine($"{DeviceOptionsAloneMessage} {HelpHint}");
                 return 1;
+            }
+
+            string? harmonizePath = parseResult.GetValue(harmonizeOption);
+            string? style = parseResult.GetValue(styleOption);
+            string? key = parseResult.GetValue(keyOption);
+            string? mode = parseResult.GetValue(modeOption);
+            if (harmonizePath is null && (style is not null || key is not null || mode is not null))
+            {
+                parseResult.InvocationConfiguration.Error.WriteLine($"{HarmonyOptionsAloneMessage} {HelpHint}");
+                return 1;
+            }
+
+            if (harmonizePath is not null)
+            {
+                if (playsOrLists)
+                {
+                    parseResult.InvocationConfiguration.Error.WriteLine($"{HarmonizeCombinedMessage} {HelpHint}");
+                    return 1;
+                }
+
+                return new HarmonizeCommand(createConsole(), LoadSettings).Run(harmonizePath, style, key, mode);
             }
 
             Func<SettingsLoadResult> loadSettings =

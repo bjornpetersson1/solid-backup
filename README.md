@@ -28,11 +28,14 @@ dotnet run --project src/SolidBackup -- --version # version
 dotnet run --project src/SolidBackup -- --passthrough # play the microphone in the output
 dotnet run --project src/SolidBackup -- --devices     # list the audio devices
 dotnet run --project src/SolidBackup -- --passthrough --input "USB Audio" --output "Externa hörlurar"
+dotnet run --project src/SolidBackup -- --harmonize corpus/recordings/singing.wav --style Campfire --key G
 ```
 
 `--passthrough` plays the chosen input in the chosen output until you press `q`, `Esc` or Ctrl+C, then prints the dropout counts. Use headphones: there is no echo cancellation, and the app warns when the output is the built-in speakers. If the terminal app has no microphone access, it stops with instructions instead of starting (System Settings → Privacy & Security → Microphone). On first use macOS asks for access; answer the dialog, and run again if the audio does not start.
 
 `--devices` lists the inputs and outputs and marks the system defaults, the chosen devices and the built-in speakers. `--input` and `--output` choose a device by its exact name (case does not matter) for that run only; they are not saved.
+
+`--harmonize <wav>` runs the pitch detection and the harmony (see [`docs/harmony.md`](docs/harmony.md)) over a WAV file and prints the time, the note and the chord at every chord change. `--style`, `--key` and `--mode` override `HarmonyStyle`, `Key` and `Mode` for that run only. It also prints the key when `auto` first finds it and whenever the key changes, by `auto` or by Blues moving it. The file's own sample rate is used (44100 or 48000 Hz). `--harmonize` cannot be combined with `--passthrough` or `--devices`.
 
 The menu needs an interactive terminal.
 
@@ -112,5 +115,13 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `OnsetThresholdDb` | `15` | A rise in level of at least this many dB within 20 ms is an onset (above 0, at most 60) |
 | `OnsetMinIntervalMs` | `100` | Shortest time between two onsets (above 0, at most 2000 ms) |
 | `LatencyTargetMs` | `50` | Latency target in milliseconds |
+| `HarmonyStyle` | `Church` | Harmony style: `Church`, `Campfire`, `Drone`, `Pop`, `Modal`, `Blues` or `Free` (see [`docs/harmony.md`](docs/harmony.md)); `Jazz` is accepted but not built yet (E5-6) |
+| `Key` | `auto` | The key's tonic (`C`, `F#`, `Bb`, …), or `auto` to estimate the tonic and major or minor from the notes |
+| `Mode` | `Ionian` | The key's mode: `Ionian`, `Dorian`, `Phrygian`, `Lydian`, `Mixolydian`, `Aeolian` or `Locrian`; ignored with `auto` |
+| `MinNoteForChangeMs` | `120` | While singing, a new note must last this long before it may change the chord (above 0) |
+| `MinChordDurationMs` | `250` | While singing, the shortest time between two chord changes (above 0) |
+| `PhraseResetMs` | `2000` | After a silence this long, the previous chord is forgotten (above 0) |
+| `KeyChangeSeconds` | `4` | With `auto`, a modulation is followed within this many seconds (above 0) |
+| `KeyFirstSeconds` | `2` | With `auto`, no key (and no chord) until at least this many seconds of notes have been heard (above 0) |
 
 The menu's choices are saved to `~/Library/Application Support/solid-backup/usersettings.json`, which only holds the settings that differ from the defaults. A missing or invalid user settings file is ignored with a message, and the defaults are used.

@@ -20,5 +20,13 @@ internal static class TestSettings
         OnsetThresholdDb = 15,
         OnsetMinIntervalMs = 100,
         LatencyTargetMs = 50,
+        HarmonyStyle = "Church",
+        Key = "auto",
+        Mode = "Ionian",
+        MinNoteForChangeMs = 120,
+        MinChordDurationMs = 250,
+        PhraseResetMs = 2000,
+        KeyChangeSeconds = 4,
+        KeyFirstSeconds = 2,
     };
 }

@@ -22,6 +22,22 @@ All built at the requested sample rate (48 kHz by default; 44.1 kHz works too) w
 
 Notes have 5 ms fades and an amplitude of 0.5. Every note start is an onset.
 
+For key detection (E4-3) there are also melodies, built by `GeneratedCorpus.Melodies` from sines in the same way. They are not part of the pitch, level and onset measures; their reference files add a `key` line per stretch. Each phrase is played twice, at 450 ms a beat, with 50 ms of silence after every note, and the tonic lies between F#3 and F4:
+
+| Clip | Key | Phrase |
+| --- | --- | --- |
+| `generated-melody-c-major` | C major | starts on the third |
+| `generated-melody-g-major` | G major | starts on the fifth below the tonic |
+| `generated-melody-eb-major` | Eb major | starts on the tonic, with a chromatic passing note (the raised fourth) |
+| `generated-melody-f-sharp-major` | F# major | starts on the fifth |
+| `generated-melody-a-minor` | A minor | starts on the tonic |
+| `generated-melody-e-minor` | E minor | starts on the fifth |
+| `generated-melody-c-minor` | C minor | starts on the third |
+| `generated-melody-c-to-g-major` | C major, then G major | the C major phrase, then the G major one |
+| `generated-melody-a-to-d-minor` | A minor, then D minor | the A minor phrase, then the E minor one moved to D |
+
+Every phrase uses the scale's fourth and seventh degrees, and the minor ones the raised seventh, so a melody is not also a melody in a neighbouring key. The key estimator's margin (0.12 in correlation), its decay (0.7 × `KeyChangeSeconds`) and its hold time (0.15 × `KeyChangeSeconds`) were chosen as the values for which every melody gives its key, and both modulations the new key in time, at `KeyChangeSeconds` 4 and 8; the window of values that does so is narrow, so live singing may behave worse.
+
 To listen to them, write them as WAV with their reference files:
 
 ```bash
@@ -45,6 +61,7 @@ Each recording has `recordings/<clip>.ref.csv`. Lines starting with `#` are comm
 
 - `segment,<start ms>,<end ms>,<kind>[,<cents>,…]`: the segments are in time order and cover the whole clip without gaps or overlap. The kind is `note`, `silence`, `breath`, `noise`, `out-of-range` or `unclear`. A `note` or `out-of-range` segment has one or more pitch values in MIDI cents (A4 = 6900), spaced evenly from start to end and joined linearly: one value is a steady note, two a glide, and a recorded note has its measured pitch curve with one value every 10 ms.
 - `onset,<ms>`: one per note in the range, where its level rise begins.
+- `key,<start ms>,<tonic>,<mode>`: only in a generated melody's reference, the key from that time on, e.g. `key,0,F#,Ionian`.
 
 The generated clips use the same model (`tones` writes the same format).
 
