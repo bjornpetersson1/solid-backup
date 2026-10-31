@@ -93,6 +93,19 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "OnsetMinIntervalMs": 0 }""", "OnsetMinIntervalMs")]
     [InlineData("""{ "OnsetMinIntervalMs": 2001 }""", "OnsetMinIntervalMs")]
     [InlineData("""{ "LowestNote": "E+2" }""", "LowestNote")]
+    [InlineData("""{ "HarmonyStyle": "Kyrko" }""", "HarmonyStyle")]
+    [InlineData("""{ "HarmonyStyle": "church" }""", "HarmonyStyle")]
+    [InlineData("""{ "HarmonyStyle": "1" }""", "HarmonyStyle")]
+    [InlineData("""{ "HarmonyStyle": null }""", "HarmonyStyle")]
+    [InlineData("""{ "Key": "H" }""", "Key")]
+    [InlineData("""{ "Key": "C4" }""", "Key")]
+    [InlineData("""{ "Key": "Auto" }""", "Key")]
+    [InlineData("""{ "Key": null }""", "Key")]
+    [InlineData("""{ "Mode": "Dorisk" }""", "Mode")]
+    [InlineData("""{ "Mode": null }""", "Mode")]
+    [InlineData("""{ "MinNoteForChangeMs": 0 }""", "MinNoteForChangeMs")]
+    [InlineData("""{ "MinChordDurationMs": -1 }""", "MinChordDurationMs")]
+    [InlineData("""{ "PhraseResetMs": 0 }""", "PhraseResetMs")]
     public void Load_InvalidValue_IgnoresWholeFileAndNamesSetting(string content, string setting)
     {
         WriteUserFile(content);
@@ -134,6 +147,12 @@ public sealed class SettingsStoreTests : IDisposable
             OnsetThresholdDb = 12,
             OnsetMinIntervalMs = 150,
             LatencyTargetMs = 30,
+            HarmonyStyle = "Campfire",
+            Key = "Bb",
+            Mode = "Dorian",
+            MinNoteForChangeMs = 80,
+            MinChordDurationMs = 300,
+            PhraseResetMs = 3000,
         };
 
         CreateStore().Save(saved);

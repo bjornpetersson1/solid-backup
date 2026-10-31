@@ -1,4 +1,5 @@
 using SolidBackup.Analysis;
+using SolidBackup.Harmony;
 
 namespace SolidBackup.Configuration;
 
@@ -85,7 +86,48 @@ public static class SettingsValidator
             return new(nameof(AppSettings.LatencyTargetMs), $"{settings.LatencyTargetMs} ms måste vara större än 0");
         }
 
+        return ValidateHarmony(settings);
+    }
+
+    private static SettingsError? ValidateHarmony(AppSettings settings)
+    {
+        if (!HarmonySettings.TryParseName<HarmonyStyle>(settings.HarmonyStyle, out _))
+        {
+            return new(nameof(AppSettings.HarmonyStyle), $"\"{settings.HarmonyStyle}\" är ingen känd harmonistil; välj {string.Join(", ", Enum.GetNames<HarmonyStyle>())}");
+        }
+
+        if (!HarmonySettings.IsValidKey(settings.Key))
+        {
+            return new(nameof(AppSettings.Key), $"\"{settings.Key}\" är ingen giltig tonart; ange en grundton som C, F# eller Bb, eller {HarmonySettings.AutoKey}");
+        }
+
+        if (!HarmonySettings.TryParseName<Mode>(settings.Mode, out _))
+        {
+            return new(nameof(AppSettings.Mode), $"\"{settings.Mode}\" är ingen känd modus; välj {string.Join(", ", Enum.GetNames<Mode>())}");
+        }
+
+        if (NotPositive(settings.MinNoteForChangeMs))
+        {
+            return new(nameof(AppSettings.MinNoteForChangeMs), $"{settings.MinNoteForChangeMs} ms måste vara större än 0");
+        }
+
+        if (NotPositive(settings.MinChordDurationMs))
+        {
+            return new(nameof(AppSettings.MinChordDurationMs), $"{settings.MinChordDurationMs} ms måste vara större än 0");
+        }
+
+        if (NotPositive(settings.PhraseResetMs))
+        {
+            return new(nameof(AppSettings.PhraseResetMs), $"{settings.PhraseResetMs} ms måste vara större än 0");
+        }
+
         return null;
+    }
+
+    // Also true for NaN and infinity.
+    private static bool NotPositive(double value)
+    {
+        return !(value > 0 && double.IsFinite(value));
     }
 
     // Written as a negation so NaN, for which every comparison is false, is out of range too.

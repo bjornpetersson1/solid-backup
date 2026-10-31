@@ -34,4 +34,22 @@ public sealed record AppSettings
     public required double OnsetMinIntervalMs { get; init; }
 
     public required int LatencyTargetMs { get; init; }
+
+    /// <summary>The harmony style's name, e.g. <c>Church</c>; see <c>docs/harmony.md</c>.</summary>
+    public required string HarmonyStyle { get; init; }
+
+    /// <summary>The tonic, e.g. <c>C</c>, <c>F#</c> or <c>Bb</c>, or <c>auto</c> to estimate the key.</summary>
+    public required string Key { get; init; }
+
+    /// <summary>The mode's name, e.g. <c>Ionian</c>; ignored with <c>auto</c>.</summary>
+    public required string Mode { get; init; }
+
+    /// <summary>While singing, how long a new note must last before it may change the chord.</summary>
+    public required double MinNoteForChangeMs { get; init; }
+
+    /// <summary>While singing, the shortest time between two chord changes.</summary>
+    public required double MinChordDurationMs { get; init; }
+
+    /// <summary>After a silence this long, the previous chord is forgotten.</summary>
+    public required double PhraseResetMs { get; init; }
 }

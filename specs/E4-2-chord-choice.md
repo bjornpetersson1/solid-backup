@@ -4,7 +4,7 @@
 - **Labels:** `E4 Harmony`
 - **Phase:** 4. Harmony
 - **Depends on:** E4-1 (#11), E3-2 (#9)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 402 tests passed)
 
 ## Summary
 The harmony engine from `docs/harmony.md`: a buffer-based, allocation-free component that turns E3-2's pitch estimates into the current chord, following the common rules (candidates, keep, natural step, priority, hold times, phrase reset), with the styles Church (all seven modes), Campfire and Drone, their settings, and a command that prints the chord timeline for a WAV file.
@@ -41,12 +41,12 @@ The harmony engine from `docs/harmony.md`: a buffer-based, allocation-free compo
 7. **The checks pass.** `dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test` succeeds without audio hardware or network.
 
 ## Tasks
-- [ ] Chord, quality, key and mode types, with symbols and pitch classes.
-- [ ] The settings, their validation, `appsettings.json` and the README.
-- [ ] The engine: per-estimate update, timing rules, phrase reset, and the shared choice steps.
-- [ ] The Church, Campfire and Drone chord sets and priorities.
-- [ ] Tests for the examples, the mode tables, both sample rates and buffer sizes, and the allocations.
-- [ ] The `--harmonize` option and its tests.
+- [x] Chord, quality, key and mode types, with symbols and pitch classes.
+- [x] The settings, their validation, `appsettings.json` and the README.
+- [x] The engine: per-estimate update, timing rules, phrase reset, and the shared choice steps.
+- [x] The Church, Campfire and Drone chord sets and priorities.
+- [x] Tests for the examples, the mode tables, both sample rates and buffer sizes, and the allocations.
+- [x] The `--harmonize` option and its tests.
 
 ## Decisions
 - **Per estimate and allocation-free** (owner's choice): the engine takes every `PitchEstimate` from E3-2 and gives the current chord, like the analysis components, so E6-1 can run it in the audio callback unchanged.
@@ -55,6 +55,12 @@ The harmony engine from `docs/harmony.md`: a buffer-based, allocation-free compo
 - **Time from the estimates** (default): the hold times and phrase reset use `PitchEstimate.TimeMs`, so a WAV gives the same result every time. A note's start is the first estimate that reports it, after E3-2's own note hold.
 - **Styles as separate rule sets behind one interface** (default): each style supplies its chord set, priority order and choice rule, so E4-4 to E4-6 add styles without changing the engine. Styles not yet built are rejected with an error rather than mapped to another style.
 - **Setting values in English, menu names in Swedish** (from `docs/harmony.md`): `Church`, `Campfire`, `Drone`, … are shown in the menu (E6-2) as Kyrko, Lägereld, Bordun, ….
+- **Scale-degree styles share one choice** (implementation): `ScaleRules` holds the common steps (keep, ordered successors, priority, no candidate); Church and Campfire only give their chord on each degree and their priority. Drone implements `IChordRules` directly. The rules take the key on every call, so E4-3 can change it without rebuilding anything.
+- **Static arrays for the fixed tables** (implementation): the priority orders and chord intervals are `static readonly` arrays; a measurement showed that an abstract property returning a `ReadOnlySpan<int>` collection literal allocated on every call.
+- **F# in Locrian** (implementation): `docs/harmony.md` spells every root `C Db D Eb E F F# G Ab A Bb B`, but its Locrian rows wrote `Gb`; the tables now say `F#`, matching the doc's own spelling rule (no rule changed).
+- **`--harmonize` reads the file's sample rate** (implementation): the detector runs at the WAV's own rate with the settings' `BufferSize`, so a 44.1 kHz recording works without changing `SampleRate`. Its `--style`, `--key` and `--mode` are rejected without `--harmonize`, like `--input` and `--output` without `--passthrough` or `--devices`.
+- **Code review fixes:** `--harmonize` together with `--passthrough` or `--devices` is rejected instead of silently dropped; the file's sample rate goes through the settings validation (44.1 or 48 kHz); a missing or empty path gives a Swedish "finns inte" message and .NET's English I/O text is no longer shown; the style and key checks live once, in `Harmonizer.Check`; the file is fed through `MemoryAudioInput` and an `IAudioInputHandler`; tonics need a capital letter like the other harmony settings; the printed note uses the chord roots' spelling (`Db4`, not `C#4`); the allocation test measures a fresh harmonizer, so every chord choice in the melody is counted; each style's chords for all 84 keys are built in its constructor, as criterion 5 says.
+- **`Chord.PitchClassMask` is computed, not stored** (code review finding partly declined): it loops over at most three intervals without allocating; a stored field would go stale under `with`. `PitchClasses` stays a convenience list for display and tests, and the mask is documented as the form for the audio path.
 
 ## Open Questions
 - None

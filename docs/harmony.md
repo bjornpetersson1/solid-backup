@@ -97,7 +97,7 @@ The default priority order is **1, 5, 4, 6, 2, 3, 7**; a style may give its own.
   | Lydian | C D Em G Am Bm |
   | Mixolydian | C Dm F Gm Am Bb |
   | Aeolian | Cm Eb Fm Gm Ab Bb |
-  | Locrian | Cdim Db Ebm Fm Gb Ab Bbm |
+  | Locrian | Cdim Db Ebm Fm F# Ab Bbm |
 
 - **Strict:** Aeolian keeps its minor fifth degree (`v`); there is no harmonic-minor dominant.
 - **Choice:** the common rules with the default priority. A note outside the mode is in no chord, so the chord stays.
@@ -136,7 +136,7 @@ The default priority order is **1, 5, 4, 6, 2, 3, 7**; a style may give its own.
   | Lydian | C | F# (#4) | D (II) |
   | Mixolydian | C | Bb (b7) | Bb (bVII) |
   | Aeolian | Cm | Ab (b6) | Ab (bVI) |
-  | Locrian | Cdim | Gb (b5) | Gb (bV) |
+  | Locrian | Cdim | F# (b5) | F# (bV) |
 
 - **Choice:** the character note gives the character chord; a note of the tonic triad gives the tonic; any other note keeps the chord. After silence: the character chord if the note is the character note, otherwise the tonic.
 - **Contains the note:** no; the chord works as a pedal.
