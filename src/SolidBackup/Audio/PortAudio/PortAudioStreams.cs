@@ -1,5 +1,7 @@
 using PortAudioSharp;
 
+using SolidBackup.Audio.Devices;
+
 using Pa = PortAudioSharp.PortAudio;
 using PaStream = PortAudioSharp.Stream;
 
@@ -25,14 +27,14 @@ internal static class PortAudioStreams
         }
     }
 
-    public static StreamParameters Parameters(PortAudioDevice device, int channels)
+    public static StreamParameters Parameters(AudioDeviceInfo device, AudioDirection direction, int channels)
     {
         return new StreamParameters
         {
             device = device.Index,
             channelCount = channels,
             sampleFormat = SampleFormat.Float32,
-            suggestedLatency = device.SuggestedLatency,
+            suggestedLatency = device.LowLatency(direction),
             hostApiSpecificStreamInfo = IntPtr.Zero,
         };
     }

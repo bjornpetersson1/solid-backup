@@ -7,5 +7,8 @@ public interface IAudioDevices : IDisposable
 
     IAudioOutput Output { get; }
 
+    /// <summary>The output device's name, for the speaker check.</summary>
+    string OutputDeviceName { get; }
+
     AudioCounters Counters { get; }
 }

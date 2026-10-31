@@ -1,6 +1,8 @@
 using SolidBackup.Audio;
+using SolidBackup.Audio.Devices;
 using SolidBackup.Cli;
 using SolidBackup.Configuration;
+using SolidBackup.Tests.Audio.Devices;
 
 using Spectre.Console.Testing;
 
@@ -8,15 +10,7 @@ namespace SolidBackup.Tests.Cli;
 
 public class PassThroughCommandTests
 {
-    private static readonly AppSettings Settings = new()
-    {
-        LowestNote = "E2",
-        HighestNote = "C6",
-        BufferSize = 64,
-        SampleRate = 48_000,
-        GateThresholdDbfs = -50,
-        LatencyTargetMs = 50,
-    };
+    private static readonly AppSettings Settings = TestSettings.Default;
 
     private static readonly AudioCounters Counters = new(1, 2, 3, 4, 5);
 
@@ -26,12 +20,12 @@ public class PassThroughCommandTests
     [InlineData(ConsoleKey.Escape, '\u001b')]
     public void StopKey_StopsAudioPrintsCountsAndExitsZero(ConsoleKey key, char keyChar)
     {
-        TestConsole console = WideConsole();
+        TestConsole console = TestConsoles.Wide();
         console.Input.PushKey(ConsoleKey.A);
         console.Input.PushKey(new ConsoleKeyInfo(keyChar, key, shift: false, alt: false, control: false));
         FakeDevices devices = new();
 
-        int exitCode = new PassThroughCommand(console, () => new(Settings, null), _ => devices).Run();
+        int exitCode = Command(console, _ => devices).Run();
 
         Assert.Equal(0, exitCode);
         Assert.Contains(PassThroughCommand.RunningMessage, console.Output);
@@ -44,12 +38,12 @@ public class PassThroughCommandTests
     [Fact]
     public void Cancellation_StopsAudioLikeAStopKey()
     {
-        TestConsole console = WideConsole();
+        TestConsole console = TestConsoles.Wide();
         FakeDevices devices = new();
         using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
 
-        int exitCode = new PassThroughCommand(console, () => new(Settings, null), _ => devices).Run(cancellation.Token);
+        int exitCode = Command(console, _ => devices).Run(cancellation.Token);
 
         Assert.Equal(0, exitCode);
         Assert.Contains(PassThroughCommand.Summary(Counters), console.Output);
@@ -68,10 +62,9 @@ public class PassThroughCommandTests
     [Fact]
     public void DevicesCannotOpen_ShowsSwedishErrorAndExitsOne()
     {
-        TestConsole console = WideConsole();
+        TestConsole console = TestConsoles.Wide();
 
-        int exitCode = new PassThroughCommand(
-            console, () => new(Settings, null), _ => throw new AudioDeviceException("Det finns ingen ljudingång.")).Run();
+        int exitCode = Command(console, _ => throw new AudioDeviceException("Det finns ingen ljudingång.")).Run();
 
         Assert.Equal(1, exitCode);
         Assert.Contains("Ljudfel: Det finns ingen ljudingång.", console.Output);
@@ -80,10 +73,10 @@ public class PassThroughCommandTests
     [Fact]
     public void StreamCannotStart_ClosesDevicesAndExitsOne()
     {
-        TestConsole console = WideConsole();
+        TestConsole console = TestConsoles.Wide();
         FakeDevices devices = new(failOnStart: true);
 
-        int exitCode = new PassThroughCommand(console, () => new(Settings, null), _ => devices).Run();
+        int exitCode = Command(console, _ => devices).Run();
 
         Assert.Equal(1, exitCode);
         Assert.Contains("Ljudfel: Ljudingången kunde inte öppnas.", console.Output);
@@ -93,11 +86,11 @@ public class PassThroughCommandTests
     [Fact]
     public void StreamCannotStop_ShowsSwedishErrorClosesDevicesAndExitsOne()
     {
-        TestConsole console = WideConsole();
+        TestConsole console = TestConsoles.Wide();
         console.Input.PushKey(ConsoleKey.Escape);
         FakeDevices devices = new(failOnStop: true);
 
-        int exitCode = new PassThroughCommand(console, () => new(Settings, null), _ => devices).Run();
+        int exitCode = Command(console, _ => devices).Run();
 
         Assert.Equal(1, exitCode);
         Assert.Contains("Ljudfel: Ljudingången kunde inte stängas.", console.Output);
@@ -105,12 +98,71 @@ public class PassThroughCommandTests
     }
 
     [Fact]
-    public void SettingsMessage_IsShownBeforeStarting()
+    public void MicrophoneDenied_ShowsInstructionsAndOpensNothing()
     {
-        TestConsole console = WideConsole();
+        TestConsole console = TestConsoles.Wide();
+        bool opened = false;
+
+        int exitCode = Command(
+            console,
+            _ =>
+            {
+                opened = true;
+                return new FakeDevices();
+            },
+            TestPreflight.Create(MicrophonePermission.Denied)).Run();
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Terminal har inte tillgång till mikrofonen.", console.Output);
+        Assert.False(opened);
+    }
+
+    [Fact]
+    public void MicrophoneNotAskedYet_ShowsTheNoticeAndRuns()
+    {
+        TestConsole console = TestConsoles.Wide();
         console.Input.PushKey(ConsoleKey.Escape);
 
-        new PassThroughCommand(console, () => new(Settings, "Inställningsfilen kunde inte läsas."), _ => new FakeDevices()).Run();
+        int exitCode = Command(console, _ => new FakeDevices(), TestPreflight.Create(MicrophonePermission.NotDetermined)).Run();
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains(AudioPreflight.FirstUseNotice, console.Output);
+        Assert.Contains(PassThroughCommand.RunningMessage, console.Output);
+    }
+
+    [Fact]
+    public void BuiltInSpeakers_WarnsAndStillRuns()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Escape);
+        AudioPreflight preflight = TestPreflight.Create(routes: new FakeRoutes(TestPreflight.Speakers));
+
+        int exitCode = Command(console, _ => new FakeDevices(), preflight).Run();
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains(AudioPreflight.SpeakerWarning, console.Output);
+        Assert.Contains(PassThroughCommand.RunningMessage, console.Output);
+    }
+
+    [Fact]
+    public void Headphones_GiveNoWarning()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Escape);
+
+        Command(console, _ => new FakeDevices()).Run();
+
+        Assert.DoesNotContain(AudioPreflight.SpeakerWarning, console.Output);
+    }
+
+    [Fact]
+    public void SettingsMessage_IsShownBeforeStarting()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Escape);
+
+        new PassThroughCommand(
+            console, () => new(Settings, "Inställningsfilen kunde inte läsas."), _ => new FakeDevices(), TestPreflight.Create()).Run();
 
         Assert.Contains("Inställningsfilen kunde inte läsas.", console.Output);
     }
@@ -121,7 +173,7 @@ public class PassThroughCommandTests
         TestConsole console = new();
         bool opened = false;
 
-        int exitCode = new PassThroughCommand(console, () => new(Settings, null), _ =>
+        int exitCode = Command(console, _ =>
         {
             opened = true;
             return new FakeDevices();
@@ -132,12 +184,10 @@ public class PassThroughCommandTests
         Assert.False(opened);
     }
 
-    // Wide enough that no message wraps.
-    private static TestConsole WideConsole()
+    private static PassThroughCommand Command(
+        TestConsole console, Func<AppSettings, IAudioDevices> openDevices, AudioPreflight? preflight = null)
     {
-        TestConsole console = new TestConsole().Interactive();
-        console.Profile.Width = 400;
-        return console;
+        return new PassThroughCommand(console, () => new(Settings, null), openDevices, preflight ?? TestPreflight.Create());
     }
 
     private sealed class FakeDevices(bool failOnStart = false, bool failOnStop = false) : IAudioDevices
@@ -151,6 +201,8 @@ public class PassThroughCommandTests
         IAudioInput IAudioDevices.Input => Input;
 
         IAudioOutput IAudioDevices.Output => Output;
+
+        public string OutputDeviceName => "Externa hörlurar";
 
         public AudioCounters Counters => PassThroughCommandTests.Counters;
 

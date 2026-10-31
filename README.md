@@ -26,9 +26,13 @@ dotnet run --project src/SolidBackup              # the menu (choose "Avsluta" t
 dotnet run --project src/SolidBackup -- --help    # help
 dotnet run --project src/SolidBackup -- --version # version
 dotnet run --project src/SolidBackup -- --passthrough # play the microphone in the output
+dotnet run --project src/SolidBackup -- --devices     # list the audio devices
+dotnet run --project src/SolidBackup -- --passthrough --input "USB Audio" --output "Externa hörlurar"
 ```
 
-`--passthrough` plays the default input in the default output until you press `q` or `Esc`, then prints the dropout counts. Use headphones: there is no echo cancellation.
+`--passthrough` plays the chosen input in the chosen output until you press `q`, `Esc` or Ctrl+C, then prints the dropout counts. Use headphones: there is no echo cancellation, and the app warns when the output is the built-in speakers. If the terminal app has no microphone access, it stops with instructions instead of starting (System Settings → Privacy & Security → Microphone). On first use macOS asks for access; answer the dialog, and run again if the audio does not start.
+
+`--devices` lists the inputs and outputs and marks the system defaults, the chosen devices and the built-in speakers. `--input` and `--output` choose a device by its exact name (case does not matter) for that run only; they are not saved.
 
 The menu needs an interactive terminal.
 
@@ -95,6 +99,8 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `HighestNote` | `C6` | Highest note of the pitch range |
 | `BufferSize` | `64` | Audio buffer size in frames (a power of two) |
 | `SampleRate` | `48000` | Sample rate in Hz (44100 or 48000) |
+| `InputDevice` | `""` | Input device name; empty means the system default |
+| `OutputDevice` | `""` | Output device name; empty means the system default |
 | `GateThresholdDbfs` | `-50` | Noise gate threshold in dBFS (at most 0) |
 | `LatencyTargetMs` | `50` | Latency target in milliseconds |
 

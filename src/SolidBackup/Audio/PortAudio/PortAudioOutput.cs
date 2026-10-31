@@ -1,18 +1,22 @@
 using PortAudioSharp;
 
+using SolidBackup.Audio.Devices;
+
 using PaStream = PortAudioSharp.Stream;
 
 namespace SolidBackup.Audio.PortAudio;
 
 /// <summary>
-/// A stereo output-only stream on one device. Buffers written from the input's thread pass
-/// through a <see cref="HandOverBuffer"/> to this stream's callback, which plays the mono
-/// signal on both channels.
+/// An output-only stream on one device, stereo (or mono on a one-channel device). Buffers
+/// written from the input's thread pass through a <see cref="HandOverBuffer"/> to this
+/// stream's callback, which plays the mono signal on every channel.
 /// </summary>
-public sealed class PortAudioOutput(PortAudioDevice device, int sampleRate, int bufferSize) : IAudioOutput
+public sealed class PortAudioOutput(AudioDeviceInfo device, int sampleRate, int bufferSize) : IAudioOutput
 {
     private const string DeviceName = "Ljudutgången";
-    private const int Channels = 2;
+    private const int MaxChannels = 2;
+
+    private readonly int _channels = Math.Min(MaxChannels, device.OutputChannels);
 
     private readonly HandOverBuffer _handOver = new(sampleRate, bufferSize);
     private readonly float[] _mono = new float[bufferSize];
@@ -40,7 +44,7 @@ public sealed class PortAudioOutput(PortAudioDevice device, int sampleRate, int 
 
         _handOver.Reset();
         _stream = PortAudioStreams.Open(
-            null, PortAudioStreams.Parameters(device, Channels), sampleRate, bufferSize, OnAudio, DeviceName);
+            null, PortAudioStreams.Parameters(device, AudioDirection.Output, _channels), sampleRate, bufferSize, OnAudio, DeviceName);
     }
 
     public void Write(ReadOnlySpan<float> samples)
@@ -67,16 +71,15 @@ public sealed class PortAudioOutput(PortAudioDevice device, int sampleRate, int 
         }
 
         // PortAudio asks for bufferSize frames, as the stream was opened with; anything beyond that is silence.
-        Span<float> stereo = new((void*)output, (int)frameCount * Channels);
+        Span<float> interleaved = new((void*)output, (int)frameCount * _channels);
         Span<float> mono = _mono.AsSpan(0, Math.Min((int)frameCount, _mono.Length));
         _handOver.Read(mono);
         for (int frame = 0; frame < mono.Length; frame++)
         {
-            stereo[Channels * frame] = mono[frame];
-            stereo[(Channels * frame) + 1] = mono[frame];
+            interleaved.Slice(frame * _channels, _channels).Fill(mono[frame]);
         }
 
-        stereo[(mono.Length * Channels)..].Clear();
+        interleaved[(mono.Length * _channels)..].Clear();
 
         return StreamCallbackResult.Continue;
     }

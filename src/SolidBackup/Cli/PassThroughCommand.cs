@@ -1,4 +1,5 @@
 using SolidBackup.Audio;
+using SolidBackup.Audio.Devices;
 using SolidBackup.Configuration;
 
 using Spectre.Console;
@@ -7,10 +8,15 @@ namespace SolidBackup.Cli;
 
 /// <summary>
 /// Plays the input straight to the output until q, Esc or Ctrl+C, so the audio path can be
-/// checked by ear. Every way of stopping closes the audio and prints the dropout counts.
+/// checked by ear. It stops before opening anything when the microphone is blocked, and warns
+/// when the output is the built-in speakers. Every way of stopping closes the audio and prints
+/// the dropout counts.
 /// </summary>
 public sealed class PassThroughCommand(
-    IAnsiConsole console, Func<SettingsLoadResult> loadSettings, Func<AppSettings, IAudioDevices> openDevices)
+    IAnsiConsole console,
+    Func<SettingsLoadResult> loadSettings,
+    Func<AppSettings, IAudioDevices> openDevices,
+    AudioPreflight preflight)
 {
     public const string RunningMessage = "Medhörning pågår: mikrofonen spelas upp i utgången. Tryck q eller Esc för att sluta.";
     public const string NotInteractiveMessage = "Medhörningen kräver en interaktiv terminal.";
@@ -27,22 +33,35 @@ public sealed class PassThroughCommand(
         }
 
         SettingsLoadResult loaded = loadSettings();
-        if (loaded.Message is { } message)
+        ConsoleMessages.SettingsMessage(console, loaded);
+
+        MicrophoneCheck microphone = preflight.CheckMicrophone();
+        if (microphone.Blocked)
         {
-            console.MarkupLineInterpolated($"[yellow]{message}[/]");
+            console.MarkupLineInterpolated($"[red]{microphone.Message}[/]");
+            return 1;
+        }
+
+        if (microphone.Message is { } notice)
+        {
+            console.MarkupLineInterpolated($"[yellow]{notice}[/]");
         }
 
         try
         {
             using IAudioDevices devices = openDevices(loaded.Settings);
+            if (preflight.SpeakerProblem(devices.OutputDeviceName) is { } warning)
+            {
+                console.MarkupLineInterpolated($"[yellow]{warning}[/]");
+            }
+
             RunUntilStopped(devices, cancellation);
             console.WriteLine(Summary(devices.Counters));
             return 0;
         }
         catch (AudioDeviceException exception)
         {
-            console.MarkupLineInterpolated($"[red]Ljudfel: {exception.Message}[/]");
-            return 1;
+            return ConsoleMessages.AudioError(console, exception);
         }
     }
 

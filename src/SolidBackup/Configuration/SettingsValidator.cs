@@ -33,6 +33,16 @@ public static class SettingsValidator
             return new(nameof(AppSettings.SampleRate), $"{settings.SampleRate} Hz stöds inte; välj {string.Join(" eller ", SupportedSampleRates)}");
         }
 
+        if (settings.InputDevice is null)
+        {
+            return new(nameof(AppSettings.InputDevice), "ett enhetsnamn eller \"\" (systemets standard) krävs");
+        }
+
+        if (settings.OutputDevice is null)
+        {
+            return new(nameof(AppSettings.OutputDevice), "ett enhetsnamn eller \"\" (systemets standard) krävs");
+        }
+
         if (!double.IsFinite(settings.GateThresholdDbfs) || settings.GateThresholdDbfs > 0)
         {
             return new(nameof(AppSettings.GateThresholdDbfs), $"{settings.GateThresholdDbfs} dBFS måste vara ett tal på högst 0 dBFS");

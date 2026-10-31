@@ -1,23 +1,23 @@
-using PortAudioSharp;
-
+using SolidBackup.Audio.Devices;
 using SolidBackup.Configuration;
-
-using Pa = PortAudioSharp.PortAudio;
 
 namespace SolidBackup.Audio.PortAudio;
 
 /// <summary>
-/// Owns one PortAudio session: <see cref="Open"/> initialises PortAudio and chooses the devices,
-/// and <see cref="Dispose"/> closes the streams and terminates PortAudio, exactly once.
+/// The input and output chosen in the settings, on one <see cref="PortAudioSession"/>.
+/// <see cref="Dispose"/> closes the streams and ends the session, exactly once.
 /// </summary>
 public sealed class PortAudioDevices : IAudioDevices
 {
+    private readonly PortAudioSession _session;
     private readonly PortAudioInput _input;
     private readonly PortAudioOutput _output;
     private int _disposed;
 
-    private PortAudioDevices(PortAudioDevice inputDevice, PortAudioDevice outputDevice, AppSettings settings)
+    private PortAudioDevices(PortAudioSession session, AudioDeviceInfo inputDevice, AudioDeviceInfo outputDevice, AppSettings settings)
     {
+        _session = session;
+        OutputDeviceName = outputDevice.Name;
         _input = new PortAudioInput(inputDevice, settings.SampleRate, settings.BufferSize);
         _output = new PortAudioOutput(outputDevice, settings.SampleRate, settings.BufferSize);
     }
@@ -26,6 +26,8 @@ public sealed class PortAudioDevices : IAudioDevices
 
     public IAudioOutput Output => _output;
 
+    public string OutputDeviceName { get; }
+
     public AudioCounters Counters => new(
         _input.InputOverflows,
         _output.OutputUnderflows,
@@ -33,32 +35,19 @@ public sealed class PortAudioDevices : IAudioDevices
         _output.HandOverOverruns,
         _output.DriftCorrections);
 
+    /// <summary>Opens PortAudio and chooses the devices named in the settings (empty means the system default).</summary>
     public static PortAudioDevices Open(AppSettings settings)
     {
+        PortAudioSession session = PortAudioSession.Open();
         try
         {
-            Pa.Initialize();
-        }
-        catch (Exception exception) when (exception is PortAudioException or DllNotFoundException
-            or EntryPointNotFoundException or TypeInitializationException)
-        {
-            throw new AudioDeviceException($"Ljudsystemet PortAudio kunde inte startas ({exception.Message}).", exception);
-        }
-
-        try
-        {
-            PortAudioDevice input = DefaultDevice(Pa.DefaultInputDevice, info => info.defaultLowInputLatency, "Det finns ingen ljudingång.");
-            PortAudioDevice output = DefaultDevice(Pa.DefaultOutputDevice, info => info.defaultLowOutputLatency, "Det finns ingen ljudutgång.");
-            return new PortAudioDevices(input, output, settings);
-        }
-        catch (PortAudioException exception)
-        {
-            Pa.Terminate();
-            throw new AudioDeviceException($"Ljudenheterna kunde inte läsas ({Pa.GetErrorText(exception.ErrorCode)}).", exception);
+            AudioDeviceInfo input = DeviceSelector.Select(session.Devices, settings.InputDevice, AudioDirection.Input);
+            AudioDeviceInfo output = DeviceSelector.Select(session.Devices, settings.OutputDevice, AudioDirection.Output);
+            return new PortAudioDevices(session, input, output, settings);
         }
         catch
         {
-            Pa.Terminate();
+            session.Dispose();
             throw;
         }
     }
@@ -82,19 +71,8 @@ public sealed class PortAudioDevices : IAudioDevices
             }
             finally
             {
-                Pa.Terminate();
+                _session.Dispose();
             }
         }
-    }
-
-    private static PortAudioDevice DefaultDevice(int index, Func<DeviceInfo, double> lowLatency, string missingMessage)
-    {
-        if (index == Pa.NoDevice)
-        {
-            throw new AudioDeviceException(missingMessage);
-        }
-
-        DeviceInfo info = Pa.GetDeviceInfo(index);
-        return new PortAudioDevice(index, lowLatency(info));
     }
 }
