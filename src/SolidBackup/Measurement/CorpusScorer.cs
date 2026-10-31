@@ -34,6 +34,8 @@ public static class CorpusScorer
         int octave = 0;
         int unvoiced = 0;
         int falseNotes = 0;
+        int silenceOrBreath = 0;
+        int notesInSilenceOrBreath = 0;
         foreach (DetectorReport report in reports)
         {
             if (reference.SegmentAt(report.TimeMs) is not ReferenceSegment segment || NearBoundary(segment, report.TimeMs))
@@ -52,8 +54,14 @@ public static class CorpusScorer
             }
             else if (segment.IsUnvoiced)
             {
+                int note = report.MidiCents.HasValue ? 1 : 0;
                 unvoiced++;
-                falseNotes += report.MidiCents.HasValue ? 1 : 0;
+                falseNotes += note;
+                if (segment.Kind is SegmentKind.Silence or SegmentKind.Breath)
+                {
+                    silenceOrBreath++;
+                    notesInSilenceOrBreath += note;
+                }
             }
         }
 
@@ -64,6 +72,8 @@ public static class CorpusScorer
             OctaveErrorWindows = octave,
             UnvoicedWindows = unvoiced,
             FalseNoteWindows = falseNotes,
+            SilenceOrBreathWindows = silenceOrBreath,
+            NotesInSilenceOrBreath = notesInSilenceOrBreath,
         };
     }
 

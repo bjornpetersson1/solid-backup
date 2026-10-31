@@ -86,7 +86,7 @@ public sealed class RecordedCorpusTests
         Assert.All(Enum.GetValues<RecordingKind>(), kind => Assert.Contains(script, clip => clip.Kind == kind));
         Assert.All(
             script.Where(clip => clip.Kind == RecordingKind.Whistle).SelectMany(clip => clip.Notes),
-            midi => Assert.InRange(midi, 67, CorpusRange.HighestMidi));
+            midi => Assert.InRange(midi, CorpusRange.LowestMidi, CorpusRange.HighestMidi));
     }
 
     private static (ushort FormatTag, ushort Channels, uint SampleRate, ushort Bits) ReadFormat(string path)

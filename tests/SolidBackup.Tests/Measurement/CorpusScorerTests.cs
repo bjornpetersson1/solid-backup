@@ -38,6 +38,7 @@ public sealed class CorpusScorerTests
 
         Assert.Equal((94, 94, 0), (counts.VoicedWindows, counts.CorrectWindows, counts.OctaveErrorWindows));
         Assert.Equal((88, 0), (counts.UnvoicedWindows, counts.FalseNoteWindows));
+        Assert.Equal((88, 0), (counts.SilenceOrBreathWindows, counts.NotesInSilenceOrBreath));
         Assert.Equal((1, 1, 0), (counts.ReferenceOnsets, counts.MatchedOnsets, counts.ExtraOnsets));
         AssertPerfect(counts);
     }
@@ -61,6 +62,7 @@ public sealed class CorpusScorerTests
 
         Assert.Equal((94, 75, 10), (counts.VoicedWindows, counts.CorrectWindows, counts.OctaveErrorWindows));
         Assert.Equal((88, 3), (counts.UnvoicedWindows, counts.FalseNoteWindows));
+        Assert.Equal((88, 3), (counts.SilenceOrBreathWindows, counts.NotesInSilenceOrBreath));
         Assert.Equal(75.0 / 94, counts.PitchAccuracy);
         Assert.Equal(10.0 / 94, counts.OctaveErrors);
         Assert.Equal(3.0 / 88, counts.FalseNotes);
@@ -102,6 +104,27 @@ public sealed class CorpusScorerTests
 
         Assert.Equal(ScoreCounts.Zero, counts);
         Assert.Null(counts.PitchAccuracy);
+    }
+
+    [Fact]
+    public void NotesInNoise_AreFalseNotesButNotNotesInSilenceOrBreath()
+    {
+        CorpusClip clip = Constructed with
+        {
+            Reference = new ClipReference(
+                [
+                    new ReferenceSegment(0, 1000, SegmentKind.Noise),
+                    new ReferenceSegment(1000, 1500, SegmentKind.Breath),
+                    new ReferenceSegment(1500, 2000, SegmentKind.Silence),
+                ],
+                []),
+        };
+
+        // Notes everywhere: 94 noise windows, 44 breath and 44 silence windows away from the boundaries.
+        ScoreCounts counts = CorpusScorer.Score(clip, Reports(_ => 6900, onsets: []));
+
+        Assert.Equal((182, 182), (counts.UnvoicedWindows, counts.FalseNoteWindows));
+        Assert.Equal((88, 88), (counts.SilenceOrBreathWindows, counts.NotesInSilenceOrBreath));
     }
 
     [Fact]

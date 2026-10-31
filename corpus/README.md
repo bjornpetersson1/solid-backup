@@ -75,7 +75,7 @@ The generated clips use the same model (`tones` writes the same format).
 - Windows within **30 ms** of a segment boundary (including the clip's start and end) are left out of the pitch measures, because a buffer there mixes two states.
 - **Pitch accuracy**: the share of voiced windows whose detected pitch is within **±50 cents** of the reference at that time; a window with no detected note counts as wrong. Target ≥ 95 %.
 - **Octave errors**: the share of voiced windows off by **1150 cents or more** (an octave, within the tolerance). Target ≤ 1 %.
-- **False notes**: the share of unvoiced windows with a detected note. Target ≤ 2 %.
+- **False notes**: the share of unvoiced windows with a detected note. Target ≤ 2 %. The windows in `silence` and `breath` alone, and the notes found there, are also counted separately (`SilenceOrBreathWindows`, `NotesInSilenceOrBreath`), because a gated detector must give no note there at all (E3-3).
 - **Onset accuracy**: the share of reference onsets matched one to one by a detected onset within **±20 ms**. Target ≥ 90 %. Detected onsets left unmatched are reported as extra onsets, without a target.
 
 The range is the default E2–C7 from `appsettings.json`.
