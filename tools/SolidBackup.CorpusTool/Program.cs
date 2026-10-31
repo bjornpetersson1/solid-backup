@@ -20,20 +20,30 @@ public static class Program
     {
         try
         {
-            return args switch
-            {
-                ["tones", string folder] => WriteTones(folder, 48_000),
-                ["tones", string folder, string rate] => WriteTones(folder, ParseSampleRate(rate)),
-                ["suggest", .. string[] clips] when clips.Length > 0 => Suggest(clips),
-                ["label", .. string[] clips] => Label(clips),
-                _ => ShowUsage(),
-            };
+            return Run(args);
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or FormatException or UnauthorizedAccessException)
         {
             Console.Error.WriteLine($"Fel: {exception.Message}");
             return 1;
         }
+    }
+
+    private static int Run(string[] args)
+    {
+        string command = args.Length > 0 ? args[0] : "";
+        string[] rest = args.Length > 0 ? args[1..] : [];
+        if (command == "tones" && rest.Length is 1 or 2)
+        {
+            return WriteTones(rest[0], rest.Length == 2 ? ParseSampleRate(rest[1]) : 48_000);
+        }
+
+        if (command == "suggest" && rest.Length > 0)
+        {
+            return Suggest(rest);
+        }
+
+        return command == "label" ? Label(rest) : ShowUsage();
     }
 
     private static int WriteTones(string folder, int sampleRate)
