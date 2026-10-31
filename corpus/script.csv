@@ -1,0 +1,6 @@
+# clip,kind,notes — kind is voice, whistle, silence or breath; notes in the order they were sung or whistled, separated by spaces
+# Example: my-melody,voice,G3 G3 D4 D4 E4 E4 D4
+singing,voice,A#3 C4 D4 F4 G4 A4 C5 G#4 A#2 F4 G4 A4 A#4 D4 E4 F4 D#4 F3 A3
+whistle,whistle,C6 D6 E6 E6 F6 A#6 A#6 C7 C7 A6 D#6 D6 C#6 A#5
+silence,silence,
+breathing,breath,

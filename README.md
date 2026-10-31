@@ -2,7 +2,7 @@
 
 An experimental .NET console app for macOS. It listens to a single melody line from a microphone, detects its pitch and level, and plays chords in response through its own synthesizer. The requirements are in `Constitution/Requirements-and-goal.md`.
 
-The audio, analysis, harmony and sound parts are still to come (epics E2–E6); so far the app has its command line, an empty menu and its settings.
+So far the app has its command line, an empty menu and its settings (E1); the audio layer, with pass-through and device listing (E2); and the analysis, measured on a test corpus (E3): pitch detection, level, a noise gate and onsets, which are not yet wired into live play. Harmony, sound and live mode (E4–E6) are still to come.
 
 ## Requirements
 
@@ -89,6 +89,10 @@ dotnet run --project spikes/PortAudioSpike -- stability <frames> <seconds> [--se
 
 **Not verified here:** Apple Silicon (`osx-arm64`), iTerm and Terminal permission behaviour, a denied permission, and the acoustic end-to-end latency. These are manual checks for the owner.
 
+## Test corpus
+
+The pitch, level and onset targets are measured on the corpus in `corpus/`: generated tones built in code and recordings with reference files. See [`corpus/README.md`](corpus/README.md) for its contents, formats, how to record and label a clip, the scoring rules, and how to measure the pitch, level, gate and onset analysis (`dotnet run --project tools/SolidBackup.CorpusTool -c Release -- report`).
+
 ## Settings
 
 Defaults are in `src/SolidBackup/appsettings.json`:
@@ -96,12 +100,17 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `LowestNote` | `E2` | Lowest note of the pitch range |
-| `HighestNote` | `C6` | Highest note of the pitch range |
+| `HighestNote` | `C7` | Highest note of the pitch range |
 | `BufferSize` | `64` | Audio buffer size in frames (a power of two) |
 | `SampleRate` | `48000` | Sample rate in Hz (44100 or 48000) |
 | `InputDevice` | `""` | Input device name; empty means the system default |
 | `OutputDevice` | `""` | Output device name; empty means the system default |
-| `GateThresholdDbfs` | `-50` | Noise gate threshold in dBFS (at most 0) |
+| `PitchConfidenceThreshold` | `0.8` | YIN confidence (0–1) a pitch needs to be reported as a note |
+| `GateThresholdDbfs` | `-42` | Noise gate threshold in dBFS (at most 0); the gate opens when the level reaches it |
+| `GateHysteresisDb` | `3` | The gate closes only below the threshold minus this many dB (above 0, at most 40) |
+| `GateHoldMs` | `20` | …and only once the level has stayed there this long (above 0, at most 1000 ms) |
+| `OnsetThresholdDb` | `15` | A rise in level of at least this many dB within 20 ms is an onset (above 0, at most 60) |
+| `OnsetMinIntervalMs` | `100` | Shortest time between two onsets (above 0, at most 2000 ms) |
 | `LatencyTargetMs` | `50` | Latency target in milliseconds |
 
 The menu's choices are saved to `~/Library/Application Support/solid-backup/usersettings.json`, which only holds the settings that differ from the defaults. A missing or invalid user settings file is ignored with a message, and the defaults are used.

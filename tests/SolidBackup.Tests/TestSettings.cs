@@ -8,12 +8,17 @@ internal static class TestSettings
     public static readonly AppSettings Default = new()
     {
         LowestNote = "E2",
-        HighestNote = "C6",
+        HighestNote = "C7",
         BufferSize = 64,
         SampleRate = 48_000,
         InputDevice = "",
         OutputDevice = "",
-        GateThresholdDbfs = -50,
+        PitchConfidenceThreshold = 0.8,
+        GateThresholdDbfs = -42,
+        GateHysteresisDb = 3,
+        GateHoldMs = 20,
+        OnsetThresholdDb = 15,
+        OnsetMinIntervalMs = 100,
         LatencyTargetMs = 50,
     };
 }

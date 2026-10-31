@@ -79,8 +79,19 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "OutputDevice": null }""", "OutputDevice")]
     [InlineData("""{ "SampleRate": 96000 }""", "SampleRate")]
     [InlineData("""{ "SampleRate": "snabb" }""", "SampleRate")]
+    [InlineData("""{ "PitchConfidenceThreshold": 1.5 }""", "PitchConfidenceThreshold")]
+    [InlineData("""{ "PitchConfidenceThreshold": -0.1 }""", "PitchConfidenceThreshold")]
     [InlineData("""{ "GateThresholdDbfs": 3 }""", "GateThresholdDbfs")]
     [InlineData("""{ "LatencyTargetMs": 0 }""", "LatencyTargetMs")]
+    [InlineData("""{ "GateHysteresisDb": 0 }""", "GateHysteresisDb")]
+    [InlineData("""{ "GateThresholdDbfs": -118 }""", "GateThresholdDbfs")]
+    [InlineData("""{ "GateHysteresisDb": 41 }""", "GateHysteresisDb")]
+    [InlineData("""{ "GateHoldMs": -5 }""", "GateHoldMs")]
+    [InlineData("""{ "GateHoldMs": 1001 }""", "GateHoldMs")]
+    [InlineData("""{ "OnsetThresholdDb": 0 }""", "OnsetThresholdDb")]
+    [InlineData("""{ "OnsetThresholdDb": 61 }""", "OnsetThresholdDb")]
+    [InlineData("""{ "OnsetMinIntervalMs": 0 }""", "OnsetMinIntervalMs")]
+    [InlineData("""{ "OnsetMinIntervalMs": 2001 }""", "OnsetMinIntervalMs")]
     [InlineData("""{ "LowestNote": "E+2" }""", "LowestNote")]
     public void Load_InvalidValue_IgnoresWholeFileAndNamesSetting(string content, string setting)
     {
@@ -116,7 +127,12 @@ public sealed class SettingsStoreTests : IDisposable
             SampleRate = 44_100,
             InputDevice = "USB Audio",
             OutputDevice = "Externa hörlurar",
+            PitchConfidenceThreshold = 0.6,
             GateThresholdDbfs = -42.5,
+            GateHysteresisDb = 3,
+            GateHoldMs = 80,
+            OnsetThresholdDb = 12,
+            OnsetMinIntervalMs = 150,
             LatencyTargetMs = 30,
         };
 

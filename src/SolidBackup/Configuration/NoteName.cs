@@ -5,6 +5,16 @@ public static class NoteName
     // Semitones above C for the letters A to G.
     private static readonly int[] SemitonesAboveC = [9, 11, 0, 2, 4, 5, 7];
 
+    private static readonly string[] Names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    /// <summary>The name of a MIDI note with its octave, using sharps, e.g. 69 → "A4".</summary>
+    public static string Format(int midiNumber)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(midiNumber);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(midiNumber, 127);
+        return $"{Names[midiNumber % 12]}{(midiNumber / 12) - 1}";
+    }
+
     public static bool TryParseMidiNumber(string? name, out int midiNumber)
     {
         midiNumber = 0;

@@ -66,7 +66,7 @@ dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test
 - Audio goes through two interfaces, `IAudioInput` and `IAudioOutput`.
 - The audio callback never allocates, locks or does I/O; the dashboard reads a snapshot through a lock-free hand-over.
 - Pitch detection, level analysis, harmony and synthesis are pure, deterministic and buffer based.
-- Monophonic input only, pitch range E2–C6 by default (configurable).
+- Monophonic input only, pitch range E2–C7 by default (configurable; raised from C6 in E3-1 so whistling is covered).
 - Every level feature (dynamics, gate, onsets, chord character, …) is a separate component that can be switched on or off.
 - Chord choice follows `docs/harmony.md` (E4-1) and tempo follows `docs/rhythm.md` (E5-4) once approved; do not invent these rules.
 - Headphones are assumed; no echo cancellation.
