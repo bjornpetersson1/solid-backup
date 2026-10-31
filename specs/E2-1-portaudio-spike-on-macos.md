@@ -4,7 +4,7 @@
 - **Labels:** `E2 Audio`
 - **Phase:** 2. Audio
 - **Depends on:** E1-1 (#1)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 48 tests passed; spike built with 0 warnings and run on this Mac); the denied-permission, Terminal/iTerm and Apple Silicon behaviour are manual checks for the owner
 
 ## Summary
 Verify that PortAudio works with low latency from .NET on macOS through `PortAudioSharp2`, with a small throwaway console project under `spikes/`, and record the findings in the README and the constitution so E2-2 can build on facts instead of assumptions.
@@ -39,13 +39,13 @@ Verify that PortAudio works with low latency from .NET on macOS through `PortAud
    - The PR lists, as unchecked manual checks: running `devices` and `stability` in Terminal and in iTerm and confirming the permission behaviour described in the README; and running `devices` and `latency` on an Apple Silicon Mac when one is available.
 
 ## Tasks
-- [ ] Create `spikes/PortAudioSpike` with `PortAudioSharp2`, not added to the solution.
-- [ ] Implement the `devices`, `latency` and `stability` modes.
-- [ ] Run them on this Mac and collect the numbers.
-- [ ] Observe the microphone permission in the terminal used for the run.
-- [ ] Write the README section.
-- [ ] Update the constitution's Platform, Latency and Stack rows (and `BufferSize` if needed).
-- [ ] List the manual checks for the owner.
+- [x] Create `spikes/PortAudioSpike` with `PortAudioSharp2`, not added to the solution.
+- [x] Implement the `devices`, `latency` and `stability` modes.
+- [x] Run them on this Mac and collect the numbers.
+- [x] Observe the microphone permission in the terminal used for the run.
+- [x] Write the README section.
+- [x] Update the constitution's Platform, Latency and Stack rows (and `BufferSize` if needed).
+- [x] List the manual checks for the owner.
 
 ## Decisions
 - **Platform: measure on this Intel Mac now, Apple Silicon as a manual check.** The available machine is an Intel Core i5 (`osx-x64`), while the issue says Apple Silicon. The constitution becomes "macOS (Intel and Apple Silicon)". (Owner's choice; departs from the issue.)
@@ -55,6 +55,14 @@ Verify that PortAudio works with low latency from .NET on macOS through `PortAud
 - **48 kHz, mono input, stereo output** (default): CoreAudio's usual native rate for built-in devices; mono matches the monophonic input.
 - **Buffer sizes 32–512 in powers of two** (default): matches the `BufferSize` setting, which must be a power of two.
 - **"Stable" means 0 overflows and 0 underflows over 60 s of duplex pass-through** (default): a short, repeatable stand-in for the one-hour target in Measurement, which is checked in E6-1.
+- **Two streams instead of one duplex stream for the app** (owner's choice during the spike): a duplex stream across the built-in microphone and the headphones reports ~220 ms, also with both at 48 kHz, while separate input and output streams report ~50 ms. This changes E2-2's decision of one duplex stream; E2-2 updates its spec before implementing.
+- **Default `BufferSize` 64** (owner's choice, revised after code review): the first choice was 128, based on 32 and 64 "running dry" in the two-stream test; code review showed that came from the spike's own drift rule dropping every input burst. With drift corrected only after a backlog persists for 0.5 s, 32 and 64 are stable and 64 is ~4 ms better than 128. `appsettings.json`, the README table and the settings tests follow.
+- **Extra spike options** (implementation): `--rate` (to measure 44.1 kHz), `--separate` (two streams with a lock-free ring buffer and drift handling, to test the design E2-2 will use) and `--mute` (silent output, so a run never feeds the microphone back through speakers; it does not change the callback load). The 60 s stability runs were made muted.
+- **The headphones' sample rate was set to 48 kHz for one measurement and restored to 44.1 kHz** (owner's permission): to tell resampling apart from the two-device ring buffer as the cause of the duplex latency.
+- **`Pa_GetStreamInfo` and `Pa_GetHostApiInfo` through own P/Invoke**, with the stream handle read by reflection (implementation): `PortAudioSharp2` does not wrap them. Acceptable in a spike; E2-2 must not depend on the private field.
+- **The 50 ms target is reported as missed with the built-in microphone, not "tight"** (code review): the microphone's own ~45 ms leaves no room for the hand-over and analysis. The target is not changed; a lower-latency microphone is the way to meet it, checked in E6-1.
+- **Duplication between the two pass-through classes and run methods is kept** (code review finding judged not worth fixing): the spike is throwaway code outside the solution, and E2-2 writes the real hand-over once.
+- **Microphone permission observed in VS Code's terminal**, which is where this session ran; Terminal and iTerm stay a manual check.
 
 ## Open Questions
 - None

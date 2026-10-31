@@ -13,7 +13,7 @@ public sealed class SettingsStoreTests : IDisposable
     {
         LowestNote = "E2",
         HighestNote = "C6",
-        BufferSize = 256,
+        BufferSize = 64,
         GateThresholdDbfs = -50,
         LatencyTargetMs = 50,
     };
@@ -49,7 +49,7 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("{ not json")]
     [InlineData("[]")]
     [InlineData("")]
-    [InlineData("""{ "BufferSize": 512, "BufferSize": 128 }""")]
+    [InlineData("""{ "BufferSize": 512, "BufferSize": 256 }""")]
     public void Load_MalformedUserFile_ReturnsDefaultsWithSwedishMessage(string content)
     {
         WriteUserFile(content);
@@ -115,7 +115,7 @@ public sealed class SettingsStoreTests : IDisposable
         {
             LowestNote = "A2",
             HighestNote = "F#5",
-            BufferSize = 128,
+            BufferSize = ExpectedDefaults.BufferSize * 2,
             GateThresholdDbfs = -42.5,
             LatencyTargetMs = 30,
         };
@@ -150,9 +150,10 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void Save_WritesOnlySettingsThatDifferFromDefaults()
     {
-        CreateStore().Save(ExpectedDefaults with { BufferSize = 128 });
+        int bufferSize = ExpectedDefaults.BufferSize * 2;
+        CreateStore().Save(ExpectedDefaults with { BufferSize = bufferSize });
 
-        Assert.Equal("""{"BufferSize":128}""", JsonNode.Parse(File.ReadAllText(_userSettingsPath))?.ToJsonString());
+        Assert.Equal($$"""{"BufferSize":{{bufferSize}}}""", JsonNode.Parse(File.ReadAllText(_userSettingsPath))?.ToJsonString());
         Assert.Empty(Directory.GetFiles(_userFolder, "*.tmp"));
     }
 
