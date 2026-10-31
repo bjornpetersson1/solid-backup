@@ -135,20 +135,26 @@ public sealed class StyleExampleTests
     [InlineData(HarmonyStyle.Drone, 1)]
     [InlineData(HarmonyStyle.Pop, 5)]
     [InlineData(HarmonyStyle.Modal, 3)]
+    [InlineData(HarmonyStyle.Blues, 6)]
     public void PerEstimateCall_AllocatesNothing(HarmonyStyle style, int expectedChanges)
     {
-        Assert.True(ChordRules.TryCreate(style, out IChordRules? rules));
         PitchEstimate[] estimates = Melody.Estimates(Melody.Legato("D", "B", "A", "F#", "-", "-", "-", "-", "-", "E", "C", "G#", "D"));
-        Run(Melody.Harmonizer(rules, "D", Mode.Dorian), estimates);
+        Run(Melody.Harmonizer(Rules(style), "D", Mode.Dorian), estimates);
 
-        // A fresh harmonizer, since the estimates' times start again at 0.
-        Harmonizer harmonizer = Melody.Harmonizer(rules, "D", Mode.Dorian);
+        // A fresh harmonizer and rules, since the estimates' times start again at 0 and Blues keeps state.
+        Harmonizer harmonizer = Melody.Harmonizer(Rules(style), "D", Mode.Dorian);
         long before = GC.GetAllocatedBytesForCurrentThread();
         int changes = Run(harmonizer, estimates);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         Assert.Equal(0, allocated);
         Assert.Equal(expectedChanges, changes);
+    }
+
+    private static IChordRules Rules(HarmonyStyle style)
+    {
+        Assert.True(ChordRules.TryCreate(style, out IChordRules? rules));
+        return rules;
     }
 
     private static int Run(Harmonizer harmonizer, PitchEstimate[] estimates)

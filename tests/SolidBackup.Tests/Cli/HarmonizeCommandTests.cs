@@ -67,6 +67,19 @@ public sealed class HarmonizeCommandTests : IDisposable
     }
 
     [Fact]
+    public void Blues_PrintsAKeyMove()
+    {
+        // C4 then Ab4: C7, then the blues key moves to F for Bb7.
+        float[] samples = [.. Tone(60, TestSignal.SampleRate), .. Tone(68, TestSignal.SampleRate)];
+        File.WriteAllBytes(_wavPath, TestWav.Pcm16(TestSignal.SampleRate, 1, samples));
+
+        (int exitCode, string[] lines) = Run(style: "Blues");
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(["C4   C7", "tonart F-dur", "Ab4  Bb7"], ChangesWithoutTimes(lines));
+    }
+
+    [Fact]
     public void Silence_SaysNoNotesWereFound()
     {
         File.WriteAllBytes(_wavPath, TestWav.Pcm16(TestSignal.SampleRate, 1, TestSignal.Silence(0.5)));
@@ -78,7 +91,6 @@ public sealed class HarmonizeCommandTests : IDisposable
     }
 
     [Theory]
-    [InlineData(HarmonyStyle.Blues)]
     [InlineData(HarmonyStyle.Jazz)]
     [InlineData(HarmonyStyle.Free)]
     public void StyleNotBuiltYet_FailsWithSwedishMessage(HarmonyStyle style)

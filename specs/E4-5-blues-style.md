@@ -4,7 +4,7 @@
 - **Labels:** `E4 Harmony`
 - **Phase:** 4. Harmony
 - **Depends on:** E4-2 (#12); builds on E4-3 (#13)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 490 tests passed)
 
 ## Summary
 The Blues harmony style from `docs/harmony.md` as a rule set in E4-2's engine: I7, IV7 and V7, blue notes that keep the chord, and a current blues key that moves on a foreign note and returns on a phrase reset or when the menu's or `auto`'s key changes.
@@ -35,14 +35,20 @@ The Blues harmony style from `docs/harmony.md` as a rule set in E4-2's engine: I
 6. **The checks pass.** `dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test` succeeds without audio hardware or network.
 
 ## Tasks
-- [ ] The `7` quality and symbol.
-- [ ] The Blues rule set: chords, blue notes, key moves and returns.
-- [ ] The current key in the engine's output.
-- [ ] Tests for the examples and extra cases, the command and the allocations.
+- [x] The `7` quality and symbol.
+- [x] The Blues rule set: chords, blue notes, key moves and returns.
+- [x] The current key in the engine's output.
+- [x] Tests for the examples and extra cases, the command and the allocations.
 
 ## Decisions
 - **No new questions** (default): `docs/harmony.md` decides the rules.
 - **The current key is part of the engine's output for every style** (default): for the other styles it equals the menu's or `auto`'s key, so E6-3 reads one value.
+- **The blues key is the rules' own state** (implementation): `IChordRules` gained `CurrentKey(key)`, which returns the key in effect unless the style moved it, and `Reset(key)`, which the engine calls when the key in effect is set or changes (including by `auto`) and as soon as a silence reaches `PhraseResetMs`; `BluesRules` keeps the blues key and returns it on `Reset`. Each harmonizer gets its own rules from `ChordRules.TryCreate`, so the state is never shared. `Harmonizer.CurrentKey` reports it, and `--harmonize` prints a line when it moves.
+- **Blues reuses the common choice** (implementation): I7, IV7 and V7 are a private `ScaleRules` with priority 1, 4, 5, asked in the current blues key; after a key move the old chord's degree is looked up in the new key, as `docs/harmony.md` says ("the chord is then chosen in the new key with the common rules").
+- **A moved key is major or minor** (code review): like the other styles without modes, the blues key counts Ionian, Lydian and Mixolydian as major and the rest as minor, so a move from C Lydian is shown as `F-dur`.
+- **Static arrays again** (implementation): a `ReadOnlySpan<int>` literal in the key search allocated on every call, as in E4-2; the fifths steps are a `static readonly` array.
+- **Code review fixes:** the engine tells the rules about a phrase reset and a key change (`Reset`) instead of Blues guessing from a missing current chord, so the current key is right during a long silence and after a change and change-back of the `auto` estimate; I7/IV7/V7 membership is one interval bitmask; the shared allocation test builds fresh rules for the measured run; the key-move allocation test checks that the key moved; a test runs Blues with `auto` through a modulation.
+- **`CurrentKey` stays nullable** (code review finding declined): no style returns null yet, but Free (E4-6, next) has no key and reports none through it.
 
 ## Open Questions
 - None

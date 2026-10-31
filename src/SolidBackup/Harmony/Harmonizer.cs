@@ -23,6 +23,7 @@ public sealed class Harmonizer
     private double _noteStartMs;
     private bool _pending;
     private double _lastChangeMs;
+    private bool _phraseReset;
 
     /// <summary>A harmonizer in a fixed key.</summary>
     public Harmonizer(IChordRules rules, Key key, HarmonyTiming timing)
@@ -30,6 +31,7 @@ public sealed class Harmonizer
         _rules = rules;
         _timing = timing;
         Key = key;
+        _rules.Reset(key);
     }
 
     /// <summary>A harmonizer with <c>auto</c>: it plays no chord until <paramref name="keyEstimator"/> is sure of the key.</summary>
@@ -42,6 +44,9 @@ public sealed class Harmonizer
 
     /// <summary>The key in effect, or null with <c>auto</c> until the key is estimated.</summary>
     public Key? Key { get; private set; }
+
+    /// <summary>The key the style is playing in, for display: <see cref="Key"/>, unless the style has moved it (Blues).</summary>
+    public Key? CurrentKey => Key is { } key ? _rules.CurrentKey(key) : null;
 
     /// <summary>The chord in effect, or null before the first note.</summary>
     public Chord? Chord { get; private set; }
@@ -84,6 +89,10 @@ public sealed class Harmonizer
             // at once, since nothing has been sounding for the harmony until now.
             _pending = Key is not null;
             Key = _keyEstimator.Key;
+            if (Key is { } newKey)
+            {
+                _rules.Reset(newKey);
+            }
         }
 
         if (Key is not { } key)
@@ -100,6 +109,13 @@ public sealed class Harmonizer
                 _silenceStartMs = now;
             }
 
+            // Reset as soon as the silence is long enough, so a style's state (Blues' key) is right during the pause.
+            if (!_phraseReset && now - _silenceStartMs >= _timing.PhraseResetMs)
+            {
+                _phraseReset = true;
+                _rules.Reset(key);
+            }
+
             return false;
         }
 
@@ -111,6 +127,7 @@ public sealed class Harmonizer
             _noteStartMs = now;
             _pending = false;
             Chord? previous = now - _silenceStartMs >= _timing.PhraseResetMs ? null : Chord;
+            _phraseReset = false;
             return Change(_rules.Choose(pitchClass, key, previous), now);
         }
 
