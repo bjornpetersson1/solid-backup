@@ -1,9 +1,10 @@
 using SolidBackup.Analysis;
+using SolidBackup.Configuration;
 using SolidBackup.Harmony;
 
 namespace SolidBackup.Tests.Harmony;
 
-/// <summary>The Church, Campfire, Drone, Pop and Modal examples in <c>docs/harmony.md</c>.</summary>
+/// <summary>The Church, Campfire, Drone, Pop, Modal and Free examples in <c>docs/harmony.md</c>.</summary>
 public sealed class StyleExampleTests
 {
     [Theory]
@@ -76,6 +77,56 @@ public sealed class StyleExampleTests
         AssertExample(mode.ToString(), new ModalRules(), "C", mode, notes, chords);
     }
 
+    [Theory]
+    [InlineData("F1", "C A", "Cmaj7 Am7")]
+    [InlineData("F2", "C A F#", "Cmaj7 Am7 Cmaj7(#11)")]
+    [InlineData("F3", "C A E", "Cmaj7 Am7 Am7")]
+    [InlineData("first chord: the note as the root of a maj7", "F#", "F#maj7")]
+    [InlineData("keep: the note is an allowed tension, which the chord takes", "C D", "Cmaj7 Cmaj7(9)")]
+    [InlineData("keep: a new tension replaces the old one", "C F# D", "Cmaj7 Cmaj7(#11) Cmaj7(9)")]
+    [InlineData("keep: a chord tone keeps the tension", "C F# E", "Cmaj7 Cmaj7(#11) Cmaj7(#11)")]
+    [InlineData("common tones decide", "C Bb", "Cmaj7 C7")]
+    [InlineData("movement decides", "C F", "Cmaj7 Cm7(11)")]
+    [InlineData("quality decides", "C Db", "Cmaj7 C7(b9)")]
+    [InlineData("the root interval decides", "C Eb", "Cmaj7 Abmaj7")]
+    public void Free(string example, string notes, string chords)
+    {
+        AssertExample(example, new FreeRules(), "C", Mode.Ionian, notes, chords);
+    }
+
+    [Theory]
+    [InlineData("C", Mode.Ionian)]
+    [InlineData("F#", Mode.Phrygian)]
+    public void Free_IgnoresTheKeyAndReportsNone(string tonic, Mode mode)
+    {
+        Harmonizer harmonizer = Melody.Harmonizer(new FreeRules(), tonic, mode);
+
+        string[] chords = Melody.ChordsAtNoteEnds(harmonizer, Melody.Legato("C", "A", "F#"));
+
+        Assert.Equal(["Cmaj7", "Am7", "Cmaj7(#11)"], chords);
+        Assert.Null(harmonizer.CurrentKey);
+    }
+
+    [Fact]
+    public void FreeWithAuto_GivesTheSameChordsAsWithAFixedKey()
+    {
+        PitchEstimate[] estimates = KeyMelodies.Estimates(KeyMelodies.Clip("generated-melody-c-to-g-major"));
+
+        Assert.Equal(FreeChanges(estimates, "auto"), FreeChanges(estimates, "F#"));
+    }
+
+    [Fact]
+    public void FreeWithAuto_ChoosesFromTheFirstNote()
+    {
+        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Default with { HarmonyStyle = "Free" });
+
+        List<(double TimeMs, Chord Chord)> changes = Melody.Changes(harmonizer, Melody.Legato("C", "A", "F#"));
+
+        Assert.Equal((0.0, "Cmaj7"), (changes[0].TimeMs, changes[0].Chord.Symbol));
+        Assert.Equal(["Cmaj7", "Am7", "Cmaj7(#11)"], changes.Select(change => change.Chord.Symbol));
+        Assert.Null(harmonizer.CurrentKey);
+    }
+
     [Fact]
     public void PopColour_FollowsTheHoldTimes()
     {
@@ -136,6 +187,7 @@ public sealed class StyleExampleTests
     [InlineData(HarmonyStyle.Pop, 5)]
     [InlineData(HarmonyStyle.Modal, 3)]
     [InlineData(HarmonyStyle.Blues, 6)]
+    [InlineData(HarmonyStyle.Free, 6)]
     public void PerEstimateCall_AllocatesNothing(HarmonyStyle style, int expectedChanges)
     {
         PitchEstimate[] estimates = Melody.Estimates(Melody.Legato("D", "B", "A", "F#", "-", "-", "-", "-", "-", "E", "C", "G#", "D"));
@@ -149,6 +201,21 @@ public sealed class StyleExampleTests
 
         Assert.Equal(0, allocated);
         Assert.Equal(expectedChanges, changes);
+    }
+
+    private static List<(double TimeMs, Chord Chord)> FreeChanges(PitchEstimate[] estimates, string key)
+    {
+        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Default with { HarmonyStyle = "Free", Key = key });
+        List<(double, Chord)> changes = [];
+        foreach (PitchEstimate estimate in estimates)
+        {
+            if (harmonizer.Process(estimate) && harmonizer.Chord is { } chord)
+            {
+                changes.Add((estimate.TimeMs, chord));
+            }
+        }
+
+        return changes;
     }
 
     private static IChordRules Rules(HarmonyStyle style)

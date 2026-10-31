@@ -18,6 +18,9 @@ public interface IChordRules
         return key;
     }
 
+    /// <summary>Whether the style needs a key; one that does not (Free) chooses from the first note even with <c>auto</c>.</summary>
+    bool UsesKey => true;
+
     /// <summary>Called when the key in effect is new or changes, and on a phrase reset; a style with state starts over.</summary>
     void Reset(Key key)
     {

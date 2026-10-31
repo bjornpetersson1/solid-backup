@@ -79,6 +79,27 @@ public sealed class HarmonizeCommandTests : IDisposable
         Assert.Equal(["C4   C7", "tonart F-dur", "Ab4  Bb7"], ChangesWithoutTimes(lines));
     }
 
+    [Theory]
+    [InlineData("C")]
+    [InlineData("auto")]
+    public void Free_PrintsChordsAndNoKey(string key)
+    {
+        (int exitCode, string[] lines) = Run(style: "Free", settings: FixedKeySettings with { Key = key });
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal($"{_wavPath}: harmonistil Fri, tonart –", lines[0]);
+        Assert.Equal(["C4   Cmaj7"], ChangesWithoutTimes(lines));
+    }
+
+    [Fact]
+    public void KeyOrModeWithFree_WarnsThatTheyAreIgnored()
+    {
+        (int exitCode, string[] lines) = Run(style: "Free", key: "D", mode: "Dorian");
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(HarmonizeCommand.KeyIgnoredMessage, lines[0]);
+    }
+
     [Fact]
     public void Silence_SaysNoNotesWereFound()
     {
@@ -92,7 +113,6 @@ public sealed class HarmonizeCommandTests : IDisposable
 
     [Theory]
     [InlineData(HarmonyStyle.Jazz)]
-    [InlineData(HarmonyStyle.Free)]
     public void StyleNotBuiltYet_FailsWithSwedishMessage(HarmonyStyle style)
     {
         AssertFails($"Harmonistilen {HarmonyNames.Style(style)} är inte byggd än.", style: style.ToString());

@@ -30,6 +30,11 @@ public sealed class ChordTests
     [InlineData(ChordQuality.Add9, "Aadd9", new[] { 9, 1, 4, 11 })]
     [InlineData(ChordQuality.MinorAdd9, "Amadd9", new[] { 9, 0, 4, 11 })]
     [InlineData(ChordQuality.Sus4, "Asus4", new[] { 9, 2, 4 })]
+    [InlineData(ChordQuality.Dominant7, "A7", new[] { 9, 1, 4, 7 })]
+    [InlineData(ChordQuality.Major7, "Amaj7", new[] { 9, 1, 4, 8 })]
+    [InlineData(ChordQuality.Minor7, "Am7", new[] { 9, 0, 4, 7 })]
+    [InlineData(ChordQuality.HalfDiminished7, "Am7b5", new[] { 9, 0, 3, 7 })]
+    [InlineData(ChordQuality.Diminished7, "Adim7", new[] { 9, 0, 3, 6 })]
     public void Quality_GivesSymbolAndPitchClasses(ChordQuality quality, string symbol, int[] pitchClasses)
     {
         Chord chord = new(9, quality);
@@ -37,6 +42,35 @@ public sealed class ChordTests
         Assert.Equal(symbol, chord.Symbol);
         Assert.Equal(pitchClasses, chord.PitchClasses);
         Assert.All(Enumerable.Range(0, 12), pitchClass => Assert.Equal(pitchClasses.Contains(pitchClass), chord.Contains(pitchClass)));
+    }
+
+    [Theory]
+    [InlineData(ChordQuality.Major7, 6, "Cmaj7(#11)", new[] { 0, 4, 7, 11, 6 })]
+    [InlineData(ChordQuality.Major7, 2, "Cmaj7(9)", new[] { 0, 4, 7, 11, 2 })]
+    [InlineData(ChordQuality.Dominant7, 1, "C7(b9)", new[] { 0, 4, 7, 10, 1 })]
+    [InlineData(ChordQuality.Minor7, 5, "Cm7(11)", new[] { 0, 3, 7, 10, 5 })]
+    public void Tension_IsAddedToSymbolAndPitchClasses(ChordQuality quality, int tension, string symbol, int[] pitchClasses)
+    {
+        Chord chord = new(0, quality, tension);
+
+        Assert.Equal(symbol, chord.Symbol);
+        Assert.Equal(pitchClasses, chord.PitchClasses);
+        Assert.True(chord.Contains(tension));
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(-1)]
+    [InlineData(12)]
+    public void Tension_OutsideB9To11_IsRejected(int tension)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Chord(0, ChordQuality.Major7, tension));
+    }
+
+    [Fact]
+    public void DefaultChord_HasNoTension()
+    {
+        Assert.Equal("C", default(Chord).Symbol);
     }
 
     [Fact]

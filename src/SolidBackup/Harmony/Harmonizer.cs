@@ -34,6 +34,13 @@ public sealed class Harmonizer
         _rules.Reset(key);
     }
 
+    /// <summary>A harmonizer for a style without a key (Free), which ignores the key settings.</summary>
+    public Harmonizer(IChordRules rules, HarmonyTiming timing)
+    {
+        _rules = rules;
+        _timing = timing;
+    }
+
     /// <summary>A harmonizer with <c>auto</c>: it plays no chord until <paramref name="keyEstimator"/> is sure of the key.</summary>
     public Harmonizer(IChordRules rules, KeyEstimator keyEstimator, HarmonyTiming timing)
     {
@@ -47,6 +54,9 @@ public sealed class Harmonizer
 
     /// <summary>The key the style is playing in, for display: <see cref="Key"/>, unless the style has moved it (Blues).</summary>
     public Key? CurrentKey => Key is { } key ? _rules.CurrentKey(key) : null;
+
+    /// <summary>Whether the style needs a key; Free does not, and reports none.</summary>
+    public bool UsesKey => _rules.UsesKey;
 
     /// <summary>The chord in effect, or null before the first note.</summary>
     public Chord? Chord { get; private set; }
@@ -67,6 +77,11 @@ public sealed class Harmonizer
         }
 
         HarmonyTiming timing = HarmonyTiming.FromSettings(settings);
+        if (!rules.UsesKey)
+        {
+            return new Harmonizer(rules, timing);
+        }
+
         if (settings.Key == HarmonySettings.AutoKey)
         {
             return new Harmonizer(rules, new KeyEstimator(settings.KeyChangeSeconds, settings.KeyFirstSeconds), timing);
@@ -87,7 +102,7 @@ public sealed class Harmonizer
         {
             // A modulation re-evaluates the sounding note under the usual hold times; the first key chooses
             // at once, since nothing has been sounding for the harmony until now.
-            _pending = Key is not null;
+            _pending |= Key is not null;
             Key = _keyEstimator.Key;
             if (Key is { } newKey)
             {
@@ -95,7 +110,18 @@ public sealed class Harmonizer
             }
         }
 
-        if (Key is not { } key)
+        // A style without a key (Free) goes on without one, and ignores the key it is given; the others wait for
+        // auto's first key.
+        Key key;
+        if (Key is { } known)
+        {
+            key = known;
+        }
+        else if (!_rules.UsesKey)
+        {
+            key = default;
+        }
+        else
         {
             return false;
         }

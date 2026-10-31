@@ -164,7 +164,7 @@ The default priority order is **1, 5, 4, 6, 2, 3, 7**; a style may give its own.
 
 - **Choice:**
   1. After silence with no previous chord: the note as the root of a `maj7`.
-  2. **Keep:** if the note is a tone or an allowed tension of the current chord, it stays unchanged.
+  2. **Keep:** if the note is a tone or an allowed tension of the current chord, it stays; when the note is a tension, the chord takes it as its tension (so it always contains the note).
   3. Otherwise, among all chords that have the note as a tone or a tension, take the one with, in order:
      1. the most pitch classes in common with the previous chord's four tones;
      2. the least movement: the sum, over the candidate's four tones, of each tone's distance in semitones (0–6) to the nearest tone of the previous chord;

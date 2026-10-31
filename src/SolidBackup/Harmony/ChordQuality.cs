@@ -19,4 +19,16 @@ public enum ChordQuality
 
     /// <summary>A major triad with the minor seventh.</summary>
     Dominant7,
+
+    /// <summary>A major triad with the major seventh.</summary>
+    Major7,
+
+    /// <summary>A minor triad with the minor seventh.</summary>
+    Minor7,
+
+    /// <summary>A diminished triad with the minor seventh (m7b5).</summary>
+    HalfDiminished7,
+
+    /// <summary>A diminished triad with the diminished seventh.</summary>
+    Diminished7,
 }

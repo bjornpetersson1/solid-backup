@@ -7,7 +7,7 @@ public static class ChordRules
     /// <summary>Whether the style's rules exist yet, without building them; agrees with <see cref="TryCreate"/>.</summary>
     public static bool IsBuilt(HarmonyStyle style)
     {
-        return style is HarmonyStyle.Church or HarmonyStyle.Campfire or HarmonyStyle.Drone or HarmonyStyle.Pop or HarmonyStyle.Modal or HarmonyStyle.Blues;
+        return style is HarmonyStyle.Church or HarmonyStyle.Campfire or HarmonyStyle.Drone or HarmonyStyle.Pop or HarmonyStyle.Modal or HarmonyStyle.Blues or HarmonyStyle.Free;
     }
 
     /// <summary>The rules for a style, or false for a style that is not built yet.</summary>
@@ -21,6 +21,7 @@ public static class ChordRules
             HarmonyStyle.Pop => new PopRules(),
             HarmonyStyle.Modal => new ModalRules(),
             HarmonyStyle.Blues => new BluesRules(),
+            HarmonyStyle.Free => new FreeRules(),
             _ => null,
         };
         return rules is not null;
