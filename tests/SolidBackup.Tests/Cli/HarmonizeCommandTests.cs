@@ -54,6 +54,18 @@ public sealed class HarmonizeCommandTests : IDisposable
         Assert.EndsWith(" Bb5", lines[1]);
     }
 
+    [Theory]
+    [InlineData("Pop", "harmonistil Pop", new[] { "C4   C", "B4   G" })]
+    [InlineData("Modal", "harmonistil Modal", new[] { "C4   C" })]
+    public void PopAndModal_PrintTheirChords(string style, string header, string[] changes)
+    {
+        (int exitCode, string[] lines) = Run(style: style);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains(header, lines[0]);
+        Assert.Equal(changes, ChangesWithoutTimes(lines));
+    }
+
     [Fact]
     public void Silence_SaysNoNotesWereFound()
     {
@@ -66,8 +78,6 @@ public sealed class HarmonizeCommandTests : IDisposable
     }
 
     [Theory]
-    [InlineData(HarmonyStyle.Pop)]
-    [InlineData(HarmonyStyle.Modal)]
     [InlineData(HarmonyStyle.Blues)]
     [InlineData(HarmonyStyle.Jazz)]
     [InlineData(HarmonyStyle.Free)]

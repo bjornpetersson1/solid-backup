@@ -115,7 +115,7 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `OnsetThresholdDb` | `15` | A rise in level of at least this many dB within 20 ms is an onset (above 0, at most 60) |
 | `OnsetMinIntervalMs` | `100` | Shortest time between two onsets (above 0, at most 2000 ms) |
 | `LatencyTargetMs` | `50` | Latency target in milliseconds |
-| `HarmonyStyle` | `Church` | Harmony style: `Church`, `Campfire` or `Drone` so far; the rest of the styles in [`docs/harmony.md`](docs/harmony.md) are accepted but not built yet |
+| `HarmonyStyle` | `Church` | Harmony style: `Church`, `Campfire`, `Drone`, `Pop` or `Modal` so far; the rest of the styles in [`docs/harmony.md`](docs/harmony.md) are accepted but not built yet |
 | `Key` | `auto` | The key's tonic (`C`, `F#`, `Bb`, …), or `auto` to estimate the tonic and major or minor from the notes |
 | `Mode` | `Ionian` | The key's mode: `Ionian`, `Dorian`, `Phrygian`, `Lydian`, `Mixolydian`, `Aeolian` or `Locrian`; ignored with `auto` |
 | `MinNoteForChangeMs` | `120` | While singing, a new note must last this long before it may change the chord (above 0) |
