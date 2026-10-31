@@ -19,6 +19,7 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
     public const string NoNotesMessage = "Inga toner hittades.";
     public const string NoKeyMessage = "Ingen tonart hittades: inspelningen är för kort eller för tvetydig för tonarten auto. Ange en fast tonart med --key.";
     public const string ModeIgnoredMessage = "--mode gäller inte med tonarten auto, som bara skattar dur eller moll.";
+    public const string KeyIgnoredMessage = "--key och --mode gäller inte med harmonistilen Fri, som inte har någon tonart.";
 
     public int Run(string path, string? style = null, string? key = null, string? mode = null)
     {
@@ -61,12 +62,16 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
         }
 
         Harmonizer harmonizer = Harmonizer.FromSettings(settings);
-        if (mode is not null && harmonizer.Key is null)
+        if ((key is not null || mode is not null) && !harmonizer.UsesKey)
+        {
+            ConsoleMessages.Warning(console, KeyIgnoredMessage);
+        }
+        else if (mode is not null && harmonizer.Key is null)
         {
             ConsoleMessages.Warning(console, ModeIgnoredMessage);
         }
 
-        string keyName = harmonizer.Key is { } fixedKey ? HarmonyNames.Key(fixedKey) : HarmonySettings.AutoKey;
+        string keyName = !harmonizer.UsesKey ? "–" : harmonizer.Key is { } fixedKey ? HarmonyNames.Key(fixedKey) : HarmonySettings.AutoKey;
         console.WriteLine($"{path}: harmonistil {StyleName(settings.HarmonyStyle)}, tonart {keyName}");
         ChangeRecorder recorder = new(PitchDetector.FromSettings(settings), harmonizer);
         using (MemoryAudioInput input = new(audio.Samples, audio.SampleRate, settings.BufferSize))
@@ -83,7 +88,7 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
         {
             console.WriteLine(NoNotesMessage);
         }
-        else if (harmonizer.Key is null)
+        else if (harmonizer.Key is null && harmonizer.UsesKey)
         {
             console.WriteLine(NoKeyMessage);
         }
