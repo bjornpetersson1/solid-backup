@@ -35,10 +35,16 @@ public sealed class PassThroughCommand(
         SettingsLoadResult loaded = loadSettings();
         ConsoleMessages.SettingsMessage(console, loaded);
 
-        if (preflight.MicrophoneProblem() is { } problem)
+        MicrophoneCheck microphone = preflight.CheckMicrophone();
+        if (microphone.Blocked)
         {
-            console.MarkupLineInterpolated($"[red]{problem}[/]");
+            console.MarkupLineInterpolated($"[red]{microphone.Message}[/]");
             return 1;
+        }
+
+        if (microphone.Message is { } notice)
+        {
+            console.MarkupLineInterpolated($"[yellow]{notice}[/]");
         }
 
         try

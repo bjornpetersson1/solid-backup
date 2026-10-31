@@ -5,6 +5,9 @@ public sealed class AudioPreflight(IMicrophonePermissionSource permission, IOutp
 {
     public const string UnknownTerminal = "terminalappen";
 
+    // E2-1: on first use the open blocks until the dialog is answered, and may then fail once.
+    public const string FirstUseNotice = "macOS frågar efter mikrofonåtkomst – svara i dialogen. Om ljudet inte startar, kör igen.";
+
     public const string SpeakerWarning =
         "Varning: ljudet går till de inbyggda högtalarna. Använd hörlurar, annars når ackorden mikrofonen (det finns ingen ekosläckning).";
 
@@ -20,15 +23,26 @@ public sealed class AudioPreflight(IMicrophonePermissionSource permission, IOutp
         };
     }
 
-    /// <summary>A Swedish message with instructions when the microphone is blocked; null when audio may start.</summary>
-    public string? MicrophoneProblem()
+    /// <summary>
+    /// Blocked, with instructions, when access is denied or restricted; a notice when macOS has
+    /// not asked yet; clear when access is granted or the status cannot be read.
+    /// </summary>
+    public MicrophoneCheck CheckMicrophone()
+    {
+        return permission.Status() switch
+        {
+            MicrophonePermission.Denied or MicrophonePermission.Restricted => new(true, BlockedMessage()),
+            MicrophonePermission.NotDetermined => new(false, FirstUseNotice),
+            _ => MicrophoneCheck.Clear,
+        };
+    }
+
+    private string BlockedMessage()
     {
         // Terminal names such as "iTerm" keep their case; only the generic fallback is capitalised.
         string sentenceStart = terminalName == UnknownTerminal ? "Terminalappen" : terminalName;
-        return permission.Status() is MicrophonePermission.Denied or MicrophonePermission.Restricted
-            ? $"{sentenceStart} har inte tillgång till mikrofonen. Öppna Systeminställningar → Integritet och säkerhet → "
-                + $"Mikrofon, slå på {terminalName} och starta sedan om {terminalName}."
-            : null;
+        return $"{sentenceStart} har inte tillgång till mikrofonen. Öppna Systeminställningar → Integritet och säkerhet → "
+            + $"Mikrofon, slå på {terminalName} och starta sedan om {terminalName}.";
     }
 
     public bool IsBuiltInSpeakers(string outputDeviceName)

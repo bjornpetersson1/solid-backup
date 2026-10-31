@@ -118,6 +118,19 @@ public class PassThroughCommandTests
     }
 
     [Fact]
+    public void MicrophoneNotAskedYet_ShowsTheNoticeAndRuns()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Escape);
+
+        int exitCode = Command(console, _ => new FakeDevices(), TestPreflight.Create(MicrophonePermission.NotDetermined)).Run();
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains(AudioPreflight.FirstUseNotice, console.Output);
+        Assert.Contains(PassThroughCommand.RunningMessage, console.Output);
+    }
+
+    [Fact]
     public void BuiltInSpeakers_WarnsAndStillRuns()
     {
         TestConsole console = TestConsoles.Wide();

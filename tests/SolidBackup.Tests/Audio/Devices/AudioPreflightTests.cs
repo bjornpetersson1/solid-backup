@@ -7,34 +7,44 @@ public class AudioPreflightTests
     [Theory]
     [InlineData(MicrophonePermission.Denied)]
     [InlineData(MicrophonePermission.Restricted)]
-    public void MicrophoneProblem_WhenBlocked_ExplainsHowToGrantAccess(MicrophonePermission status)
+    public void CheckMicrophone_WhenBlocked_ExplainsHowToGrantAccess(MicrophonePermission status)
     {
         AudioPreflight preflight = new(new FakePermission(status), new FakeRoutes(), "iTerm");
 
         Assert.Equal(
             "iTerm har inte tillgång till mikrofonen. Öppna Systeminställningar → Integritet och säkerhet → Mikrofon, "
             + "slå på iTerm och starta sedan om iTerm.",
-            preflight.MicrophoneProblem());
+            preflight.CheckMicrophone().Message);
+        Assert.True(preflight.CheckMicrophone().Blocked);
     }
 
     [Theory]
     [InlineData(MicrophonePermission.Authorized)]
-    [InlineData(MicrophonePermission.NotDetermined)]
     [InlineData(MicrophonePermission.Unknown)]
-    public void MicrophoneProblem_WhenAllowedNotAskedOrUnknown_IsNone(MicrophonePermission status)
+    public void CheckMicrophone_WhenAllowedOrUnknown_IsClear(MicrophonePermission status)
     {
         AudioPreflight preflight = new(new FakePermission(status), new FakeRoutes(), "Terminal");
 
-        Assert.Null(preflight.MicrophoneProblem());
+        Assert.Equal(MicrophoneCheck.Clear, preflight.CheckMicrophone());
     }
 
     [Fact]
-    public void MicrophoneProblem_UnknownTerminal_StartsTheSentenceWithACapital()
+    public void CheckMicrophone_WhenNotAskedYet_ContinuesWithANotice()
+    {
+        AudioPreflight preflight = new(new FakePermission(MicrophonePermission.NotDetermined), new FakeRoutes(), "Terminal");
+
+        Assert.Equal(new MicrophoneCheck(false, AudioPreflight.FirstUseNotice), preflight.CheckMicrophone());
+    }
+
+    [Fact]
+    public void CheckMicrophone_UnknownTerminal_StartsTheSentenceWithACapital()
     {
         AudioPreflight preflight = new(new FakePermission(MicrophonePermission.Denied), new FakeRoutes(), AudioPreflight.UnknownTerminal);
 
-        Assert.StartsWith("Terminalappen har inte tillgång till mikrofonen.", preflight.MicrophoneProblem());
-        Assert.Contains("slå på terminalappen", preflight.MicrophoneProblem());
+        string? message = preflight.CheckMicrophone().Message;
+
+        Assert.StartsWith("Terminalappen har inte tillgång till mikrofonen.", message);
+        Assert.Contains("slå på terminalappen", message);
     }
 
     [Theory]

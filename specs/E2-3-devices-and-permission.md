@@ -4,7 +4,7 @@
 - **Labels:** `E2 Audio`
 - **Phase:** 2. Audio
 - **Depends on:** E2-2 (#6)
-- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 128 tests passed; `--devices`, AVFoundation status and CoreAudio routes checked on the owner's Mac); a denied permission, headphones and named devices in a real terminal are manual checks for the owner
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 129 tests passed; `--devices`, AVFoundation status and CoreAudio routes checked on the owner's Mac); a denied permission, headphones and named devices in a real terminal are manual checks for the owner
 
 ## Summary
 List the audio devices, choose input and output by name through settings and flags, stop with Swedish instructions when the microphone permission is denied, and warn when the output goes to the built-in speakers. Until the menu arrives in E6-2, this is reachable through `--devices`, `--input`, `--output` and the `--passthrough` flag from E2-2.
@@ -71,6 +71,7 @@ List the audio devices, choose input and output by name through settings and fla
 - **Left for E6** (clean-code findings deferred): splitting "choose the devices" from "open them" (so the checks can run on the chosen pair before anything opens, and E6-2's menu can show a choice before saving it), one start-up step shared by `--passthrough` and live mode, and a general layer for run-only setting overrides. These shape the menu and live mode, so they are decided in their specs; today the streams only open on `Start`, after the checks.
 - **Code review fixes:** a one-channel output is opened mono instead of failing as stereo; PortAudio is terminated on any error while reading the devices; names are compared in the same Unicode form (macOS may decompose "ö"); `--input`/`--output` without `--passthrough` or `--devices` is an error instead of being ignored; the speaker warning covers a built-in output with no readable data source, so only the headphone jack (`hdpn`) rules it out; the fallback "terminalappen" is capitalised at the start of the permission message; the two commands share how settings messages and audio errors are shown; `PortAudioDevice` was replaced by `AudioDeviceInfo` with `LowLatency(direction)`.
 - **Two devices with the same name: the first one wins** (code review finding declined): the spec chooses devices by name, so identical names cannot be told apart by design; choosing by a unique id would change the settings format and belongs to the menu in E6-2 if it turns out to matter.
+- **Not yet asked → continue with a notice** (PR review): E2-1 found that the first open blocks until the dialog is answered and may then fail once, so `--passthrough` now says in yellow that macOS is asking and to run again if audio does not start. It still continues, as criterion 3 says.
 
 ## Open Questions
 - None
