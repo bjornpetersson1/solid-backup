@@ -89,6 +89,10 @@ dotnet run --project spikes/PortAudioSpike -- stability <frames> <seconds> [--se
 
 **Not verified here:** Apple Silicon (`osx-arm64`), iTerm and Terminal permission behaviour, a denied permission, and the acoustic end-to-end latency. These are manual checks for the owner.
 
+## Test corpus
+
+The pitch, level and onset targets are measured on the corpus in `corpus/`: generated tones built in code and recordings with reference files. See [`corpus/README.md`](corpus/README.md) for its contents, formats, how to record and label a clip, and the scoring rules.
+
 ## Settings
 
 Defaults are in `src/SolidBackup/appsettings.json`:
@@ -96,7 +100,7 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `LowestNote` | `E2` | Lowest note of the pitch range |
-| `HighestNote` | `C6` | Highest note of the pitch range |
+| `HighestNote` | `C7` | Highest note of the pitch range |
 | `BufferSize` | `64` | Audio buffer size in frames (a power of two) |
 | `SampleRate` | `48000` | Sample rate in Hz (44100 or 48000) |
 | `InputDevice` | `""` | Input device name; empty means the system default |

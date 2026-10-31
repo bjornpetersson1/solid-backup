@@ -35,4 +35,23 @@ public class NoteNameTests
     {
         Assert.False(NoteName.TryParseMidiNumber(name, out _));
     }
+
+    [Theory]
+    [InlineData(40, "E2")]
+    [InlineData(69, "A4")]
+    [InlineData(70, "A#4")]
+    [InlineData(0, "C-1")]
+    [InlineData(127, "G9")]
+    public void Format_GivesTheNameWithSharps(int midiNumber, string expected)
+    {
+        Assert.Equal(expected, NoteName.Format(midiNumber));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(128)]
+    public void Format_OutsideTheMidiRange_Throws(int midiNumber)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => NoteName.Format(midiNumber));
+    }
 }

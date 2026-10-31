@@ -6,9 +6,7 @@ namespace SolidBackup.Audio;
 /// </summary>
 public sealed class WavFileInput : IAudioInput
 {
-    private readonly float[] _samples;
-    private readonly float[] _buffer;
-    private bool _stopRequested;
+    private readonly MemoryAudioInput _input;
 
     public WavFileInput(string path, int sampleRate, int bufferSize)
     {
@@ -19,40 +17,25 @@ public sealed class WavFileInput : IAudioInput
                 $"WAV-filen {path} har samplingsfrekvensen {audio.SampleRate} Hz men {sampleRate} Hz krävs; den omsamplas inte.");
         }
 
-        _samples = audio.Samples;
-        _buffer = new float[bufferSize];
-        SampleRate = sampleRate;
+        _input = new MemoryAudioInput(audio.Samples, sampleRate, bufferSize);
     }
 
-    public int SampleRate { get; }
+    public int SampleRate => _input.SampleRate;
 
-    public int BufferSize => _buffer.Length;
+    public int BufferSize => _input.BufferSize;
 
     public void Start(IAudioInputHandler handler)
     {
-        _stopRequested = false;
-        for (int offset = 0; offset < _samples.Length && !_stopRequested; offset += BufferSize)
-        {
-            int count = Math.Min(BufferSize, _samples.Length - offset);
-            if (count == BufferSize)
-            {
-                handler.OnBuffer(_samples.AsSpan(offset, count));
-                continue;
-            }
-
-            _samples.AsSpan(offset, count).CopyTo(_buffer);
-            _buffer.AsSpan(count).Clear();
-            handler.OnBuffer(_buffer);
-        }
+        _input.Start(handler);
     }
 
     public void Stop()
     {
-        _stopRequested = true;
+        _input.Stop();
     }
 
     public void Dispose()
     {
-        Stop();
+        _input.Dispose();
     }
 }
