@@ -20,7 +20,7 @@ The experiment should show whether a local console app can follow a single live 
   - more level-driven features can be added later behind the same switch mechanism
 - Chord choice from the detected note, within a key, in a harmony style chosen in the menu (Church, Campfire, Drone, Pop, Modal, Blues, Jazz, Free; decided in E4-1, see `docs/harmony.md`)
 - Key: chosen in the menu, either a fixed key (a tonic and a mode) or `auto`, where the app estimates the key from what you sing, shows it, and follows a modulation
-- Rhythm accompaniment: chords can be played in a pattern (held, arpeggio, strum) at a tempo (where the tempo comes from is an open point)
+- Rhythm accompaniment: chords can be played in a pattern (held, arpeggio, strum) at a fixed tempo chosen in the menu (`docs/rhythm.md`)
 - A built-in synthesizer (oscillators, envelope, a few sounds such as pad, organ and pluck), with no external instruments
 - Recording a session to WAV (the microphone signal and the chords)
 - An interactive menu at start, where you choose devices, key, sound, rhythm pattern and which level features are on. The choices are saved and become the defaults next time.
@@ -41,7 +41,7 @@ The experiment should show whether a local console app can follow a single live 
 | Point | Assumption in the spec | Needs confirmation |
 | --- | --- | --- |
 | Chord choice (music theory) | The detected note is mapped to a chord by the chosen harmony style. In the styles whose rules say so (Church, Campfire, Pop, Jazz) the chord contains the note and fits the key; Drone and Modal work as a pedal, Blues keeps the chord on blue notes, and Free has no key and adds tensions. The rules, including how the previous chord matters and how often the chord may change, are in `docs/harmony.md`. | Decided in E4-1 |
-| Tempo source | Rhythm patterns need a tempo. Whether it is a fixed BPM in the menu, tap tempo, derived from onsets, or followed live, is decided in a dedicated discussion issue (E5-4). | Discussion in E5-4 |
+| Tempo source | A fixed BPM (40–240) and time signature (4/4 or 3/4) chosen in the menu. The grid starts with live mode and onsets do not move it. Arpeggio and Strum use a new chord from their next step; Held changes at once. The rules are in `docs/rhythm.md`. | Decided in E5-4 |
 | Feedback | The chords are played in headphones. If the output device is the built-in speakers, the app shows a warning in the menu and on the dashboard. There is no echo cancellation. | None |
 | Platform | macOS on Intel and Apple Silicon. PortAudio's CoreAudio backend through `PortAudioSharp2`, which ships the native library for `osx-x64` and `osx-arm64`, so no Homebrew step. macOS asks for microphone access on behalf of the terminal app that runs the process. Verified in E2-1 on an Intel Mac; the findings are in the README ("Audio on macOS"). | Apple Silicon is a manual check (E2-1) |
 | Latency | Under 50 ms from the sound reaching the microphone until the chord is heard: input latency + analysis + output latency, where the device latencies are those PortAudio reports. Pitch detection needs about two periods of the lowest note, so the lowest supported note sets a floor: E2 (82 Hz) needs ~25 ms of audio. E2-1 found that a duplex stream across two devices adds a large hidden buffer, so input and output run as two streams with a lock-free hand-over, at 48 kHz with 64 frames by default (~53 ms reported in total). The built-in MacBook Pro microphone alone reports ~45 ms, so with it the target is missed before any analysis; meeting it needs a lower-latency microphone. The figures are in the README ("Audio on macOS"). | Measured in E2-1; the target is checked in E6-1 |
@@ -141,7 +141,7 @@ Six parts (E1–E6). Each item is meant to be one issue that takes roughly half 
   - Done when: a recording can be played back in another program, and recording does not cause dropouts.
 - [ ] **E5-4 Tempo discussion**: decide where the tempo comes from (see Open points). This issue gives a written decision in `docs/rhythm.md`, not code.
   - Done when: the owner has approved `docs/rhythm.md`, and E5-5 is updated to match it.
-- [ ] **E5-5 Rhythm patterns**: held, arpeggio and strum at the tempo decided in E5-4.
+- [ ] **E5-5 Rhythm patterns**: held, arpeggio and strum on the tempo grid from `docs/rhythm.md` (`RhythmPattern`, `Bpm`, `TimeSignature`), with its examples as tests.
   - Done when: a rendered pattern has its notes on the expected samples within 1 ms.
 - [ ] **E5-6 Jazz style**: the Jazz rules, whose details are decided in this issue from the direction in `docs/harmony.md` and the tempo in `docs/rhythm.md`.
   - Done when: `docs/harmony.md` has the detailed Jazz rules with examples, approved by the owner, and the examples are tests that pass.
@@ -178,7 +178,7 @@ The experiment is successful if the app reaches the targets below and the owner 
 | Octave errors | Share of voiced windows detected an octave or more off | ≤ 1 % |
 | False notes | Share of unvoiced windows (silence, breath, noise) where a note is detected | ≤ 2 % |
 | Onset accuracy | Share of reference onsets found within 20 ms | ≥ 90 % |
-| Latency | Input latency + analysis + output latency (PortAudio's reported device latencies), measured live and shown on the dashboard | < 50 ms |
+| Latency | Input latency + analysis + output latency (PortAudio's reported device latencies), measured live and shown on the dashboard, with the Held pattern. The deliberate wait for the next step in Arpeggio and Strum is not latency (`docs/rhythm.md`) | < 50 ms |
 | Dropouts | Buffer underruns and overruns reported by PortAudio during an hour of play | 0 |
 | Allocation in the audio callback | Bytes allocated per callback, measured in a test | 0 |
 
@@ -188,7 +188,7 @@ The experiment is done when the following scenario can be run from your computer
 
 1. You plug in headphones, start the app without arguments and see the menu with last time's choices.
 2. You choose the microphone, key `auto`, the sound "pad", the pattern "arpeggio", turn on dynamics, gate and onsets, and turn on recording.
-3. You sing a simple melody. The dashboard shows the note, the level, the estimated key and the chord, and the chords follow you within under 50 ms.
+3. You sing a simple melody. The dashboard shows the note, the level, the estimated key and the chord, and the chords follow you on the pattern's next step (with Held, within under 50 ms).
 4. You sing louder and softer, and the chords follow in loudness and character. When you are silent, nothing is played.
 5. You leave live mode, and the recording can be played back.
 
