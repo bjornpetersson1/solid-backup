@@ -38,12 +38,33 @@ internal static class Melody
     /// <summary>Every chord change, with the time of the estimate that made it.</summary>
     public static List<(double TimeMs, Chord Chord)> Changes(Harmonizer harmonizer, Note[] notes, int sampleRate = 48_000, int bufferSize = 64)
     {
+        return Changes(harmonizer, Estimates(notes, sampleRate, bufferSize));
+    }
+
+    /// <summary>Every chord change over the estimates, with the time of the estimate that made it.</summary>
+    public static List<(double TimeMs, Chord Chord)> Changes(Harmonizer harmonizer, PitchEstimate[] estimates)
+    {
         List<(double, Chord)> changes = [];
-        foreach (PitchEstimate estimate in Estimates(notes, sampleRate, bufferSize))
+        foreach (PitchEstimate estimate in estimates)
         {
             if (harmonizer.Process(estimate))
             {
                 changes.Add((estimate.TimeMs, harmonizer.Chord ?? throw new InvalidOperationException("A change without a chord.")));
+            }
+        }
+
+        return changes;
+    }
+
+    /// <summary>Feeds the estimates and counts the chord changes; no list, so allocation tests can measure it.</summary>
+    public static int Run(Harmonizer harmonizer, PitchEstimate[] estimates)
+    {
+        int changes = 0;
+        foreach (PitchEstimate estimate in estimates)
+        {
+            if (harmonizer.Process(estimate))
+            {
+                changes++;
             }
         }
 

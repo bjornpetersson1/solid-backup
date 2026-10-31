@@ -191,12 +191,12 @@ public sealed class StyleExampleTests
     public void PerEstimateCall_AllocatesNothing(HarmonyStyle style, int expectedChanges)
     {
         PitchEstimate[] estimates = Melody.Estimates(Melody.Legato("D", "B", "A", "F#", "-", "-", "-", "-", "-", "E", "C", "G#", "D"));
-        Run(Melody.Harmonizer(Rules(style), "D", Mode.Dorian), estimates);
+        Melody.Run(Melody.Harmonizer(Rules(style), "D", Mode.Dorian), estimates);
 
         // A fresh harmonizer and rules, since the estimates' times start again at 0 and Blues keeps state.
         Harmonizer harmonizer = Melody.Harmonizer(Rules(style), "D", Mode.Dorian);
         long before = GC.GetAllocatedBytesForCurrentThread();
-        int changes = Run(harmonizer, estimates);
+        int changes = Melody.Run(harmonizer, estimates);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         Assert.Equal(0, allocated);
@@ -205,37 +205,13 @@ public sealed class StyleExampleTests
 
     private static List<(double TimeMs, Chord Chord)> FreeChanges(PitchEstimate[] estimates, string key)
     {
-        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Default with { HarmonyStyle = "Free", Key = key });
-        List<(double, Chord)> changes = [];
-        foreach (PitchEstimate estimate in estimates)
-        {
-            if (harmonizer.Process(estimate) && harmonizer.Chord is { } chord)
-            {
-                changes.Add((estimate.TimeMs, chord));
-            }
-        }
-
-        return changes;
+        return Melody.Changes(Harmonizer.FromSettings(TestSettings.Default with { HarmonyStyle = "Free", Key = key }), estimates);
     }
 
     private static IChordRules Rules(HarmonyStyle style)
     {
         Assert.True(ChordRules.TryCreate(style, out IChordRules? rules));
         return rules;
-    }
-
-    private static int Run(Harmonizer harmonizer, PitchEstimate[] estimates)
-    {
-        int changes = 0;
-        foreach (PitchEstimate estimate in estimates)
-        {
-            if (harmonizer.Process(estimate))
-            {
-                changes++;
-            }
-        }
-
-        return changes;
     }
 
     private static void AssertExample(string example, IChordRules rules, string tonic, Mode mode, string notes, string chords)

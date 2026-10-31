@@ -8,8 +8,10 @@ namespace SolidBackup.Harmony;
 /// <c>docs/harmony.md</c>: the first note after silence chooses at once; while singing, a new note is
 /// evaluated once it has lasted <see cref="HarmonyTiming.MinNoteForChangeMs"/> and the chord has lasted
 /// <see cref="HarmonyTiming.MinChordDurationMs"/>; silence keeps the chord, and a silence of
-/// <see cref="HarmonyTiming.PhraseResetMs"/> forgets it. Time comes from the estimates, so a recording
-/// gives the same chords every time. Allocates nothing per estimate.
+/// <see cref="HarmonyTiming.PhraseResetMs"/> forgets it. With <c>auto</c> it plays nothing until its
+/// <see cref="KeyEstimator"/> is sure of the key (a style without a key does not wait), and it tells the rules
+/// about a key change and a phrase reset through <see cref="IChordRules.Reset"/>. Time comes from the estimates,
+/// so a recording gives the same chords every time. Allocates nothing per estimate.
 /// </summary>
 public sealed class Harmonizer
 {

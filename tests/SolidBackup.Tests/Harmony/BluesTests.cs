@@ -129,30 +129,16 @@ public sealed class BluesTests
     public void PerEstimateCallWithAKeyMove_AllocatesNothing()
     {
         PitchEstimate[] estimates = Melody.Estimates(Melody.Legato("C", "Ab", "C", "-", "-", "-", "-", "-", "Db", "E", "Eb", "B"));
-        Run(Melody.Harmonizer(new BluesRules(), "C"), estimates);
+        Melody.Run(Melody.Harmonizer(new BluesRules(), "C"), estimates);
 
         Harmonizer harmonizer = Melody.Harmonizer(new BluesRules(), "C");
         long before = GC.GetAllocatedBytesForCurrentThread();
-        int changes = Run(harmonizer, estimates);
+        int changes = Melody.Run(harmonizer, estimates);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         Assert.Equal(0, allocated);
         Assert.True(changes >= 4);
         Assert.NotEqual(C, harmonizer.CurrentKey);
-    }
-
-    private static int Run(Harmonizer harmonizer, PitchEstimate[] estimates)
-    {
-        int changes = 0;
-        foreach (PitchEstimate estimate in estimates)
-        {
-            if (harmonizer.Process(estimate))
-            {
-                changes++;
-            }
-        }
-
-        return changes;
     }
 
     // The chord and the current key's tonic in effect at the end of every note (rests left out).
