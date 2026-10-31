@@ -64,6 +64,12 @@ public sealed class StyleExampleTests
         Assert.Equal(chords.Split(' ').Order(), actual.Order());
     }
 
+    [Fact]
+    public void IsBuilt_AgreesWithTryCreate()
+    {
+        Assert.All(Enum.GetValues<HarmonyStyle>(), style => Assert.Equal(ChordRules.TryCreate(style, out _), ChordRules.IsBuilt(style)));
+    }
+
     [Theory]
     [InlineData(HarmonyStyle.Church, 4)]
     [InlineData(HarmonyStyle.Campfire, 3)]

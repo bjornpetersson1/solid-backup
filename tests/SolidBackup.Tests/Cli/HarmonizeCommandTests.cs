@@ -140,8 +140,7 @@ public sealed class HarmonizeCommandTests : IDisposable
     // Half a second of a sine at amplitude 0.5.
     private static float[] Tone(int midi, int sampleRate)
     {
-        double frequency = Pitch.Frequency(midi * 100.0);
-        return [.. Enumerable.Range(0, sampleRate / 2).Select(i => (float)(0.5 * Math.Sin(2 * Math.PI * frequency * i / sampleRate)))];
+        return TestSignal.Sine(midi, 0.5, 0.5, sampleRate);
     }
 
     private static string[] ChangesWithoutTimes(string[] lines)

@@ -4,7 +4,7 @@
 - **Labels:** `E4 Harmony`
 - **Phase:** 4. Harmony
 - **Depends on:** E4-1 (#11), E3-2 (#9)
-- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 402 tests passed)
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 403 tests passed)
 
 ## Summary
 The harmony engine from `docs/harmony.md`: a buffer-based, allocation-free component that turns E3-2's pitch estimates into the current chord, following the common rules (candidates, keep, natural step, priority, hold times, phrase reset), with the styles Church (all seven modes), Campfire and Drone, their settings, and a command that prints the chord timeline for a WAV file.
@@ -61,6 +61,7 @@ The harmony engine from `docs/harmony.md`: a buffer-based, allocation-free compo
 - **`--harmonize` reads the file's sample rate** (implementation): the detector runs at the WAV's own rate with the settings' `BufferSize`, so a 44.1 kHz recording works without changing `SampleRate`. Its `--style`, `--key` and `--mode` are rejected without `--harmonize`, like `--input` and `--output` without `--passthrough` or `--devices`.
 - **Code review fixes:** `--harmonize` together with `--passthrough` or `--devices` is rejected instead of silently dropped; the file's sample rate goes through the settings validation (44.1 or 48 kHz); a missing or empty path gives a Swedish "finns inte" message and .NET's English I/O text is no longer shown; the style and key checks live once, in `Harmonizer.Check`; the file is fed through `MemoryAudioInput` and an `IAudioInputHandler`; tonics need a capital letter like the other harmony settings; the printed note uses the chord roots' spelling (`Db4`, not `C#4`); the allocation test measures a fresh harmonizer, so every chord choice in the melody is counted; each style's chords for all 84 keys are built in its constructor, as criterion 5 says.
 - **`Chord.PitchClassMask` is computed, not stored** (code review finding partly declined): it loops over at most three intervals without allocating; a stored field would go stale under `with`. `PitchClasses` stays a convenience list for display and tests, and the mask is documented as the form for the audio path.
+- **PR review fixes:** `ChordRules.IsBuilt` answers which styles are built without building their tables, and `TryCreate` and `Harmonizer.Check` both use it; the tests' second sine generator was replaced by a `sampleRate` parameter on `TestSignal.Sine`.
 
 ## Open Questions
 - None

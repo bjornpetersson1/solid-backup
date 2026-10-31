@@ -28,7 +28,7 @@ public sealed class Harmonizer(IChordRules rules, Key key, HarmonyTiming timing)
     /// <summary>Why validated settings cannot give a harmonizer yet, or <see cref="HarmonizerProblem.None"/>.</summary>
     public static HarmonizerProblem Check(AppSettings settings)
     {
-        if (!HarmonySettings.TryParseName(settings.HarmonyStyle, out HarmonyStyle style) || !ChordRules.TryCreate(style, out _))
+        if (!HarmonySettings.TryParseName(settings.HarmonyStyle, out HarmonyStyle style) || !ChordRules.IsBuilt(style))
         {
             return HarmonizerProblem.StyleNotBuilt;
         }
