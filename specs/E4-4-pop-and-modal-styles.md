@@ -4,7 +4,7 @@
 - **Labels:** `E4 Harmony`
 - **Phase:** 4. Harmony
 - **Depends on:** E4-2 (#12); builds on E4-3 (#13)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 472 tests passed)
 
 ## Summary
 The Pop and Modal harmony styles from `docs/harmony.md`, as two more rule sets in E4-2's engine: Pop with its major and minor sets, add9/sus4 colours and borrowed chords; Modal with the tonic pedal and each mode's character chord.
@@ -33,14 +33,19 @@ The Pop and Modal harmony styles from `docs/harmony.md`, as two more rule sets i
 5. **The checks pass.** `dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test` succeeds without audio hardware or network.
 
 ## Tasks
-- [ ] The new qualities and symbols.
-- [ ] The Pop rule set: sets, priorities, colours, borrowed chords.
-- [ ] The Modal rule set: tonic, character notes and chords per mode.
-- [ ] Tests for the examples and extra cases, the command and the allocations.
+- [x] The new qualities and symbols.
+- [x] The Pop rule set: sets, priorities, colours, borrowed chords.
+- [x] The Modal rule set: tonic, character notes and chords per mode.
+- [x] Tests for the examples and extra cases, the command and the allocations.
 
 ## Decisions
 - **No new questions** (default): `docs/harmony.md` decides the rules; E4-2 decides the engine and settings, and E4-3 decides `auto`.
 - **Colours count as chord changes for the timing rules** (from `docs/harmony.md`).
+- **Pop builds on `ScaleRules`** (implementation): `ScaleRules` gained three hooks with neutral defaults — the style's chord a coloured chord was made from, a colour for the current chord (tried after keep, only on one of the style's chords), and borrowed chords (tried before the last keep). Church and Campfire are unchanged. A borrowed chord needs no successor list: Pop's priority starts with the tonic, so the tonic follows whenever it contains the note. The borrowed chords are the parallel key's triads, built per key in the constructor. Pop's priority list interleaves the major order (1, 5, 6, 4) and the minor one (1, 7, 6, 3), since each key uses only its own degrees.
+- **Modal stands alone** (implementation): it is a pedal with one character chord, not a choice among degrees, so it implements `IChordRules` directly, with each key's tonic, character note and character chord built in the constructor.
+- **Code review fixes:** a test shows a Pop colour waits for the hold times; dead successor code for borrowed chords was removed; the borrowed chords and Modal's chords are tables built once; the "uncolouring" of a chord moved from the public `Chord` type into a `ScaleRules` hook that only Pop overrides; Modal does not keep a chord that is neither of the key's two (after a modulation with `auto`) and returns to the tonic instead.
+- **Modal "after silence" means with no chord to keep** (code review finding declined): `docs/harmony.md`'s common rules say silence keeps the chord and that a style chooses afresh only after a phrase reset; Modal's "after silence" line is read the same way, as common rule 5 reads it. After a short silence, a note that is neither the character note nor in the tonic triad keeps the chord.
+- **Locrian's character note wins over the tonic triad** (code review finding declined): in Locrian the character note (b5) is also the tonic triad's fifth. The doc's table names it as the character note, so it gives the character chord (bV); otherwise Locrian's character chord could never sound.
 
 ## Open Questions
 - None

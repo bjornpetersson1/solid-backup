@@ -4,7 +4,7 @@ namespace SolidBackup.Harmony;
 public readonly record struct Chord(int Root, ChordQuality Quality)
 {
     // Semitones above the root, indexed by ChordQuality.
-    private static readonly int[][] IntervalsByQuality = [[0, 4, 7], [0, 3, 7], [0, 3, 6], [0, 7]];
+    private static readonly int[][] IntervalsByQuality = [[0, 4, 7], [0, 3, 7], [0, 3, 6], [0, 7], [0, 4, 7, 2], [0, 3, 7, 2], [0, 5, 7]];
 
     /// <summary>Bit n is set when pitch class n is in the chord; the allocation-free form for the audio path.</summary>
     public int PitchClassMask
@@ -52,6 +52,9 @@ public readonly record struct Chord(int Root, ChordQuality Quality)
             ChordQuality.Minor => "m",
             ChordQuality.Diminished => "dim",
             ChordQuality.Power => "5",
+            ChordQuality.Add9 => "add9",
+            ChordQuality.MinorAdd9 => "madd9",
+            ChordQuality.Sus4 => "sus4",
             _ => throw new ArgumentOutOfRangeException(nameof(quality)),
         };
     }

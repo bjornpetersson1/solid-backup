@@ -3,7 +3,7 @@ using SolidBackup.Harmony;
 
 namespace SolidBackup.Tests.Harmony;
 
-/// <summary>The Church, Campfire and Drone examples in <c>docs/harmony.md</c>.</summary>
+/// <summary>The Church, Campfire, Drone, Pop and Modal examples in <c>docs/harmony.md</c>.</summary>
 public sealed class StyleExampleTests
 {
     [Theory]
@@ -35,6 +35,65 @@ public sealed class StyleExampleTests
     public void D1_Drone_IsTheTonicsRootAndFifthInAnyMode(Mode mode)
     {
         AssertExample("D1", new DroneRules(), "D", mode, "D F# C G#", "D5 D5 D5 D5");
+    }
+
+    [Theory]
+    [InlineData("P1", "C", Mode.Ionian, "C D E B", "C Cadd9 Cadd9 G")]
+    [InlineData("P2", "C", Mode.Ionian, "C F A", "C Csus4 Am")]
+    [InlineData("P3", "C", Mode.Ionian, "C Bb C", "C Bb C")]
+    [InlineData("P4", "C", Mode.Ionian, "C Ab", "C Fm")]
+    [InlineData("P5", "A", Mode.Aeolian, "A G#", "Am E")]
+    [InlineData("minor chord takes add9", "C", Mode.Ionian, "A B", "Am Amadd9")]
+    [InlineData("no sus4 on a minor chord", "C", Mode.Ionian, "A D", "Am G")]
+    [InlineData("borrowed bVI", "C", Mode.Ionian, "C Eb", "C Ab")]
+    [InlineData("minor set and priority", "A", Mode.Aeolian, "E G", "Am G")]
+    [InlineData("minor borrows IV", "A", Mode.Aeolian, "A F#", "Am D")]
+    [InlineData("Mixolydian counts as major", "C", Mode.Mixolydian, "C B", "C G")]
+    public void Pop(string example, string tonic, Mode mode, string notes, string chords)
+    {
+        AssertExample(example, new PopRules(), tonic, mode, notes, chords);
+    }
+
+    [Theory]
+    [InlineData("M1", "D", Mode.Dorian, "D E B C F", "Dm Dm G G Dm")]
+    [InlineData("M2", "G", Mode.Mixolydian, "G F D B", "G F G G")]
+    [InlineData("M3", "C", Mode.Ionian, "C F E", "C F C")]
+    public void Modal(string example, string tonic, Mode mode, string notes, string chords)
+    {
+        AssertExample(example, new ModalRules(), tonic, mode, notes, chords);
+    }
+
+    [Theory]
+    [InlineData(Mode.Ionian, "C F E", "C F C")]
+    [InlineData(Mode.Dorian, "C A Eb", "Cm F Cm")]
+    [InlineData(Mode.Phrygian, "C Db Eb", "Cm Db Cm")]
+    [InlineData(Mode.Lydian, "C F# E", "C D C")]
+    [InlineData(Mode.Mixolydian, "C Bb E", "C Bb C")]
+    [InlineData(Mode.Aeolian, "C Ab Eb", "Cm Ab Cm")]
+    [InlineData(Mode.Locrian, "C F# Eb", "Cdim F# Cdim")]
+    public void Modal_CharacterNoteGivesTheCharacterChordAndATonicNoteGivesItBack(Mode mode, string notes, string chords)
+    {
+        AssertExample(mode.ToString(), new ModalRules(), "C", mode, notes, chords);
+    }
+
+    [Fact]
+    public void PopColour_FollowsTheHoldTimes()
+    {
+        Harmonizer harmonizer = Melody.Harmonizer(new PopRules(), "C");
+        Note[] notes = [new("C4", 0, 500), new("D4", 500, 580), new("C4", 580, 1000), new("D4", 1000, 1500)];
+
+        List<(double TimeMs, Chord Chord)> changes = Melody.Changes(harmonizer, notes);
+
+        Assert.Equal(["C", "Cadd9"], changes.Select(change => change.Chord.Symbol));
+        Assert.InRange(changes[1].TimeMs, 1120, 1120 + KeyMelodies.StepMs);
+    }
+
+    [Fact]
+    public void Modal_DoesNotKeepAChordFromAnotherKey()
+    {
+        Chord chord = new ModalRules().Choose(9, new Key(7, Mode.Ionian), new Chord(5, ChordQuality.Major));
+
+        Assert.Equal(new Chord(7, ChordQuality.Major), chord);
     }
 
     [Theory]
@@ -74,6 +133,8 @@ public sealed class StyleExampleTests
     [InlineData(HarmonyStyle.Church, 4)]
     [InlineData(HarmonyStyle.Campfire, 3)]
     [InlineData(HarmonyStyle.Drone, 1)]
+    [InlineData(HarmonyStyle.Pop, 5)]
+    [InlineData(HarmonyStyle.Modal, 3)]
     public void PerEstimateCall_AllocatesNothing(HarmonyStyle style, int expectedChanges)
     {
         Assert.True(ChordRules.TryCreate(style, out IChordRules? rules));

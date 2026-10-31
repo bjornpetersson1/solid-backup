@@ -27,6 +27,9 @@ public sealed class ChordTests
     [InlineData(ChordQuality.Minor, "Am", new[] { 9, 0, 4 })]
     [InlineData(ChordQuality.Diminished, "Adim", new[] { 9, 0, 3 })]
     [InlineData(ChordQuality.Power, "A5", new[] { 9, 4 })]
+    [InlineData(ChordQuality.Add9, "Aadd9", new[] { 9, 1, 4, 11 })]
+    [InlineData(ChordQuality.MinorAdd9, "Amadd9", new[] { 9, 0, 4, 11 })]
+    [InlineData(ChordQuality.Sus4, "Asus4", new[] { 9, 2, 4 })]
     public void Quality_GivesSymbolAndPitchClasses(ChordQuality quality, string symbol, int[] pitchClasses)
     {
         Chord chord = new(9, quality);
