@@ -14,7 +14,7 @@ public sealed class NoteHold(int sampleRate)
     private const double SameNoteCents = 100;
     private const int MinEstimates = 2;
 
-    private readonly long _holdSamples = (long)Math.Ceiling(HoldMs * sampleRate / 1000);
+    private readonly long _holdSamples = Duration.Samples(HoldMs, sampleRate);
 
     private PitchEstimate _reported = PitchEstimate.NoNote(0, 0);
     private PitchEstimate _pending = PitchEstimate.NoNote(0, 0);

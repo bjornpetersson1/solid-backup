@@ -91,7 +91,7 @@ dotnet run --project spikes/PortAudioSpike -- stability <frames> <seconds> [--se
 
 ## Test corpus
 
-The pitch, level and onset targets are measured on the corpus in `corpus/`: generated tones built in code and recordings with reference files. See [`corpus/README.md`](corpus/README.md) for its contents, formats, how to record and label a clip, the scoring rules, and how to measure the pitch detector (`dotnet run --project tools/SolidBackup.CorpusTool -c Release -- report`).
+The pitch, level and onset targets are measured on the corpus in `corpus/`: generated tones built in code and recordings with reference files. See [`corpus/README.md`](corpus/README.md) for its contents, formats, how to record and label a clip, the scoring rules, and how to measure the pitch, level, gate and onset analysis (`dotnet run --project tools/SolidBackup.CorpusTool -c Release -- report`).
 
 ## Settings
 
@@ -106,7 +106,11 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `InputDevice` | `""` | Input device name; empty means the system default |
 | `OutputDevice` | `""` | Output device name; empty means the system default |
 | `PitchConfidenceThreshold` | `0.8` | YIN confidence (0–1) a pitch needs to be reported as a note |
-| `GateThresholdDbfs` | `-50` | Noise gate threshold in dBFS (at most 0) |
+| `GateThresholdDbfs` | `-42` | Noise gate threshold in dBFS (at most 0); the gate opens when the level reaches it |
+| `GateHysteresisDb` | `3` | The gate closes only below the threshold minus this many dB (above 0, at most 40) |
+| `GateHoldMs` | `20` | …and only once the level has stayed there this long (above 0, at most 1000 ms) |
+| `OnsetThresholdDb` | `15` | A rise in level of at least this many dB within 20 ms is an onset (above 0, at most 60) |
+| `OnsetMinIntervalMs` | `100` | Shortest time between two onsets (above 0, at most 2000 ms) |
 | `LatencyTargetMs` | `50` | Latency target in milliseconds |
 
 The menu's choices are saved to `~/Library/Application Support/solid-backup/usersettings.json`, which only holds the settings that differ from the defaults. A missing or invalid user settings file is ignored with a message, and the defaults are used.

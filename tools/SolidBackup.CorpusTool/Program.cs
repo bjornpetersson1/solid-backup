@@ -14,7 +14,7 @@ public static class Program
           tones <mapp> [<samplingsfrekvens>]   skriv de genererade tonerna som WAV med referensfiler
           suggest <klipp> ...                  föreslå en tonlista för inspelningar som inte står i listan än
           label [<klipp> ...]                  märk inspelningarna (alla, eller de angivna) och skriv .ref.csv
-          report                               mät tonhöjdsdetektorn på hela korpusen och skriv en rapport i markdown
+          report                               mät tonhöjd, grind och ansatser på hela korpusen och skriv en rapport i markdown
         """;
 
     public static int Main(string[] args)
@@ -75,7 +75,7 @@ public static class Program
         AppSettings settings = new SettingsStore(SettingsStore.BundledDefaultsPath, "").Load().Settings;
         CorpusDirectory corpus = CorpusDirectory.Locate(Directory.GetCurrentDirectory());
         IEnumerable<CorpusClip> clips = GeneratedCorpus.Create(settings.SampleRate).Concat(RecordedCorpus.Load(corpus));
-        Console.WriteLine(PitchMeasurement.Run(clips, settings).ToMarkdown());
+        Console.WriteLine(CorpusMeasurement.Run(clips, settings).ToMarkdown());
         return 0;
     }
 

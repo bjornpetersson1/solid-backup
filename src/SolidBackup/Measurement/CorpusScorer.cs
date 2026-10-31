@@ -39,6 +39,7 @@ public static class CorpusScorer
         int falseNotes = 0;
         int silenceOrBreath = 0;
         int notesInSilenceOrBreath = 0;
+        int notesCutByGate = 0;
         foreach (DetectorReport report in reports)
         {
             if (reference.SegmentAt(report.TimeMs) is not ReferenceSegment segment || NearBoundary(segment, report.TimeMs))
@@ -58,19 +59,20 @@ public static class CorpusScorer
                 voiced++;
                 if (report.MidiCents - expected is double error)
                 {
-                    correct += Math.Abs(error) <= MeasurementTargets.PitchToleranceCents ? 1 : 0;
+                    bool right = Math.Abs(error) <= MeasurementTargets.PitchToleranceCents;
+                    correct += right ? 1 : 0;
+                    notesCutByGate += right && !report.GateOpen ? 1 : 0;
                     octave += Math.Abs(error) >= MeasurementTargets.OctaveErrorCents ? 1 : 0;
                 }
             }
             else if (segment.IsUnvoiced)
             {
-                int note = report.MidiCents.HasValue ? 1 : 0;
                 unvoiced++;
-                falseNotes += note;
-                if (segment.Kind is SegmentKind.Silence or SegmentKind.Breath)
+                falseNotes += report.MidiCents.HasValue ? 1 : 0;
+                if (IsSilenceOrBreath(segment))
                 {
                     silenceOrBreath++;
-                    notesInSilenceOrBreath += note;
+                    notesInSilenceOrBreath += report.MidiCents.HasValue && report.GateOpen ? 1 : 0;
                 }
             }
         }
@@ -84,6 +86,7 @@ public static class CorpusScorer
             FalseNoteWindows = falseNotes,
             SilenceOrBreathWindows = silenceOrBreath,
             NotesInSilenceOrBreath = notesInSilenceOrBreath,
+            NotesCutByGate = notesCutByGate,
         };
     }
 
@@ -93,8 +96,8 @@ public static class CorpusScorer
     {
         double[] detected = reports.Select(report => report.OnsetMs).OfType<double>().Order().ToArray();
         double[] expected = reference.OnsetsMs.Order().ToArray();
+        bool[] matched = new bool[detected.Length];
         int next = 0;
-        int matched = 0;
         foreach (double onset in expected)
         {
             while (next < detected.Length && detected[next] < onset - MeasurementTargets.OnsetToleranceMs)
@@ -104,17 +107,37 @@ public static class CorpusScorer
 
             if (next < detected.Length && detected[next] <= onset + MeasurementTargets.OnsetToleranceMs)
             {
-                matched++;
+                matched[next] = true;
                 next++;
+            }
+        }
+
+        int matches = 0;
+        int extrasInSilenceOrBreath = 0;
+        for (int i = 0; i < detected.Length; i++)
+        {
+            if (matched[i])
+            {
+                matches++;
+            }
+            else if (reference.SegmentAt(detected[i]) is { } segment && IsSilenceOrBreath(segment))
+            {
+                extrasInSilenceOrBreath++;
             }
         }
 
         return ScoreCounts.Zero with
         {
             ReferenceOnsets = expected.Length,
-            MatchedOnsets = matched,
-            ExtraOnsets = detected.Length - matched,
+            MatchedOnsets = matches,
+            ExtraOnsets = detected.Length - matches,
+            ExtraOnsetsInSilenceOrBreath = extrasInSilenceOrBreath,
         };
+    }
+
+    private static bool IsSilenceOrBreath(ReferenceSegment segment)
+    {
+        return segment.Kind is SegmentKind.Silence or SegmentKind.Breath;
     }
 
     private static bool NearBoundary(ReferenceSegment segment, double timeMs)

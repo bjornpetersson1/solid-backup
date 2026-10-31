@@ -66,13 +66,13 @@ The generated clips use the same model (`tones` writes the same format).
 
 **Caveat.** The note lists for the current recordings were proposed by `suggest` and not set in advance, so the reference rests on that analysis plus the owner's listening check, not on an independent score. `suggest` searches the whole range and takes the shortest strongly periodic lag; a separate spectral check of the whistled notes agreed with it.
 
-## Measuring the pitch detector
+## Measuring the analysis
 
 ```bash
 dotnet run --project tools/SolidBackup.CorpusTool -c Release -- report
 ```
 
-runs the pitch detector (E3-2) with the default settings from `appsettings.json` over the generated tones and the recordings, and prints a markdown report: per clip and in total, pitch accuracy, octave errors and false notes with their window counts, whether each target is met, and the average analysis time per buffer. Run it in Release; a Debug build analyses about four times slower. The clips run one at a time so the time per buffer is not inflated by other threads. The detector's constants are in `src/SolidBackup/Analysis`: YIN's dip threshold is 1 − `PitchConfidenceThreshold` (0.2 by default), the energy floor −80 dBFS, and a change of note is reported once it has held for 10 ms and two estimates (`NoteHold`).
+runs the analysis components with the default settings from `appsettings.json` over the generated tones and the recordings: the pitch detector (E3-2), and the level meter, noise gate and onset detector (E3-3). It prints a markdown report with two tables, per clip and in total. The first table has pitch accuracy, octave errors and false notes. The second has the notes in silence and breath while the gate is open, onset accuracy, and extra onsets with how many of them fall in silence or breath. Each figure comes with its counts. The report then says whether each target is met and gives the average analysis time per buffer. Run it in Release; a Debug build analyses about four times slower. The clips run one at a time so the time per buffer is not inflated by other threads. The detector's constants are in `src/SolidBackup/Analysis`: YIN's dip threshold is 1 − `PitchConfidenceThreshold` (0.2 by default), the energy floor −80 dBFS, and a change of note is reported once it has held for 10 ms and two estimates (`NoteHold`). The level is the RMS over the last 10 ms; an onset is a rise of `OnsetThresholdDb` within 20 ms (`OnsetDetector.RiseMs`).
 
 ## Scoring rules
 
@@ -84,7 +84,8 @@ runs the pitch detector (E3-2) with the default settings from `appsettings.json`
 - Windows within **30 ms** of a segment boundary (including the clip's start and end) are left out of the pitch measures, because a buffer there mixes two states.
 - **Pitch accuracy**: the share of voiced windows whose detected pitch is within **±50 cents** of the reference at that time; a window with no detected note counts as wrong. Target ≥ 95 %.
 - **Octave errors**: the share of voiced windows off by **1150 cents or more** (an octave, within the tolerance). Target ≤ 1 %.
-- **False notes**: the share of unvoiced windows with a detected note. Target ≤ 2 %. The windows in `silence` and `breath` alone, and the notes found there, are also counted separately (`SilenceOrBreathWindows`, `NotesInSilenceOrBreath`), because a gated detector must give no note there at all (E3-3).
-- **Onset accuracy**: the share of reference onsets matched one to one by a detected onset within **±20 ms**. Target ≥ 90 %. Detected onsets left unmatched are reported as extra onsets, without a target.
+- **False notes**: the share of unvoiced windows with a detected note. Target ≤ 2 %. The windows in `silence` and `breath` alone are also counted separately (`SilenceOrBreathWindows`); see the next rule for the notes counted there.
+- **Notes in silence and breath**: the windows in `silence` and `breath` where the detector gives a note while its noise gate is open (`DetectorReport.GateOpen`). Target: none (E3-3). The other pitch measures ignore the gate. As the other side of that trade-off, the report also counts the correct notes the gate cuts off (`NotesCutByGate`: voiced windows with the right note while the gate is closed), without a target.
+- **Onset accuracy**: the share of reference onsets matched one to one by a detected onset within **±20 ms**. Target ≥ 90 %. Detected onsets left unmatched are reported as extra onsets, and those falling in silence or breath are counted apart, without a target.
 
 The range is the default E2–C7 from `appsettings.json`.

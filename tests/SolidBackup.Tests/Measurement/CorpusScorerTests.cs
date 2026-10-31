@@ -143,6 +143,42 @@ public sealed class CorpusScorerTests
     }
 
     [Fact]
+    public void NotesInSilenceWhileTheGateIsClosed_DoNotCount()
+    {
+        // Notes everywhere, the gate open only before 1500 ms: of the 84 windows in the closing silence,
+        // those at 1135–1495 ms (37) are notes with the gate open.
+        DetectorReport[] reports = Reports(_ => 6900, onsets: []).Select(report => report with { GateOpen = report.TimeMs < 1500 }).ToArray();
+
+        ScoreCounts counts = CorpusScorer.Score(Constructed, reports);
+
+        Assert.Equal(88, counts.FalseNoteWindows);
+        Assert.Equal((88, 4 + 37), (counts.SilenceOrBreathWindows, counts.NotesInSilenceOrBreath));
+        Assert.False(counts.MeetsNoNotesInSilenceOrBreath);
+    }
+
+    [Fact]
+    public void RightNotesWhileTheGateIsClosed_AreCountedAsCutOff()
+    {
+        // The note is right throughout; the gate is closed from 600 ms, so 47 of its 94 windows are cut off.
+        DetectorReport[] reports = Reports(time => time is >= 100 and < 1100 ? 6900 : null, onsets: [])
+            .Select(report => report with { GateOpen = report.TimeMs < 600 })
+            .ToArray();
+
+        ScoreCounts counts = CorpusScorer.Score(Constructed, reports);
+
+        Assert.Equal((94, 47), (counts.CorrectWindows, counts.NotesCutByGate));
+    }
+
+    [Fact]
+    public void ExtraOnsetsInSilence_AreCountedApart()
+    {
+        // 100 matches the reference; 600 lies in the note, 1500 in the silence after it.
+        ScoreCounts counts = CorpusScorer.Score(Constructed, Reports(_ => null, onsets: [100, 600, 1500]));
+
+        Assert.Equal((1, 2, 1), (counts.MatchedOnsets, counts.ExtraOnsets, counts.ExtraOnsetsInSilenceOrBreath));
+    }
+
+    [Fact]
     public void UnclearSegments_AreLeftOutOfEveryMeasure()
     {
         CorpusClip clip = Constructed with

@@ -8,6 +8,9 @@ public static class MeasurementTargets
     public const double MaxFalseNotes = 0.02;
     public const double MinOnsetAccuracy = 0.90;
 
+    /// <summary>Silence and breath give no note at all with the gate on (E3-3).</summary>
+    public const int MaxNotesInSilenceOrBreath = 0;
+
     public const double PitchToleranceCents = 50;
 
     /// <summary>An octave or more off: 1200 cents less the ±50 cent tolerance.</summary>
