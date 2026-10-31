@@ -11,7 +11,6 @@ internal sealed class RecordingAnalysis
     public const double HopMs = 10;
 
     private const double LevelWindowMs = 10;
-    private const double FloorDb = -120;
     private const double ActiveAboveFloorDb = 12;
     private const double ActiveBelowPeakDb = 30;
     private const double MergeGapMs = 75;
@@ -108,7 +107,7 @@ internal sealed class RecordingAnalysis
 
             if (PickPeak(correlation, choice) is int index)
             {
-                double lag = index + minLag - 1 + ParabolaOffset(correlation, index);
+                double lag = index + minLag - 1 + Pitch.ParabolaOffset(correlation[index - 1], correlation[index], correlation[index + 1], minimum: false);
                 frames.Add((ms, Pitch.Cents(_sampleRate / lag)));
             }
         }
@@ -196,14 +195,6 @@ internal sealed class RecordingAnalysis
         return first > 0 && second > 0 ? cross / Math.Sqrt(first * second) : 0;
     }
 
-    private static double ParabolaOffset(double[] values, int index)
-    {
-        double left = values[index - 1];
-        double right = values[index + 1];
-        double curvature = left - (2 * values[index]) + right;
-        return curvature < 0 ? Math.Clamp(0.5 * (left - right) / curvature, -0.5, 0.5) : 0;
-    }
-
     private double[] LevelPerMs()
     {
         int half = (int)(LevelWindowMs * _sampleRate / 2000);
@@ -214,7 +205,7 @@ internal sealed class RecordingAnalysis
             int from = Math.Max(0, centre - half);
             int to = Math.Min(_samples.Length, centre + half);
             double meanSquare = (_energy[to] - _energy[from]) / Math.Max(1, to - from);
-            level[ms] = meanSquare > 0 ? Math.Max(FloorDb, 10 * Math.Log10(meanSquare)) : FloorDb;
+            level[ms] = LevelMeter.Dbfs(meanSquare);
         }
 
         return level;

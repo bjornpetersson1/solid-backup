@@ -86,7 +86,7 @@ internal sealed class ClipBuilder(int sampleRate, uint seed)
             phase += 2 * Math.PI * frequency / sampleRate;
         }
 
-        bool inRange = CorpusRange.Contains((int)Math.Round(fromCents / 100)) && CorpusRange.Contains((int)Math.Round(toCents / 100));
+        bool inRange = CorpusRange.ContainsPitch(fromCents) && CorpusRange.ContainsPitch(toCents);
         double[] pitches = fromCents == toCents ? [fromCents] : [fromCents, toCents];
         _segments.Add(new ReferenceSegment(start, NowMs, inRange ? SegmentKind.Note : SegmentKind.OutOfRange, pitches));
         if (inRange)

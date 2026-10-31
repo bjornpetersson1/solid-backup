@@ -45,7 +45,12 @@ public sealed class LevelMeter
         }
 
         // Within a window the running sum can still drift a hair below zero; it is only ever a sum of squares.
-        double meanSquare = Math.Max(0, _sum) / _filled;
+        return Dbfs(Math.Max(0, _sum) / _filled);
+    }
+
+    /// <summary>A mean square in dBFS, never below <see cref="FloorDbfs"/>.</summary>
+    public static double Dbfs(double meanSquare)
+    {
         return meanSquare > 0 ? Math.Max(FloorDbfs, 10 * Math.Log10(meanSquare)) : FloorDbfs;
     }
 
