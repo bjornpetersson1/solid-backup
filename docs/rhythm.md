@@ -75,7 +75,7 @@ The latency target (< 50 ms, `Constitution/Requirements-and-goal.md`) is input l
 
 ## Jazz
 
-Jazz (E5-6) loops I–VIm7–IIm7–V7 *at the tempo* (`docs/harmony.md`). It uses this grid for its time: its chords change on beats or bars of the same grid the pattern plays on. How many beats each chord in the loop lasts is decided in E5-6.
+Jazz (E5-6) uses this grid for its time (`docs/harmony.md`): its tonic loop changes chord every other beat, and a modulation's II – V – I one chord per beat. While Jazz's loop runs, the pattern does not stop after `PhraseResetMs` of silence; the loop never stands still. With the gate on, silence is still silent.
 
 ## Examples
 
