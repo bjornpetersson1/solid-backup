@@ -76,11 +76,11 @@ public static class AppCommand
         };
         Option<string> styleOption = new("--style")
         {
-            Description = "Harmonistil att använda den här gången (t.ex. Church, Campfire, Drone).",
+            Description = "Harmonistil att använda den här gången: Church, Campfire, Drone, Pop, Modal, Blues eller Free.",
         };
         Option<string> keyOption = new("--key")
         {
-            Description = "Tonartens grundton att använda den här gången (t.ex. C, F#, Bb).",
+            Description = "Tonart att använda den här gången: en grundton (t.ex. C, F#, Bb) eller auto.",
         };
         Option<string> modeOption = new("--mode")
         {

@@ -50,11 +50,11 @@ public sealed class HarmonizerAutoKeyTests
     public void PerEstimateCallWithAuto_AllocatesNothing()
     {
         PitchEstimate[] estimates = KeyMelodies.Estimates(KeyMelodies.Clip("generated-melody-c-to-g-major"));
-        Run(Harmonizer.FromSettings(TestSettings.Default), estimates);
+        Melody.Run(Harmonizer.FromSettings(TestSettings.Default), estimates);
 
         Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Default);
         long before = GC.GetAllocatedBytesForCurrentThread();
-        int changes = Run(harmonizer, estimates);
+        int changes = Melody.Run(harmonizer, estimates);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
         Assert.Equal(0, allocated);
@@ -72,17 +72,4 @@ public sealed class HarmonizerAutoKeyTests
         Assert.Equal(new Key(2, Mode.Dorian), harmonizer.Key);
     }
 
-    private static int Run(Harmonizer harmonizer, PitchEstimate[] estimates)
-    {
-        int changes = 0;
-        foreach (PitchEstimate estimate in estimates)
-        {
-            if (harmonizer.Process(estimate))
-            {
-                changes++;
-            }
-        }
-
-        return changes;
-    }
 }
