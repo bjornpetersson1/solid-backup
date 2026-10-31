@@ -71,9 +71,9 @@ dotnet run --project spikes/PortAudioSpike -- stability <frames> <seconds> [--se
 
 **Recommended default `BufferSize`: 64.** It is about 4 ms better than 128 and stable, while 32 gains only ~1 ms for twice the callbacks. **With the built-in microphone the 50 ms target is not met even before any analysis:** the microphone's own 40 ms stream latency puts every buffer size above 50 ms. Meeting the target needs a microphone with a lower latency (an external USB microphone or audio interface, to be measured with `latency`). The target itself is unchanged and is checked in E6-1.
 
-**Microphone permission.** macOS asks on behalf of the app that hosts the terminal (the run above was in VS Code's terminal; Terminal and iTerm each get their own entry).
+**Microphone permission.** macOS asks on behalf of the app that hosts the terminal; the runs above were in VS Code's terminal. Terminal and iTerm are expected to get their own entries, but that is not yet verified here.
 
-- On first use, `Pa_OpenStream` blocks until the dialog is answered. That first open then failed (`PaMacCore (AUHAL) Error on line 661: err='28479'`) even though access was granted, and the next run worked.
+- On first use, `Pa_OpenStream` blocked while the dialog was pending, then failed with `PaMacCore (AUHAL) Error on line 661: err='28479'`. The next run, after access was granted, worked.
 - With access granted, the input carries sound (peak levels 0.06–0.87 in the runs above).
 - Access is managed in System Settings → Privacy & Security → Microphone, per terminal app.
 - What a denied permission looks like (silence or an error) was not observed on this machine.
