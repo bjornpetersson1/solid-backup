@@ -3,6 +3,11 @@ using System.CommandLine.Help;
 using System.CommandLine.Invocation;
 using System.Reflection;
 
+using SolidBackup.Audio.Devices;
+using SolidBackup.Audio.MacOS;
+using SolidBackup.Audio.PortAudio;
+using SolidBackup.Configuration;
+
 using Spectre.Console;
 
 namespace SolidBackup.Cli;
@@ -11,6 +16,7 @@ public static class AppCommand
 {
     public const string Description = "Lyssnar på en melodistämma i mikrofonen och spelar ackord till den.";
     public const string HelpHint = "Kör med --help för att se vad som finns.";
+    public const string DeviceOptionsAloneMessage = "--input och --output gäller bara tillsammans med --passthrough eller --devices.";
 
     /// <summary>
     /// Parses and runs the command line. Parse errors and unexpected exceptions get a Swedish
@@ -45,8 +51,71 @@ public static class AppCommand
         VersionOption versionOption = root.Options.OfType<VersionOption>().Single();
         versionOption.Description = "Visa versionen.";
         versionOption.Action = new PrintVersionAction();
-        root.SetAction(_ => new MainMenu(createConsole()).Run());
+        Option<bool> passThroughOption = new("--passthrough")
+        {
+            Description = "Spela upp mikrofonen direkt i utgången (för att kontrollera ljudet).",
+        };
+        Option<bool> devicesOption = new("--devices")
+        {
+            Description = "Lista ljudenheterna och visa vilka som är valda.",
+        };
+        Option<string> inputOption = new("--input")
+        {
+            Description = "Ljudingång att använda den här gången (enhetens namn).",
+        };
+        Option<string> outputOption = new("--output")
+        {
+            Description = "Ljudutgång att använda den här gången (enhetens namn).",
+        };
+        root.Options.Add(passThroughOption);
+        root.Options.Add(devicesOption);
+        root.Options.Add(inputOption);
+        root.Options.Add(outputOption);
+        root.SetAction(parseResult =>
+        {
+            bool playsOrLists = parseResult.GetValue(devicesOption) || parseResult.GetValue(passThroughOption);
+            if (!playsOrLists && (parseResult.GetValue(inputOption) is not null || parseResult.GetValue(outputOption) is not null))
+            {
+                parseResult.InvocationConfiguration.Error.WriteLine($"{DeviceOptionsAloneMessage} {HelpHint}");
+                return 1;
+            }
+
+            Func<SettingsLoadResult> loadSettings =
+                () => WithDevices(LoadSettings(), parseResult.GetValue(inputOption), parseResult.GetValue(outputOption));
+            if (parseResult.GetValue(devicesOption))
+            {
+                return new DeviceListCommand(createConsole(), loadSettings, PortAudioSession.Open, CreatePreflight()).Run();
+            }
+
+            return parseResult.GetValue(passThroughOption)
+                ? new PassThroughCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight()).Run()
+                : new MainMenu(createConsole()).Run();
+        });
         return root;
+    }
+
+    /// <summary>Applies --input and --output for this run only; they are never saved.</summary>
+    public static SettingsLoadResult WithDevices(SettingsLoadResult loaded, string? input, string? output)
+    {
+        AppSettings settings = loaded.Settings with
+        {
+            InputDevice = input ?? loaded.Settings.InputDevice,
+            OutputDevice = output ?? loaded.Settings.OutputDevice,
+        };
+        return loaded with { Settings = settings };
+    }
+
+    private static SettingsLoadResult LoadSettings()
+    {
+        return new SettingsStore(SettingsStore.BundledDefaultsPath, SettingsStore.DefaultUserSettingsPath).Load();
+    }
+
+    private static AudioPreflight CreatePreflight()
+    {
+        return new AudioPreflight(
+            new AvFoundationPermissionSource(),
+            new CoreAudioRouteSource(),
+            AudioPreflight.TerminalName(Environment.GetEnvironmentVariable("TERM_PROGRAM")));
     }
 
     private static string ParseErrorMessage(ParseResult parseResult)

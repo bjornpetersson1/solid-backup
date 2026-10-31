@@ -1,6 +1,7 @@
 using System.CommandLine;
 
 using SolidBackup.Cli;
+using SolidBackup.Configuration;
 
 using Spectre.Console.Testing;
 
@@ -18,6 +19,54 @@ public class AppCommandTests
         Assert.Contains("--help", output);
         Assert.Contains("--version", output);
         Assert.Contains("Visa hjälp och användning.", output);
+    }
+
+    [Fact]
+    public void Help_ListsDeviceOptionsWithSwedishDescriptions()
+    {
+        (int exitCode, string output, _) = Invoke("--help");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--devices", output);
+        Assert.Contains("Lista ljudenheterna och visa vilka som är valda.", output);
+        Assert.Contains("--input", output);
+        Assert.Contains("Ljudingång att använda den här gången (enhetens namn).", output);
+        Assert.Contains("--output", output);
+        Assert.Contains("Ljudutgång att använda den här gången (enhetens namn).", output);
+    }
+
+    [Theory]
+    [InlineData("--input", "USB Audio")]
+    [InlineData("--output", "Externa hörlurar")]
+    public void DeviceOptionWithoutPassThroughOrDevices_FailsWithSwedishMessage(string option, string name)
+    {
+        (int exitCode, string output, string error) = Invoke(option, name);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.DeviceOptionsAloneMessage} {AppCommand.HelpHint}", error.Trim());
+        Assert.Empty(output);
+    }
+
+    [Fact]
+    public void WithDevices_OverridesOnlyTheGivenDevicesAndKeepsTheMessage()
+    {
+        SettingsLoadResult loaded = new(TestSettings.Default with { InputDevice = "USB Audio" }, "meddelande");
+
+        SettingsLoadResult result = AppCommand.WithDevices(loaded, input: null, output: "Externa hörlurar");
+
+        Assert.Equal("USB Audio", result.Settings.InputDevice);
+        Assert.Equal("Externa hörlurar", result.Settings.OutputDevice);
+        Assert.Equal("meddelande", result.Message);
+    }
+
+    [Fact]
+    public void Help_ListsPassThroughWithSwedishDescription()
+    {
+        (int exitCode, string output, _) = Invoke("--help");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--passthrough", output);
+        Assert.Contains("Spela upp mikrofonen direkt i utgången (för att kontrollera ljudet).", output);
     }
 
     [Fact]

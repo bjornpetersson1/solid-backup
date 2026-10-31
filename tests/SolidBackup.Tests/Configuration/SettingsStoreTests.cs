@@ -9,14 +9,7 @@ public sealed class SettingsStoreTests : IDisposable
 {
     private const string FallbackText = "Standardinställningarna används.";
 
-    private static readonly AppSettings ExpectedDefaults = new()
-    {
-        LowestNote = "E2",
-        HighestNote = "C6",
-        BufferSize = 256,
-        GateThresholdDbfs = -50,
-        LatencyTargetMs = 50,
-    };
+    private static readonly AppSettings ExpectedDefaults = TestSettings.Default;
 
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "solid-backup-tests", Guid.NewGuid().ToString("N"));
     private readonly string _userFolder;
@@ -49,7 +42,7 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("{ not json")]
     [InlineData("[]")]
     [InlineData("")]
-    [InlineData("""{ "BufferSize": 512, "BufferSize": 128 }""")]
+    [InlineData("""{ "BufferSize": 512, "BufferSize": 256 }""")]
     public void Load_MalformedUserFile_ReturnsDefaultsWithSwedishMessage(string content)
     {
         WriteUserFile(content);
@@ -82,6 +75,10 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "BufferSize": 300 }""", "BufferSize")]
     [InlineData("""{ "BufferSize": 0 }""", "BufferSize")]
     [InlineData("""{ "BufferSize": "stor" }""", "BufferSize")]
+    [InlineData("""{ "InputDevice": null }""", "InputDevice")]
+    [InlineData("""{ "OutputDevice": null }""", "OutputDevice")]
+    [InlineData("""{ "SampleRate": 96000 }""", "SampleRate")]
+    [InlineData("""{ "SampleRate": "snabb" }""", "SampleRate")]
     [InlineData("""{ "GateThresholdDbfs": 3 }""", "GateThresholdDbfs")]
     [InlineData("""{ "LatencyTargetMs": 0 }""", "LatencyTargetMs")]
     [InlineData("""{ "LowestNote": "E+2" }""", "LowestNote")]
@@ -115,7 +112,10 @@ public sealed class SettingsStoreTests : IDisposable
         {
             LowestNote = "A2",
             HighestNote = "F#5",
-            BufferSize = 128,
+            BufferSize = ExpectedDefaults.BufferSize * 2,
+            SampleRate = 44_100,
+            InputDevice = "USB Audio",
+            OutputDevice = "Externa hörlurar",
             GateThresholdDbfs = -42.5,
             LatencyTargetMs = 30,
         };
@@ -150,9 +150,10 @@ public sealed class SettingsStoreTests : IDisposable
     [Fact]
     public void Save_WritesOnlySettingsThatDifferFromDefaults()
     {
-        CreateStore().Save(ExpectedDefaults with { BufferSize = 128 });
+        int bufferSize = ExpectedDefaults.BufferSize * 2;
+        CreateStore().Save(ExpectedDefaults with { BufferSize = bufferSize });
 
-        Assert.Equal("""{"BufferSize":128}""", JsonNode.Parse(File.ReadAllText(_userSettingsPath))?.ToJsonString());
+        Assert.Equal($$"""{"BufferSize":{{bufferSize}}}""", JsonNode.Parse(File.ReadAllText(_userSettingsPath))?.ToJsonString());
         Assert.Empty(Directory.GetFiles(_userFolder, "*.tmp"));
     }
 

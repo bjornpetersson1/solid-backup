@@ -4,6 +4,8 @@ public sealed record SettingsError(string Setting, string Problem);
 
 public static class SettingsValidator
 {
+    private static readonly int[] SupportedSampleRates = [44_100, 48_000];
+
     public static SettingsError? Validate(AppSettings settings)
     {
         if (!NoteName.TryParseMidiNumber(settings.LowestNote, out int lowest))
@@ -24,6 +26,21 @@ public static class SettingsValidator
         if (!int.IsPow2(settings.BufferSize))
         {
             return new(nameof(AppSettings.BufferSize), $"{settings.BufferSize} är inte en positiv tvåpotens");
+        }
+
+        if (!SupportedSampleRates.Contains(settings.SampleRate))
+        {
+            return new(nameof(AppSettings.SampleRate), $"{settings.SampleRate} Hz stöds inte; välj {string.Join(" eller ", SupportedSampleRates)}");
+        }
+
+        if (settings.InputDevice is null)
+        {
+            return new(nameof(AppSettings.InputDevice), "ett enhetsnamn eller \"\" (systemets standard) krävs");
+        }
+
+        if (settings.OutputDevice is null)
+        {
+            return new(nameof(AppSettings.OutputDevice), "ett enhetsnamn eller \"\" (systemets standard) krävs");
         }
 
         if (!double.IsFinite(settings.GateThresholdDbfs) || settings.GateThresholdDbfs > 0)
