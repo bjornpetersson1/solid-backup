@@ -3,6 +3,9 @@ using System.CommandLine.Help;
 using System.CommandLine.Invocation;
 using System.Reflection;
 
+using SolidBackup.Audio.PortAudio;
+using SolidBackup.Configuration;
+
 using Spectre.Console;
 
 namespace SolidBackup.Cli;
@@ -45,8 +48,21 @@ public static class AppCommand
         VersionOption versionOption = root.Options.OfType<VersionOption>().Single();
         versionOption.Description = "Visa versionen.";
         versionOption.Action = new PrintVersionAction();
-        root.SetAction(_ => new MainMenu(createConsole()).Run());
+        Option<bool> passThroughOption = new("--passthrough")
+        {
+            Description = "Spela upp mikrofonen direkt i utgången (för att kontrollera ljudet).",
+        };
+        root.Options.Add(passThroughOption);
+        root.SetAction(parseResult => parseResult.GetValue(passThroughOption)
+            ? CreatePassThrough(createConsole()).Run()
+            : new MainMenu(createConsole()).Run());
         return root;
+    }
+
+    private static PassThroughCommand CreatePassThrough(IAnsiConsole console)
+    {
+        SettingsStore store = new(SettingsStore.BundledDefaultsPath, SettingsStore.DefaultUserSettingsPath);
+        return new PassThroughCommand(console, store.Load, PortAudioDevices.Open);
     }
 
     private static string ParseErrorMessage(ParseResult parseResult)

@@ -8,6 +8,8 @@ public sealed record AppSettings
 
     public required int BufferSize { get; init; }
 
+    public required int SampleRate { get; init; }
+
     public required double GateThresholdDbfs { get; init; }
 
     public required int LatencyTargetMs { get; init; }

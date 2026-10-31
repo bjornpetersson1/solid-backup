@@ -4,7 +4,7 @@
 - **Labels:** `E2 Audio`
 - **Phase:** 2. Audio
 - **Depends on:** E2-1 (#5)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 88 tests passed; real PortAudio path smoke-tested for 60 s on the owner's Mac); hearing the microphone in the headphones and Ctrl+C in a real terminal are manual checks for the owner
 
 ## Summary
 `IAudioInput` and `IAudioOutput` as callback-based interfaces, a PortAudio implementation with one input stream and one output stream joined by a lock-free hand-over, a WAV-file input and an in-memory output for tests, and a minimal pipeline that connects them. A `--passthrough` flag lets the owner hear the microphone in the headphones.
@@ -53,16 +53,16 @@
 7. **The canonical check passes.** `dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test` exits 0 from the repo root, on macOS and in CI on Ubuntu.
 
 ## Tasks
-- [ ] Add `PortAudioSharp2` to the app project.
-- [ ] Define `IAudioInput` and `IAudioOutput` (and the handler they use).
-- [ ] Implement the hand-over ring buffer with drift correction and its tests.
-- [ ] Implement the PortAudio input and output streams with their counters.
-- [ ] Implement the WAV-file input and the in-memory output.
-- [ ] Implement `AudioPipeline` with pass-through processing.
-- [ ] Add `SampleRate` to settings, validator, `appsettings.json` and README.
-- [ ] Add `--passthrough` to the command line.
-- [ ] Tests: WAV round trip, WAV format errors, zero allocation, `SampleRate` validation, `--help` text.
-- [ ] Update the README "Run" section with `--passthrough`.
+- [x] Add `PortAudioSharp2` to the app project.
+- [x] Define `IAudioInput` and `IAudioOutput` (and the handler they use).
+- [x] Implement the hand-over ring buffer with drift correction and its tests.
+- [x] Implement the PortAudio input and output streams with their counters.
+- [x] Implement the WAV-file input and the in-memory output.
+- [x] Implement `AudioPipeline` with pass-through processing.
+- [x] Add `SampleRate` to settings, validator, `appsettings.json` and README.
+- [x] Add `--passthrough` to the command line.
+- [x] Tests: WAV round trip, WAV format errors, zero allocation, `SampleRate` validation, `--help` text.
+- [x] Update the README "Run" section with `--passthrough`.
 
 ## Decisions
 - **Callback model; two PortAudio streams with a lock-free hand-over** (updated after E2-1). The approved spec said one duplex stream. E2-1 measured ~220 ms reported input latency for a duplex stream across the built-in microphone and the headphones, against ~45 + 6 ms for separate streams, and the owner chose two streams with a lock-free hand-over. The drift rule (drop only a backlog that persists for 0.5 s) comes from the spike, where dropping on every burst made small buffers run dry. The WAV input and in-memory output still drive the handler synchronously in tests. (Owner's choice.)
@@ -73,6 +73,18 @@
 - **Mono in, stereo out** (default): input is monophonic by requirement; headphones are stereo, so the signal goes to both channels.
 - **Own WAV reader, no package** (default): the format subset is small, and the constitution prefers no new dependency when a built-in way exists.
 - **Overflow/underflow counters as plain fields updated with `Interlocked`/`Volatile`** (default): lock-free, and the basis for the dropout counter in E6.
+- **Hand-over size: half a second** (implementation): the ring holds the larger of 0.5 s and eight buffers (rounded up to a power of two), so the input is only dropped after a long output stall. Dropped input is counted as a hand-over overrun, a fifth counter beside the four in the criteria.
+- **Underruns count only once the hand-over is primed** (implementation): the output starts before the input and plays silence until the microphone delivers (~170 buffers at start in the smoke test). That silence is not a dropout.
+- **Smoke test of the real PortAudio path** (finding): run on the owner's Mac for 60 s with a silent processor and the defaults (48 kHz, 64 frames). Result: 45 099 buffers, 0 PortAudio overflows and underflows, 0 hand-over overruns, 6 drift corrections and 5 hand-over underruns (1.3 ms of silence each). Before code review the input was stopped before the output, and that alone showed 83–91 underruns per run, all at the stop. The remaining few underruns come right after drift corrections, when input burst jitter meets the one-buffer cushion, as in E2-1. They are a latency trade-off for E6-1's 0-dropout target.
+- **Ctrl+C goes through the normal stop** (clean code): instead of closing the audio from the signal handler, Ctrl+C cancels a token, so q, Esc and Ctrl+C all stop the pipeline, print the counts and dispose the devices. The command polls for keys every 50 ms so it notices the cancellation.
+- **Devices are chosen in `PortAudioDevices.Open`** (clean code): the streams get the chosen device, so E2-3 can choose by name in one place.
+- **Programmer errors in English, user errors in Swedish** (clean code): `AudioDeviceException` and WAV format errors can reach the user and are Swedish; misuse such as starting twice is English.
+- **Errors as `AudioDeviceException`** (implementation): the PortAudio classes turn PortAudio's errors and a missing device into one exception type with a Swedish message, so the command line does not depend on the binding's types.
+- **Namespace `SolidBackup.Audio.PortAudio`** (implementation): the binding's `PortAudio` class is therefore written in full as `PortAudioSharp.PortAudio`.
+- **`AllowUnsafeBlocks`** (implementation): the callbacks wrap PortAudio's native buffers in spans without copying.
+- **Code review fixes:** closing a stream is exception-safe and PortAudio is always terminated, even if stopping fails; the pipeline stops the output before the input (so the stop itself is not counted as dropouts) and stops the output again if the input fails to start; Ctrl+C is only taken over once the streams run, so it can still end the process while macOS's permission dialog blocks the open; the output callback copes with a different `frameCount`; a WAV data size of `0xFFFFFFFF` (streaming writers) reads to the end of the file; the hand-over is reset when the output restarts; more PortAudio load and device errors become `AudioDeviceException`; the unused device-name state was removed.
+- **No larger cushion in the hand-over yet** (code review finding deferred): a cushion above one buffer would absorb the few underruns after a drift correction (5 a minute in the smoke test). It would cost latency, though, and an output clock that runs faster would drain any cushion; only resampling that follows the drift removes that case. The balance belongs to E6-1, where the latency and 0-dropout targets are measured together.
+- **`PortAudioOutput` keeps its hand-over private and forwards its three counters** (code review finding declined): the clean-code pass made it private on purpose, so each stream reports its own part of `AudioCounters`.
 
 ## Open Questions
 - None

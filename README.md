@@ -25,7 +25,10 @@ Tests need no audio hardware and no network.
 dotnet run --project src/SolidBackup              # the menu (choose "Avsluta" to quit)
 dotnet run --project src/SolidBackup -- --help    # help
 dotnet run --project src/SolidBackup -- --version # version
+dotnet run --project src/SolidBackup -- --passthrough # play the microphone in the output
 ```
+
+`--passthrough` plays the default input in the default output until you press `q` or `Esc`, then prints the dropout counts. Use headphones: there is no echo cancellation.
 
 The menu needs an interactive terminal.
 
@@ -91,6 +94,7 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `LowestNote` | `E2` | Lowest note of the pitch range |
 | `HighestNote` | `C6` | Highest note of the pitch range |
 | `BufferSize` | `64` | Audio buffer size in frames (a power of two) |
+| `SampleRate` | `48000` | Sample rate in Hz (44100 or 48000) |
 | `GateThresholdDbfs` | `-50` | Noise gate threshold in dBFS (at most 0) |
 | `LatencyTargetMs` | `50` | Latency target in milliseconds |
 
