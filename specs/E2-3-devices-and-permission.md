@@ -57,7 +57,8 @@ List the audio devices, choose input and output by name through settings and fla
 - **Exact, case-insensitive name match; an unknown name is an error listing what exists.** Silently falling back to the speakers would defeat the headphones assumption. (Owner's choice.)
 - **Permission from macOS (AVFoundation authorisation status).** It tells denied apart from a muted microphone; whether it reports the terminal's status correctly from Terminal and iTerm is taken from E2-1's findings, and if it does not, this spec is revised before implementing. (Owner's choice.)
 - **Speakers from CoreAudio properties (transport type built-in + data source internal speakers).** Name matching misses headphones in the jack on an Intel Mac, where the device name stays the same. (Owner's choice.)
-- **Builds on E2-2:** devices are opened through E2-2's PortAudio duplex stream, and `--passthrough` is the place the checks run before E6.
+- **Builds on E2-2** (updated after E2-2 merged): E2-2 opens two PortAudio streams (input-only and output-only) and chooses the devices in `PortAudioDevices.Open`, so selection by name goes there. `--passthrough` is the place the checks run before E6.
+- **AVFoundation reports the terminal's status** (checked before implementing): `AVCaptureDevice authorizationStatusForMediaType:` called from a process in VS Code's terminal returned 3 (authorised), which matches the access granted in E2-1. The denied case and Terminal/iTerm stay manual checks.
 - **A warning, not a stop, for speakers** (from the issue and the constitution's Feedback row).
 - **Not yet asked → continue** (default): macOS then asks the owner itself, which is the normal first-run experience.
 - **Status unreadable → continue silently** (default): a failed check must never block a working microphone.
