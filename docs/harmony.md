@@ -17,7 +17,7 @@ The user picks a **harmony style** in the menu. Each style is a separate rule se
 | Pop | `Pop` | I, V, vi, IV with add9/sus4 colours and borrowed chords | E4-4 |
 | Modal | `Modal` | Tonic pedal with the mode's character chord | E4-4 |
 | Blues | `Blues` | I7, IV7, V7, blue notes, moves key on foreign notes | E4-5 |
-| Jazz | `Jazz` | Diatonic seventh chords, secondary dominants, ii–V–I, never stands still | E5-6 (needs tempo from E5-4) |
+| Jazz | `Jazz` | Diatonic seventh chords, secondary dominants, II–V–I into a new key, a tonic loop that never stands still | E5-6 |
 | Fri | `Free` | No key; seventh chords with tensions, chosen by voice leading from the previous chord | E4-6 |
 
 The melody's direction (up or down) plays no part in any style.
@@ -174,13 +174,28 @@ The default priority order is **1, 5, 4, 6, 2, 3, 7**; a style may give its own.
   4. When the note is a tension, the chord includes it (`Cmaj7(#11)`).
 - **Contains the note:** always, as a tone or a tension; the tensions give the dissonance.
 
-### Jazz (direction; details in E5-6)
+### Jazz
 
-Jazz needs a time base, so its detailed rules are decided in E5-6, once `docs/rhythm.md` (E5-4) gives the tempo. The direction agreed here:
+Decided with the owner in E5-6. Jazz uses the tempo grid from `docs/rhythm.md` (beats counted from the start of live mode, `Bpm`, `TimeSignature`), whatever the rhythm pattern.
 
-- **Chords:** diatonic seventh chords (Imaj7, IIm7, IIIm7, IVmaj7, V7, VIm7, VIIm7b5), secondary dominants, and IIm7–V7–Imaj7 into a new key when a note is foreign to the current key. Like Blues, the style may move the current key.
-- **Never stands still:** instead of resting on I while the melody rests or holds, it loops I–VIm7–IIm7–V7 at the tempo.
-- **Contains the note:** yes.
+- **Chords:** the diatonic seventh chords of the current key, with priority **1, 5, 4, 6, 2, 3, 7** and the common successors.
+
+  | Key | Chords (on C) |
+  |---|---|
+  | Major | Imaj7 IIm7 IIIm7 IVmaj7 V7 VIm7 VIIm7b5 (Cmaj7 Dm7 Em7 Fmaj7 G7 Am7 Bm7b5) |
+  | Minor | Im7 IIm7b5 bIIImaj7 IVm7 V7 bVImaj7 bVII7 (Cm7 Dm7b5 Ebmaj7 Fm7 G7 Abmaj7 Bb7); V7 is the harmonic-minor dominant |
+
+- **Choice when the note is in the key:** the common rules (keep, natural step, priority), except for the tonic note below.
+- **The tonic loop:** when the stable note is the current key's tonic, the chord becomes the tonic chord at once (after the hold times while singing, like any change), and the loop starts: I – VI – II – V (major: Imaj7 – VIm7 – IIm7 – V7; minor: Im7 – bVImaj7 – IIm7b5 – V7), two beats per chord, around and around.
+  - The loop changes chord on every other beat of the grid: the beats with an even index counted from the grid's origin (in 4/4 beats 1 and 3 of each bar; in 3/4 alternately across the bar lines). The second chord comes on the first such beat at least one beat after the tonic chord started.
+  - While the tonic sounds, V7 takes it as the 11th (`G7(11)` on C), so every loop chord contains the note. In silence V7 is plain.
+  - The loop goes on through silence and never stops by itself; only a new note that is not the tonic stops it and is chosen by the rules. Loop changes do not wait for `MinChordDurationMs`.
+- **A foreign note** (not in the current key):
+  1. **Secondary dominant:** the V7 of a diatonic chord other than the tonic and the m7b5 chord (on C major: A7 B7 C7 D7 E7, the dominants of II III IV V VI), that contains the note. When several do, the one whose target comes first in the order 5, 4, 6, 2, 3, 7. A secondary dominant's successor is its target.
+  2. **Modulation:** the second foreign note in the same phrase (counted since the last phrase reset or key change) moves the current key to the nearest key on the circle of fifths, in the same major or minor, whose scale contains the note; the flat side wins a tie. The harmony then plays II – V – I of the new key, one chord per beat: II at once, V on the next beat of the grid, I on the beat after, without hold times and whatever the melody does meanwhile. After that the common rules apply in the new key. The dashboard shows the new key.
+- **The key goes back** to the menu's key (or the current `auto` estimate) on a phrase reset, or when that key changes, as in Blues.
+- **Contains the note:** yes, as a chord tone or as V7's 11th in the loop, except during a modulation's II – V – I, which is played through.
+- **Rhythm:** in Jazz the pattern does not stop after `PhraseResetMs` of silence while the loop runs (`docs/rhythm.md`); with the gate on, silence is still silent.
 
 ## Examples
 
@@ -259,6 +274,23 @@ Unless a row says otherwise, each note lasts 500 ms, the notes follow without si
 | F1 | C A | Cmaj7 Am7 | A: Am7 and Em7(11) both share 3 tones and move 2 semitones, are both `m7`; A is a chord tone in Am7. |
 | F2 | C A F# | Cmaj7 Am7 Cmaj7(#11) | F#: Cmaj7(#11), C7(#11) and F#m7b5 share 3 tones and move 1 → `maj7` first. |
 | F3 | C A E | Cmaj7 Am7 Am7 | E is in Am7. |
+
+### Jazz
+
+C major, 120 BPM in 4/4 (one beat = 500 ms; loop changes at 0, 1000, 2000 … ms), unless a row says otherwise. Times are ms from the start of live mode, which is the grid's origin.
+
+| # | Notes (start–end, ms) | Chords | Current key | Why |
+|---|---|---|---|---|
+| J1 | C 0–4000 | Cmaj7 at 0, Am7 at 1000, Dm7 at 2000, G7(11) at 3000 | C | The tonic starts the loop; V7 takes the held C as its 11th. |
+| J2 | C 1600–4500 | Cmaj7 at 1600, Am7 at 3000, Dm7 at 4000 | C | 2000 is less than one beat after 1600; the loop waits for 3000. |
+| J3 | E 0–500, D 500–1000, C 1000–3500 | Cmaj7 at 0, G7 at 620, Cmaj7 at 1120, Am7 at 2000, Dm7 at 3000 | C | E: priority 1. D: no keep or successor, priority 5. C: the loop. |
+| J4 | C 0–500, silence | Cmaj7 at 0, Am7 at 1000, Dm7 at 2000, G7 at 3000, Cmaj7 at 4000 … | C | The loop goes on through silence; V7 is plain without a note. |
+| J5 | C 0–500, F# 500–1000, G 1000–1500 | Cmaj7 at 0, D7 at 620, G7 at 1120 | C | F#: D7 and B7 contain it; target 5 before 3. G: the successor of D7 is its target, G7. |
+| J6 | As J5, then Bb 1500–2000 | … Gm7 at 1620, C7 at 2000, Fmaj7 at 2500 | F from 1620 | Bb is the second foreign note: F is the nearest key with Bb; II – V – I one per beat. |
+| J7 | As J6, silence until 5000, E 5000–5500 | … Fmaj7 at 2500, Cmaj7 at 5000 | F, then C at 5000 | Phrase reset: the key goes back to C; E chooses by priority 1. |
+| J8 | A minor: A 0–4000 | Am7 at 0, Fmaj7 at 1000, Bm7b5 at 2000, E7(11) at 3000 | Am | The minor loop. |
+| J9 | 3/4: C 0–4000 | Cmaj7 at 0, Am7 at 1000, Dm7 at 2000, G7(11) at 3000 | C | Every other beat across the bar lines gives the same times as 4/4. |
+| J10 | C 0–1100, E 1100–1600 | Cmaj7 at 0, Am7 at 1000, Am7 kept at 1250 | C | E is a new note and stops the loop, evaluated once `MinChordDurationMs` has passed since the loop change at 1000; Am7 contains E, so it is kept. |
 
 ## What changes in the plan
 
