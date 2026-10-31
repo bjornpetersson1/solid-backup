@@ -14,6 +14,7 @@ public sealed class SettingsStoreTests : IDisposable
         LowestNote = "E2",
         HighestNote = "C6",
         BufferSize = 64,
+        SampleRate = 48_000,
         GateThresholdDbfs = -50,
         LatencyTargetMs = 50,
     };
@@ -82,6 +83,8 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "BufferSize": 300 }""", "BufferSize")]
     [InlineData("""{ "BufferSize": 0 }""", "BufferSize")]
     [InlineData("""{ "BufferSize": "stor" }""", "BufferSize")]
+    [InlineData("""{ "SampleRate": 96000 }""", "SampleRate")]
+    [InlineData("""{ "SampleRate": "snabb" }""", "SampleRate")]
     [InlineData("""{ "GateThresholdDbfs": 3 }""", "GateThresholdDbfs")]
     [InlineData("""{ "LatencyTargetMs": 0 }""", "LatencyTargetMs")]
     [InlineData("""{ "LowestNote": "E+2" }""", "LowestNote")]
@@ -116,6 +119,7 @@ public sealed class SettingsStoreTests : IDisposable
             LowestNote = "A2",
             HighestNote = "F#5",
             BufferSize = ExpectedDefaults.BufferSize * 2,
+            SampleRate = 44_100,
             GateThresholdDbfs = -42.5,
             LatencyTargetMs = 30,
         };

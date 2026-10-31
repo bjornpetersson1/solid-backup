@@ -21,6 +21,16 @@ public class AppCommandTests
     }
 
     [Fact]
+    public void Help_ListsPassThroughWithSwedishDescription()
+    {
+        (int exitCode, string output, _) = Invoke("--help");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--passthrough", output);
+        Assert.Contains("Spela upp mikrofonen direkt i utgången (för att kontrollera ljudet).", output);
+    }
+
+    [Fact]
     public void Version_PrintsProjectVersion()
     {
         (int exitCode, string output, _) = Invoke("--version");
