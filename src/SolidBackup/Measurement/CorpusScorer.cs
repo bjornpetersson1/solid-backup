@@ -8,10 +8,13 @@ namespace SolidBackup.Measurement;
 /// </summary>
 public static class CorpusScorer
 {
-    /// <param name="createDetector">Makes a fresh detector for a clip, given the clip and its sample rate.</param>
-    public static CorpusScore Score(IEnumerable<CorpusClip> clips, Func<CorpusClip, ICorpusDetector> createDetector, int bufferSize)
+    /// <summary>Scores the clips with one fresh detector per clip, keeping them in their given order.</summary>
+    /// <param name="createDetector">Makes a fresh detector for a clip; with <paramref name="parallel"/> it is called from several threads.</param>
+    /// <param name="parallel">Runs the clips on several threads; leave it off when timing a detector.</param>
+    public static CorpusScore Score(IEnumerable<CorpusClip> clips, Func<CorpusClip, ICorpusDetector> createDetector, int bufferSize, bool parallel = false)
     {
-        return new CorpusScore(clips.Select(clip => new ClipScore(clip.Name, Score(clip, Run(clip, createDetector(clip), bufferSize)))).ToArray());
+        Func<CorpusClip, ClipScore> score = clip => new ClipScore(clip.Name, Score(clip, Run(clip, createDetector(clip), bufferSize)));
+        return new CorpusScore(parallel ? clips.AsParallel().AsOrdered().Select(score).ToArray() : clips.Select(score).ToArray());
     }
 
     public static ScoreCounts Score(CorpusClip clip, IReadOnlyList<DetectorReport> reports)
@@ -45,8 +48,15 @@ public static class CorpusScorer
 
             if (segment.IsVoiced)
             {
+                // A note can drift past the range's edge; windows whose reference lies nearer a note outside it are out of range too.
+                double? expected = segment.PitchAt(report.TimeMs);
+                if (expected is double pitch && !CorpusRange.ContainsPitch(pitch))
+                {
+                    continue;
+                }
+
                 voiced++;
-                if (report.MidiCents - segment.PitchAt(report.TimeMs) is double error)
+                if (report.MidiCents - expected is double error)
                 {
                     correct += Math.Abs(error) <= MeasurementTargets.PitchToleranceCents ? 1 : 0;
                     octave += Math.Abs(error) >= MeasurementTargets.OctaveErrorCents ? 1 : 0;

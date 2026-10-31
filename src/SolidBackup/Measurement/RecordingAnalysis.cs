@@ -1,3 +1,5 @@
+using SolidBackup.Analysis;
+
 namespace SolidBackup.Measurement;
 
 /// <summary>
@@ -86,8 +88,8 @@ internal sealed class RecordingAnalysis
     /// <summary>The pitch in MIDI cents every <paramref name="hopMs"/> from start to end, for the frames periodic enough.</summary>
     public List<(double TimeMs, double Cents)> PitchFrames(double startMs, double endMs, double hopMs, double lowestCents, double highestCents, LagChoice choice)
     {
-        int minLag = (int)Math.Floor(_sampleRate / CorpusRange.Frequency(highestCents));
-        int maxLag = (int)Math.Ceiling(_sampleRate / CorpusRange.Frequency(lowestCents));
+        int minLag = (int)Math.Floor(_sampleRate / Pitch.Frequency(highestCents));
+        int maxLag = (int)Math.Ceiling(_sampleRate / Pitch.Frequency(lowestCents));
         int window = Math.Max(2 * maxLag, _sampleRate / 100);
         double[] correlation = new double[maxLag - minLag + 3];
         List<(double TimeMs, double Cents)> frames = [];
@@ -107,7 +109,7 @@ internal sealed class RecordingAnalysis
             if (PickPeak(correlation, choice) is int index)
             {
                 double lag = index + minLag - 1 + ParabolaOffset(correlation, index);
-                frames.Add((ms, CorpusRange.Cents(_sampleRate / lag)));
+                frames.Add((ms, Pitch.Cents(_sampleRate / lag)));
             }
         }
 

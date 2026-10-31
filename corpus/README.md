@@ -62,9 +62,17 @@ The generated clips use the same model (`tones` writes the same format).
    ```
 5. Run `dotnet test`. The corpus tests check that each recording is 48 kHz mono 16-bit, that its reference covers it, that its notes match the list with every median within ±50 cents of the listed note, that there is one onset per note in the range, and that the corpus stays at or below 10 MB.
 
-**How the labelling works.** Notes are the loud stretches of the level envelope (RMS over 10 ms) that are strongly periodic; stretches closer than 75 ms are joined, and loud stretches without a pitch (a breath, a click) are left to the gaps. Each note's pitch is measured every 10 ms by normalised autocorrelation, searching only within one semitone of the listed note, so a label cannot be an octave off. The parts of a loud stretch before the note's first and after its last periodic frame (an attack, a decay) become `unclear`. The gaps between notes are `silence`, or `breath` when their median level is more than 10 dB above the clip's floor. A note's onset is where its level first comes within 20 dB of its peak (and above the midpoint between the floor and the peak).
+**How the labelling works.** Notes are the loud stretches of the level envelope (RMS over 10 ms) that are strongly periodic; stretches closer than 75 ms are joined, and loud stretches without a pitch (a breath, a click) are left to the gaps. Each note's pitch is measured every 10 ms by normalised autocorrelation, searching only within one semitone of the listed note, so a label cannot be an octave off. The rest of the note's sound becomes `unclear`: the parts of the loud stretch before its first and after its last periodic frame (an attack, a decay), and the quiet lead-in and tail around the stretch for as long as they stay periodic within a semitone of the note. The gaps between notes are `silence`, or `breath` when their median level is more than 10 dB above the clip's floor. A note's onset is where its level first comes within 20 dB of its peak (and above the midpoint between the floor and the peak).
 
 **Caveat.** The note lists for the current recordings were proposed by `suggest` and not set in advance, so the reference rests on that analysis plus the owner's listening check, not on an independent score. `suggest` searches the whole range and takes the shortest strongly periodic lag; a separate spectral check of the whistled notes agreed with it.
+
+## Measuring the pitch detector
+
+```bash
+dotnet run --project tools/SolidBackup.CorpusTool -c Release -- report
+```
+
+runs the pitch detector (E3-2) with the default settings from `appsettings.json` over the generated tones and the recordings, and prints a markdown report: per clip and in total, pitch accuracy, octave errors and false notes with their window counts, whether each target is met, and the average analysis time per buffer. Run it in Release; a Debug build analyses about four times slower. The clips run one at a time so the time per buffer is not inflated by other threads. The detector's constants are in `src/SolidBackup/Analysis`: YIN's dip threshold is 1 − `PitchConfidenceThreshold` (0.2 by default), the energy floor −80 dBFS, and a change of note is reported once it has held for 10 ms and two estimates (`NoteHold`).
 
 ## Scoring rules
 
@@ -72,6 +80,7 @@ The generated clips use the same model (`tones` writes the same format).
 
 - A **window** is one detector report (one per buffer), placed at the time the detector says its estimate refers to.
 - **Voiced** windows lie in `note` segments, **unvoiced** windows in `silence`, `breath` or `noise`. `out-of-range` and `unclear` segments are left out of every measure, and out-of-range notes have no onset.
+- A voiced window whose reference pitch at that moment lies nearer a note outside the range (a note drifting past C7, say) is left out too.
 - Windows within **30 ms** of a segment boundary (including the clip's start and end) are left out of the pitch measures, because a buffer there mixes two states.
 - **Pitch accuracy**: the share of voiced windows whose detected pitch is within **±50 cents** of the reference at that time; a window with no detected note counts as wrong. Target ≥ 95 %.
 - **Octave errors**: the share of voiced windows off by **1150 cents or more** (an octave, within the tolerance). Target ≤ 1 %.

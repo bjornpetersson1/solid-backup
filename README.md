@@ -91,7 +91,7 @@ dotnet run --project spikes/PortAudioSpike -- stability <frames> <seconds> [--se
 
 ## Test corpus
 
-The pitch, level and onset targets are measured on the corpus in `corpus/`: generated tones built in code and recordings with reference files. See [`corpus/README.md`](corpus/README.md) for its contents, formats, how to record and label a clip, and the scoring rules.
+The pitch, level and onset targets are measured on the corpus in `corpus/`: generated tones built in code and recordings with reference files. See [`corpus/README.md`](corpus/README.md) for its contents, formats, how to record and label a clip, the scoring rules, and how to measure the pitch detector (`dotnet run --project tools/SolidBackup.CorpusTool -c Release -- report`).
 
 ## Settings
 
@@ -105,6 +105,7 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `SampleRate` | `48000` | Sample rate in Hz (44100 or 48000) |
 | `InputDevice` | `""` | Input device name; empty means the system default |
 | `OutputDevice` | `""` | Output device name; empty means the system default |
+| `PitchConfidenceThreshold` | `0.8` | YIN confidence (0–1) a pitch needs to be reported as a note |
 | `GateThresholdDbfs` | `-50` | Noise gate threshold in dBFS (at most 0) |
 | `LatencyTargetMs` | `50` | Latency target in milliseconds |
 

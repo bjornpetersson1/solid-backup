@@ -43,6 +43,11 @@ public static class SettingsValidator
             return new(nameof(AppSettings.OutputDevice), "ett enhetsnamn eller \"\" (systemets standard) krävs");
         }
 
+        if (settings.PitchConfidenceThreshold is not (>= 0 and <= 1))
+        {
+            return new(nameof(AppSettings.PitchConfidenceThreshold), $"{settings.PitchConfidenceThreshold} måste vara ett tal mellan 0 och 1");
+        }
+
         if (!double.IsFinite(settings.GateThresholdDbfs) || settings.GateThresholdDbfs > 0)
         {
             return new(nameof(AppSettings.GateThresholdDbfs), $"{settings.GateThresholdDbfs} dBFS måste vara ett tal på högst 0 dBFS");

@@ -13,6 +13,7 @@ internal static class TestSettings
         SampleRate = 48_000,
         InputDevice = "",
         OutputDevice = "",
+        PitchConfidenceThreshold = 0.8,
         GateThresholdDbfs = -50,
         LatencyTargetMs = 50,
     };

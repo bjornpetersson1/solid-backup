@@ -23,7 +23,7 @@ public sealed class GeneratedCorpusTests
     [InlineData(44_100)]
     public void References_CoverEveryClip(int sampleRate)
     {
-        foreach (CorpusClip clip in sampleRate == 48_000 ? TestCorpus.Generated : GeneratedCorpus.Create(sampleRate))
+        foreach (CorpusClip clip in TestCorpus.At(sampleRate))
         {
             Assert.Equal(sampleRate, clip.SampleRate);
             ReferenceChecks.AssertCovers(clip.Reference, clip.Samples.Length * 1000.0 / sampleRate, clip.Name);

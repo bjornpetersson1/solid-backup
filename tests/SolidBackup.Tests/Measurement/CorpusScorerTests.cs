@@ -128,6 +128,21 @@ public sealed class CorpusScorerTests
     }
 
     [Fact]
+    public void VoicedWindowsWhoseReferenceDriftsPastTheRange_AreLeftOut()
+    {
+        // The note glides from C7 (9600) to D7 (9800); past 9650 its windows are out of range.
+        CorpusClip clip = Constructed with
+        {
+            Reference = new ClipReference([new ReferenceSegment(0, 2000, SegmentKind.Note, [9600, 9800])], []),
+        };
+
+        ScoreCounts counts = CorpusScorer.Score(clip, Reports(_ => null, onsets: []));
+
+        // 9650 is reached at 500 ms; windows from 35 to 495 ms count (47), all missed.
+        Assert.Equal((47, 0), (counts.VoicedWindows, counts.CorrectWindows));
+    }
+
+    [Fact]
     public void UnclearSegments_AreLeftOutOfEveryMeasure()
     {
         CorpusClip clip = Constructed with

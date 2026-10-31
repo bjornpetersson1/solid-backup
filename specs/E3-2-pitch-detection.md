@@ -4,7 +4,7 @@
 - **Labels:** `E3 Analysis`
 - **Phase:** 3. Analysis
 - **Depends on:** E3-1 (#8)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 246 tests passed; pitch accuracy 99.35 %, octave errors 0.00 %, false notes 0.19 % on the corpus); CI on Ubuntu is checked on the PR
 
 ## Summary
 A monophonic YIN pitch detector that gives, for every input buffer, either no note or the note, its deviation in cents and a confidence value, within the configured range (E2–C7 by default). It is measured on the E3-1 corpus with E3-1's scorer and must reach the pitch targets in Measurement.
@@ -48,13 +48,13 @@ A monophonic YIN pitch detector that gives, for every input buffer, either no no
 9. **The canonical check passes.** `dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test` exits 0 from the repo root, on macOS and in CI on Ubuntu.
 
 ## Tasks
-- [ ] Write the FFT and the YIN difference function, cumulative mean normalisation, threshold search and parabolic interpolation.
-- [ ] Write the pitch report type with note name, cents and confidence, and the note-name formatting.
-- [ ] Add the range from `LowestNote`/`HighestNote` and the new `PitchConfidenceThreshold` setting (settings, validator, `appsettings.json`, README).
-- [ ] Add the energy floor and the note-change hysteresis.
-- [ ] Plug the detector into E3-1's scorer and assert the three pitch targets.
-- [ ] Add the report command to the corpus tool.
-- [ ] Tests: generated tones at both sample rates, range ends, hysteresis, determinism, zero allocation, setting validation, faster than real time.
+- [x] Write the FFT and the YIN difference function, cumulative mean normalisation, threshold search and parabolic interpolation.
+- [x] Write the pitch report type with note name, cents and confidence, and the note-name formatting.
+- [x] Add the range from `LowestNote`/`HighestNote` and the new `PitchConfidenceThreshold` setting (settings, validator, `appsettings.json`, README).
+- [x] Add the energy floor and the note-change hysteresis.
+- [x] Plug the detector into E3-1's scorer and assert the three pitch targets.
+- [x] Add the report command to the corpus tool.
+- [x] Tests: generated tones at both sample rates, range ends, hysteresis, determinism, zero allocation, setting validation, faster than real time.
 
 ## Decisions
 - **YIN** (owner's choice): named in the constitution, robust on voice and gives a natural confidence (1 − the normalised difference at the chosen lag). Own implementation, no package.
@@ -65,7 +65,18 @@ A monophonic YIN pitch detector that gives, for every input buffer, either no no
 - **Window length** (default): long enough for two periods of the lowest configured note (about 25 ms for E2), rounded up to a power of two for the FFT; the exact size and the resulting analysis delay are documented. The window length sets the floor on the detector's latency, which the latency budget in E6-1 accounts for.
 - **Range E2–C7, updated after E3-1** (owner's choice in E3-1): the owner's whistling lies at about C#6–C7, so E3-1 raised the default `HighestNote` to C7 and the corpus covers E2–C7; this spec's range and tests follow. E3-1 also added the `unclear` segment kind, left out of every measure, and reports per clip through `ScoreCounts`.
 - **Cents relative to the nearest equal-tempered note at A4 = 440 Hz** (default).
-- **`PitchConfidenceThreshold` default** (implementation): chosen against the corpus and recorded here when implemented.
+- **`PitchConfidenceThreshold` default 0.8** (implementation): meets all three targets on the corpus with margin; valid values are 0 to 1.
+- **Window and delay** (implementation): the window is two periods of the lowest note plus a sample, 1204 samples at 48 kHz for E2 (25.1 ms), so an estimate refers to a moment 12.5 ms back. The FFT is the next power of two (2048), zero-padded; every product in the correlation lies inside the window, so it never wraps. The correlation comes from one complex FFT that carries the integration window and the whole window as its real and imaginary parts, and one inverse.
+- **Constants** (implementation): YIN's dip threshold is 1 − `PitchConfidenceThreshold` (0.2 by default): the first lag below it is taken and followed down to its local minimum, and without such a dip there is no note, so the confidence of every reported note is at or above the setting; an energy floor of −80 dBFS over the window; a ±50 cent margin around the range; a hold (`NoteHold`) of 10 ms and at least two estimates before a change of note, or between a note and no note, is reported, while movement within a semitone of the reported pitch passes at once. They are documented in code and in `corpus/README.md`.
+- **The hysteresis is its own class, `NoteHold`** (implementation): pure and testable with constructed estimates; the detector feeds it every raw estimate.
+- **Measurement figures** (Release build, owner's Mac, BufferSize 64, default settings): pitch accuracy **99.35 %** (60 733 of 61 133 voiced windows), octave errors **0.00 %** (2), false notes **0.19 %** (100 of 53 291 unvoiced windows). Per recording: singing 96.28 % / 0.03 % / 0.11 %, whistle 98.00 % / 0 % / 0.97 %, silence and breathing 0 false notes; the generated clips 99.99–100 %. Analysis time **104.5 µs per buffer** (7.8 % of a 1.33 ms buffer); a Debug build is about four times slower.
+- **Two corrections to E3-1's references and rules** (finding while measuring): (1) the quiet, still periodic tail of a whistled or sung note after its loud stretch was labelled `silence`, so a detector hearing the tail correctly was charged with false notes (5.3 % on the whistle); the labeller now marks a note's periodic lead-in and tail `unclear`, and the references were relabelled (the note segments themselves did not change). (2) A note that drifts past the range's edge (the whistled C7 at 15.3 s reaches C7 +61) counted as missed although the detector rightly gives no note above C7 +50; the scorer now leaves out voiced windows whose reference pitch lies nearer a note outside the range. Both are documented in `corpus/README.md`, and the owner approved both after code review raised that they changed the measurement during implementation.
+- **The corpus is scored in parallel in tests** (implementation): `CorpusScorer.Score` takes `parallel`; the tests use it (the whole corpus takes about 25 s in a Debug build instead of about 80 s), the report command does not, so its time per buffer is not inflated by other threads. Each clip has its own detector, so the figures are the same either way.
+- **Scale tests split by waveform** (implementation): the sine and sawtooth scales at 48 and 44.1 kHz are two test classes, so xUnit runs them in parallel.
+- **Clean-code pass** (implementation): the frequency/cents conversion lives once, in `Analysis.Pitch`, used by the detector and the corpus code; `PitchEstimate.Frequency` is derived from the cents; the FFT's inverse is unscaled and the 1/N is folded into the cross spectrum; only the FFT arrays' tails are cleared; the tests build the generated corpus once per sample rate. Not done: a half-size real-output inverse FFT (about 20 µs a buffer for noticeably more code, with the detector already at 8 % of real time), and moving the parallelism out of `CorpusScorer` into its callers (it would need a per-clip scoring API for no gain now).
+- **Code review fixes:** the dip threshold follows `PitchConfidenceThreshold` and a window without a dip gives no note (before, the global minimum could pass the threshold at a subharmonic); `NoteHold` also needs two estimates, so a single stray estimate is held back with buffers of 512 or more too; the labeller searches an onset back to the previous note's loud stretch, not to the end of its quiet tail; a voiced window without a reference pitch counts as wrong instead of being dropped; the per-window range rule uses `CorpusRange.ContainsPitch`, which rounds halfway as `PitchEstimate.MidiNote` does; `PitchEstimate.Frequency` is 0 for no note.
+- **The lag search starts below the range's top** (code review finding declined): criterion 2 says the detector searches only between `LowestNote` and `HighestNote`. It reports only pitches in that range, but its dip search starts at the shortest lags: starting at the top note's period would make a tone above the range show up as the subharmonic that falls inside it (a C8 as C7), which is the case criterion 2's test for a tone well outside the range rules out.
+- **The per-window range rule stays in the scorer** (code review finding declined): splitting a drifting note's reference at the range edge would break the one-to-one match between reference notes and the note list that the corpus test relies on; the rule is documented in `corpus/README.md`.
 
 ## Open Questions
 - None

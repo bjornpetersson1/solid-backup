@@ -18,12 +18,12 @@ public sealed class CorpusRangeTests
     }
 
     [Theory]
-    [InlineData(6900, 440)]
-    [InlineData(5700, 220)]
-    [InlineData(8100, 880)]
-    public void CentsAndFrequency_AreInverse(double cents, double frequency)
+    [InlineData(9649, true)]
+    [InlineData(9650, false)]
+    [InlineData(3950, true)]
+    [InlineData(3949, false)]
+    public void PitchIsInTheRange_ByItsNearestNote(double midiCents, bool expected)
     {
-        Assert.Equal(frequency, CorpusRange.Frequency(cents), 1e-9);
-        Assert.Equal(cents, CorpusRange.Cents(frequency), 1e-9);
+        Assert.Equal(expected, CorpusRange.ContainsPitch(midiCents));
     }
 }

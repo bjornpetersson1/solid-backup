@@ -29,18 +29,23 @@ public static class ReferenceLabeler
 
         List<ReferenceSegment> segments = [];
         List<double> onsets = [];
-        int position = 0;
+        double position = 0;
+        int previousLoudEnd = 0;
         for (int i = 0; i < regions.Count; i++)
         {
             (int start, int end, _) = regions[i];
-            AddGap(segments, analysis, position, start);
-            AddNote(segments, analysis, start, end, clip.Notes[i], clip.Name);
+            double nextStart = i + 1 < regions.Count ? regions[i + 1].Start : analysis.DurationMs;
+            (double soundStart, double soundEnd) = PeriodicSpan(analysis, clip.Notes[i], position, start, end, nextStart);
+            AddGap(segments, analysis, position, soundStart);
+            AddNote(segments, analysis, soundStart, start, end, soundEnd, clip.Notes[i], clip.Name);
             if (CorpusRange.Contains(clip.Notes[i]))
             {
-                onsets.Add(Onset(analysis, position, start, end));
+                // The onset may lie in the previous note's quiet tail, so the search stops at its loud stretch.
+                onsets.Add(Onset(analysis, previousLoudEnd, start, end));
             }
 
-            position = end;
+            position = soundEnd;
+            previousLoudEnd = end;
         }
 
         AddGap(segments, analysis, position, analysis.DurationMs);
@@ -58,8 +63,40 @@ public static class ReferenceLabeler
             .ToArray();
     }
 
-    // The note runs from its first to its last periodic frame, with the rest of the loud stretch unclear; its pitch curve has one value per 10 ms, frames not periodic enough filled in from their neighbours.
-    private static void AddNote(List<ReferenceSegment> segments, RecordingAnalysis analysis, int start, int end, int midi, string clip)
+    // A note's quiet lead-in and tail, below the loud stretch's level but still periodic near the note, are
+    // part of its sound: the span grows from the loud stretch in 10 ms steps while the frames stay periodic.
+    private static (double Start, double End) PeriodicSpan(RecordingAnalysis analysis, int midi, double previousEnd, int start, int end, double nextStart)
+    {
+        double lowest = (midi - 1) * 100.0;
+        double highest = (midi + 1) * 100.0;
+        const double Step = RecordingAnalysis.HopMs;
+
+        // Frames are Step apart; a gap larger than that ends the run.
+        List<(double TimeMs, double Cents)> after = analysis.PitchFrames(end, nextStart, Step, lowest, highest, RecordingAnalysis.LagChoice.Best);
+        double soundEnd = end;
+        int next = 0;
+        while (next < after.Count && after[next].TimeMs <= soundEnd + 0.001)
+        {
+            soundEnd = Math.Min(nextStart, after[next].TimeMs + Step);
+            next++;
+        }
+
+        List<(double TimeMs, double Cents)> before = analysis.PitchFrames(previousEnd, start, Step, lowest, highest, RecordingAnalysis.LagChoice.Best);
+        double soundStart = start;
+        int previous = before.Count - 1;
+        while (previous >= 0 && before[previous].TimeMs >= soundStart - Step - 0.001)
+        {
+            soundStart = Math.Max(previousEnd, before[previous].TimeMs);
+            previous--;
+        }
+
+        return (soundStart, soundEnd);
+    }
+
+    // The note runs from its first to its last periodic frame within the loud stretch; the rest of the note's
+    // sound (an attack, a decay, a quiet tail) is unclear. Its pitch curve has one value per 10 ms, frames not
+    // periodic enough filled in from their neighbours.
+    private static void AddNote(List<ReferenceSegment> segments, RecordingAnalysis analysis, double soundStart, int start, int end, double soundEnd, int midi, string clip)
     {
         List<(double TimeMs, double Cents)> voiced = analysis.PitchFrames(
             start, end, RecordingAnalysis.HopMs, (midi - 1) * 100.0, (midi + 1) * 100.0, RecordingAnalysis.LagChoice.Best);
@@ -72,15 +109,15 @@ public static class ReferenceLabeler
         double last = voiced[^1].TimeMs;
         double[] pitches = Resample(voiced, first, (int)Math.Round((last - first) / RecordingAnalysis.HopMs) + 1);
         double noteEnd = pitches.Length > 1 ? last : Math.Min(end, first + RecordingAnalysis.HopMs);
-        if (first > start)
+        if (first > soundStart)
         {
-            segments.Add(new ReferenceSegment(start, first, SegmentKind.Unclear));
+            segments.Add(new ReferenceSegment(soundStart, first, SegmentKind.Unclear));
         }
 
         segments.Add(new ReferenceSegment(first, noteEnd, CorpusRange.Contains(midi) ? SegmentKind.Note : SegmentKind.OutOfRange, pitches));
-        if (noteEnd < end)
+        if (noteEnd < soundEnd)
         {
-            segments.Add(new ReferenceSegment(noteEnd, end, SegmentKind.Unclear));
+            segments.Add(new ReferenceSegment(noteEnd, soundEnd, SegmentKind.Unclear));
         }
     }
 

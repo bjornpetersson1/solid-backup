@@ -79,6 +79,8 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "OutputDevice": null }""", "OutputDevice")]
     [InlineData("""{ "SampleRate": 96000 }""", "SampleRate")]
     [InlineData("""{ "SampleRate": "snabb" }""", "SampleRate")]
+    [InlineData("""{ "PitchConfidenceThreshold": 1.5 }""", "PitchConfidenceThreshold")]
+    [InlineData("""{ "PitchConfidenceThreshold": -0.1 }""", "PitchConfidenceThreshold")]
     [InlineData("""{ "GateThresholdDbfs": 3 }""", "GateThresholdDbfs")]
     [InlineData("""{ "LatencyTargetMs": 0 }""", "LatencyTargetMs")]
     [InlineData("""{ "LowestNote": "E+2" }""", "LowestNote")]
@@ -116,6 +118,7 @@ public sealed class SettingsStoreTests : IDisposable
             SampleRate = 44_100,
             InputDevice = "USB Audio",
             OutputDevice = "Externa hörlurar",
+            PitchConfidenceThreshold = 0.6,
             GateThresholdDbfs = -42.5,
             LatencyTargetMs = 30,
         };
