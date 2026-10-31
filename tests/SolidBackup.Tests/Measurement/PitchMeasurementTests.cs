@@ -15,10 +15,10 @@ public sealed class PitchMeasurementTests
     });
 
     [Fact]
-    public void Corpus_IsMeasuredWithTheDefaultBufferSize()
+    public void EveryClip_IsMeasuredWithTheDefaultBufferSize()
     {
         Assert.Equal(64, Defaults.BufferSize);
-        Assert.Equal(TestCorpus.Generated.Count + 4, Measured.Value.Score.Clips.Count);
+        Assert.Equal(TestCorpus.Generated.Count + RecordingScript.Read(CorpusDirectory.Locate().ScriptPath).Count, Measured.Value.Score.Clips.Count);
     }
 
     [Fact]
