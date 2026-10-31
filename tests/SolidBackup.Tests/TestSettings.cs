@@ -21,10 +21,12 @@ internal static class TestSettings
         OnsetMinIntervalMs = 100,
         LatencyTargetMs = 50,
         HarmonyStyle = "Church",
-        Key = "C",
+        Key = "auto",
         Mode = "Ionian",
         MinNoteForChangeMs = 120,
         MinChordDurationMs = 250,
         PhraseResetMs = 2000,
+        KeyChangeSeconds = 4,
+        KeyFirstSeconds = 2,
     };
 }

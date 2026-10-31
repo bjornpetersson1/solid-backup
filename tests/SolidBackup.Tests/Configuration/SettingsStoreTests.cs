@@ -106,6 +106,9 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "MinNoteForChangeMs": 0 }""", "MinNoteForChangeMs")]
     [InlineData("""{ "MinChordDurationMs": -1 }""", "MinChordDurationMs")]
     [InlineData("""{ "PhraseResetMs": 0 }""", "PhraseResetMs")]
+    [InlineData("""{ "KeyChangeSeconds": 0 }""", "KeyChangeSeconds")]
+    [InlineData("""{ "KeyChangeSeconds": -4 }""", "KeyChangeSeconds")]
+    [InlineData("""{ "KeyFirstSeconds": 0 }""", "KeyFirstSeconds")]
     public void Load_InvalidValue_IgnoresWholeFileAndNamesSetting(string content, string setting)
     {
         WriteUserFile(content);
@@ -153,6 +156,8 @@ public sealed class SettingsStoreTests : IDisposable
             MinNoteForChangeMs = 80,
             MinChordDurationMs = 300,
             PhraseResetMs = 3000,
+            KeyChangeSeconds = 6,
+            KeyFirstSeconds = 3,
         };
 
         CreateStore().Save(saved);

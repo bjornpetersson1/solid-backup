@@ -21,6 +21,18 @@ public static class HarmonyNames
         };
     }
 
+    /// <summary>A key for display: "C-dur" and "A-moll" for Ionian and Aeolian, else the tonic and the mode, e.g. "D dorisk".</summary>
+    public static string Key(Key key)
+    {
+        string tonic = PitchClass.Name(key.Tonic);
+        return key.Mode switch
+        {
+            Harmony.Mode.Ionian => $"{tonic}-dur",
+            Harmony.Mode.Aeolian => $"{tonic}-moll",
+            _ => $"{tonic} {Mode(key.Mode)}",
+        };
+    }
+
     public static string Mode(Mode mode)
     {
         return mode switch

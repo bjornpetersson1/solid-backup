@@ -121,6 +121,16 @@ public static class SettingsValidator
             return new(nameof(AppSettings.PhraseResetMs), $"{settings.PhraseResetMs} ms måste vara större än 0");
         }
 
+        if (NotPositive(settings.KeyChangeSeconds))
+        {
+            return new(nameof(AppSettings.KeyChangeSeconds), $"{settings.KeyChangeSeconds} s måste vara större än 0");
+        }
+
+        if (NotPositive(settings.KeyFirstSeconds))
+        {
+            return new(nameof(AppSettings.KeyFirstSeconds), $"{settings.KeyFirstSeconds} s måste vara större än 0");
+        }
+
         return null;
     }
 

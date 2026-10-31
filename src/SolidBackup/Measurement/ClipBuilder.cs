@@ -1,4 +1,5 @@
 using SolidBackup.Analysis;
+using SolidBackup.Harmony;
 
 namespace SolidBackup.Measurement;
 
@@ -10,6 +11,7 @@ internal sealed class ClipBuilder(int sampleRate, uint seed)
     private readonly List<float> _samples = [];
     private readonly List<ReferenceSegment> _segments = [];
     private readonly List<double> _onsets = [];
+    private readonly List<ReferenceKey> _keys = [];
     private readonly NoiseSource _noise = new(seed);
 
     private double NowMs => _samples.Count * 1000.0 / sampleRate;
@@ -19,6 +21,13 @@ internal sealed class ClipBuilder(int sampleRate, uint seed)
         double start = NowMs;
         _samples.AddRange(new float[Frames(durationMs)]);
         _segments.Add(new ReferenceSegment(start, NowMs, SegmentKind.Silence));
+        return this;
+    }
+
+    /// <summary>Marks the melody as being in <paramref name="key"/> from here on.</summary>
+    public ClipBuilder InKey(Key key)
+    {
+        _keys.Add(new ReferenceKey(NowMs, key));
         return this;
     }
 
@@ -68,7 +77,7 @@ internal sealed class ClipBuilder(int sampleRate, uint seed)
 
     public CorpusClip Build(string name)
     {
-        return new CorpusClip(name, sampleRate, [.. _samples], new ClipReference([.. _segments], [.. _onsets]));
+        return new CorpusClip(name, sampleRate, [.. _samples], new ClipReference([.. _segments], [.. _onsets]) { Keys = [.. _keys] });
     }
 
     private ClipBuilder Tone(Waveform waveform, double fromCents, double toCents, double durationMs, float amplitude)

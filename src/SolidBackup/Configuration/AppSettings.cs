@@ -52,4 +52,10 @@ public sealed record AppSettings
 
     /// <summary>After a silence this long, the previous chord is forgotten.</summary>
     public required double PhraseResetMs { get; init; }
+
+    /// <summary>With <c>auto</c>, the longest a modulation may take before the new key is reported.</summary>
+    public required double KeyChangeSeconds { get; init; }
+
+    /// <summary>With <c>auto</c>, how many seconds of notes are needed before the first key.</summary>
+    public required double KeyFirstSeconds { get; init; }
 }

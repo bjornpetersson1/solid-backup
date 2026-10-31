@@ -19,6 +19,12 @@ public readonly record struct Key(int Tonic, Mode Mode)
         return (Tonic + semitones) % 12;
     }
 
+    // The generated record ToString would print MajorOrMinor, itself a Key, and recurse without end.
+    public override string ToString()
+    {
+        return $"{PitchClass.Name(Tonic)} {Mode}";
+    }
+
     /// <summary>The triad built from the scale on a degree, 1 to 7.</summary>
     public Chord TriadOn(int degree)
     {

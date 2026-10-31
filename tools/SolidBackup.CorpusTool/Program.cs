@@ -47,7 +47,7 @@ public static class Program
     private static int WriteTones(string folder, int sampleRate)
     {
         Directory.CreateDirectory(folder);
-        foreach (CorpusClip clip in GeneratedCorpus.Create(sampleRate))
+        foreach (CorpusClip clip in GeneratedCorpus.Create(sampleRate).Concat(GeneratedCorpus.Melodies(sampleRate)))
         {
             WavWriter.WritePcm16(Path.Combine(folder, clip.Name + ".wav"), sampleRate, clip.Samples);
             ReferenceFile.Write(Path.Combine(folder, clip.Name + ".ref.csv"), clip.Reference);
