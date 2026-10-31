@@ -20,7 +20,7 @@ public readonly record struct PitchEstimate(double TimeMs, bool HasNote, double 
     public double Frequency => HasNote ? Pitch.Frequency(MidiCents) : 0;
 
     /// <summary>The nearest MIDI note, e.g. 69 for A4.</summary>
-    public int MidiNote => (int)Math.Round(MidiCents / 100, MidpointRounding.AwayFromZero);
+    public int MidiNote => Pitch.NearestMidi(MidiCents);
 
     /// <summary>The deviation from <see cref="MidiNote"/> in cents, from −50 to +50.</summary>
     public double Cents => MidiCents - (MidiNote * 100.0);

@@ -2,7 +2,7 @@
 
 An experimental .NET console app for macOS. It listens to a single melody line from a microphone, detects its pitch and level, and plays chords in response through its own synthesizer. The requirements are in `Constitution/Requirements-and-goal.md`.
 
-The audio, analysis, harmony and sound parts are still to come (epics E2–E6); so far the app has its command line, an empty menu and its settings.
+So far the app has its command line, an empty menu and its settings (E1); the audio layer, with pass-through and device listing (E2); and the analysis, measured on a test corpus (E3): pitch detection, level, a noise gate and onsets, which are not yet wired into live play. Harmony, sound and live mode (E4–E6) are still to come.
 
 ## Requirements
 

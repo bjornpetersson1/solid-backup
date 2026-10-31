@@ -220,10 +220,6 @@ public sealed class PitchDetector
 
     private double RefineLag(int lag)
     {
-        double left = _difference[lag - 1];
-        double centre = _difference[lag];
-        double right = _difference[lag + 1];
-        double curvature = left - (2 * centre) + right;
-        return curvature > 0 ? lag + Math.Clamp(0.5 * (left - right) / curvature, -0.5, 0.5) : lag;
+        return lag + Pitch.ParabolaOffset(_difference[lag - 1], _difference[lag], _difference[lag + 1], minimum: true);
     }
 }

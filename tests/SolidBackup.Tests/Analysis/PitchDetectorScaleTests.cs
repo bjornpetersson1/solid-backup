@@ -18,7 +18,7 @@ public abstract class PitchDetectorScaleTests(string clipName)
     public void EveryNoteFromE2ToC7_IsFoundWithin10Cents(int sampleRate)
     {
         CorpusClip clip = TestCorpus.At(sampleRate).Single(clip => clip.Name == clipName);
-        PitchDetector detector = new(sampleRate, CorpusRange.LowestMidi, CorpusRange.HighestMidi, 0.8);
+        PitchDetector detector = new(sampleRate, CorpusRange.LowestMidi, CorpusRange.HighestMidi, TestSettings.Default.PitchConfidenceThreshold);
         HashSet<int> found = [];
 
         for (int offset = 0; offset + Buffer <= clip.Samples.Length; offset += Buffer)

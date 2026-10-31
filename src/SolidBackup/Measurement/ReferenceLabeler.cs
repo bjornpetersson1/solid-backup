@@ -1,3 +1,5 @@
+using SolidBackup.Analysis;
+
 namespace SolidBackup.Measurement;
 
 /// <summary>
@@ -59,7 +61,7 @@ public static class ReferenceLabeler
     public static IReadOnlyList<int> SuggestNotes(float[] samples, int sampleRate)
     {
         return new RecordingAnalysis(samples, sampleRate).PitchedRegions()
-            .Select(region => (int)Math.Round(region.MedianCents / 100))
+            .Select(region => Pitch.NearestMidi(region.MedianCents))
             .ToArray();
     }
 

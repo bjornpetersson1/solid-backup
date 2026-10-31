@@ -87,6 +87,7 @@ The corpus that every pitch, level and onset target in Measurement is measured o
 - **PR review fixes:** `ScoreCounts` also counts the windows in `silence` and `breath` alone and the notes found there (`SilenceOrBreathWindows`, `NotesInSilenceOrBreath`), which E3-3's zero-notes criterion needs, separate from false notes over all unvoiced windows (which include `noise`); the whistle-range check in the corpus test uses `CorpusRange` instead of a magic G4.
 - **`CorpusClip` keeps reading recordings through `WavFileInput`** (code review finding declined): the clip's samples are already loaded, so this reads each file twice, but criterion 4 asks for recordings to go through `WavFileInput`, the same path a WAV file takes in the app.
 - **CLAUDE.md and the constitution still say E2–C6** (code review finding declined here): the default is now C7 by the owner's choice; changing those documents is the owner's call and is raised in the report.
+- **Amended by E3-2 and E3-3** (release check): E3-2 marks a note's periodic lead-in and quiet tail `unclear` too, and leaves out voiced windows whose reference pitch drifts past the range (`CorpusRange.ContainsPitch`); both approved by the owner and documented in `corpus/README.md`. E3-3 added `DetectorReport.GateOpen`, `ScoreCounts.NotesCutByGate` and `ExtraOnsetsInSilenceOrBreath`, and `MeasurementTargets.MaxNotesInSilenceOrBreath`. The decisions above describe E3-1 as it shipped.
 
 ## Open Questions
 - None
