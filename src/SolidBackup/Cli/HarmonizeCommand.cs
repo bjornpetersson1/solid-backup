@@ -107,7 +107,7 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
         return string.Create(CultureInfo.InvariantCulture, $"{estimate.TimeMs / 1000:0.00} s  {PitchClass.NoteName(estimate.MidiNote),-4} {chord}");
     }
 
-    /// <summary>A key found or changed with <c>auto</c>, as printed, e.g. "2.40 s  tonart A-moll".</summary>
+    /// <summary>A key found or changed by <c>auto</c>, or moved by Blues, as printed, e.g. "2.40 s  tonart A-moll".</summary>
     public static string KeyLine(PitchEstimate estimate, Key key)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{estimate.TimeMs / 1000:0.00} s  tonart {HarmonyNames.Key(key)}");
@@ -129,9 +129,9 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
         {
             PitchEstimate estimate = detector.Process(samples);
             HeardNotes |= estimate.HasNote;
-            Key? keyBefore = harmonizer.Key;
+            Key? keyBefore = harmonizer.CurrentKey;
             bool chordChanged = harmonizer.Process(estimate);
-            if (harmonizer.Key is { } key && key != keyBefore)
+            if (harmonizer.CurrentKey is { } key && key != keyBefore)
             {
                 Lines.Add(KeyLine(estimate, key));
             }

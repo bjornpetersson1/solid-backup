@@ -16,4 +16,7 @@ public enum ChordQuality
 
     /// <summary>Root, fourth and fifth (Pop's colour on a major chord).</summary>
     Sus4,
+
+    /// <summary>A major triad with the minor seventh.</summary>
+    Dominant7,
 }
