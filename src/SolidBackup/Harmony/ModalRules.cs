@@ -19,26 +19,12 @@ public sealed class ModalRules : IChordRules
         (6, 6), // Locrian: b5 → bV
     ];
 
-    private static readonly int ModeCount = Enum.GetValues<Mode>().Length;
-
-    // Per key (tonic × mode): its tonic triad, character note and character chord.
-    private readonly (Chord Tonic, int CharacterNote, Chord CharacterChord)[] _keys = new (Chord, int, Chord)[12 * ModeCount];
-
-    public ModalRules()
-    {
-        for (int tonic = 0; tonic < 12; tonic++)
-        {
-            foreach (Mode mode in Enum.GetValues<Mode>())
-            {
-                (int note, int chordRoot) = Character[(int)mode];
-                _keys[Index(new Key(tonic, mode))] = (new Key(tonic, mode).TriadOn(1), (tonic + note) % 12, new Chord((tonic + chordRoot) % 12, ChordQuality.Major));
-            }
-        }
-    }
+    // Indexed by Key.Index: each key's tonic triad, character note and character chord.
+    private readonly (Chord Tonic, int CharacterNote, Chord CharacterChord)[] _keys = [.. Key.All.Select(Describe)];
 
     public Chord Choose(int pitchClass, Key key, Chord? current)
     {
-        (Chord tonic, int characterNote, Chord characterChord) = _keys[Index(key)];
+        (Chord tonic, int characterNote, Chord characterChord) = _keys[key.Index];
 
         // In Locrian the character note is also the tonic triad's fifth; the character chord wins, as the table in
         // docs/harmony.md names it, or Locrian's character chord could never sound.
@@ -50,8 +36,9 @@ public sealed class ModalRules : IChordRules
         return tonic.Contains(pitchClass) || current != characterChord ? tonic : characterChord;
     }
 
-    private static int Index(Key key)
+    private static (Chord Tonic, int CharacterNote, Chord CharacterChord) Describe(Key key)
     {
-        return (key.Tonic * ModeCount) + (int)key.Mode;
+        (int note, int chordRoot) = Character[(int)key.Mode];
+        return (key.TriadOn(1), (key.Tonic + note) % 12, new Chord((key.Tonic + chordRoot) % 12, ChordQuality.Major));
     }
 }

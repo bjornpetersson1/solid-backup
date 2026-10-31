@@ -12,8 +12,6 @@ public abstract class ScaleRules : IChordRules
     // The ordered successors of each degree, indexed 1 to 7.
     private static readonly int[][] Successors = [[], [], [5], [6], [5, 1], [1, 6], [4, 2], [1]];
 
-    protected static readonly int ModeCount = Enum.GetValues<Mode>().Length;
-
     private readonly int[] _priority;
 
     // Indexed by key (tonic × mode) and degree 1 to 7; null where the style leaves a degree out.
@@ -24,15 +22,7 @@ public abstract class ScaleRules : IChordRules
     protected ScaleRules(int[] priority, Func<Key, int, Chord?> chordOn)
     {
         _priority = priority;
-        _chords = new Chord?[12 * ModeCount][];
-        for (int tonic = 0; tonic < 12; tonic++)
-        {
-            foreach (Mode mode in Enum.GetValues<Mode>())
-            {
-                Key key = new(tonic, mode);
-                _chords[Index(key)] = [null, .. Enumerable.Range(1, 7).Select(degree => priority.Contains(degree) ? chordOn(key, degree) : null)];
-            }
-        }
+        _chords = [.. Key.All.Select(key => (Chord?[])[null, .. Enumerable.Range(1, 7).Select(degree => priority.Contains(degree) ? chordOn(key, degree) : null)])];
     }
 
     protected static int[] DefaultPriority { get; } = [1, 5, 4, 6, 2, 3, 7];
@@ -44,7 +34,7 @@ public abstract class ScaleRules : IChordRules
             return kept;
         }
 
-        Chord?[] chords = _chords[Index(key)];
+        Chord?[] chords = _chords[key.Index];
         if (current is { } previous)
         {
             int degree = DegreeOf(chords, Uncoloured(previous));
@@ -76,7 +66,7 @@ public abstract class ScaleRules : IChordRules
     /// <summary>The style's chords in a key, in priority order.</summary>
     public IReadOnlyList<Chord> ChordsIn(Key key)
     {
-        Chord?[] chords = _chords[Index(key)];
+        Chord?[] chords = _chords[key.Index];
         return [.. _priority.Select(degree => chords[degree]).OfType<Chord>()];
     }
 
@@ -96,11 +86,6 @@ public abstract class ScaleRules : IChordRules
     protected virtual Chord? Borrowed(int pitchClass, Key key)
     {
         return null;
-    }
-
-    protected static int Index(Key key)
-    {
-        return (key.Tonic * ModeCount) + (int)key.Mode;
     }
 
     // 0, whose successor list is empty, for a chord that is not on any of the style's degrees.

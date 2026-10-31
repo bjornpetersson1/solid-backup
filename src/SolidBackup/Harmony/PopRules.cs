@@ -8,23 +8,15 @@ namespace SolidBackup.Harmony;
 /// </summary>
 public sealed class PopRules : ScaleRules
 {
-    // Indexed like ScaleRules' tables: the borrowed chords of each key, in the order they are tried.
+    // Indexed by Key.Index: the borrowed chords of each key, in the order they are tried.
     private readonly Chord[][] _borrowed;
 
     public PopRules()
         : base([1, 5, 7, 6, 4, 3], TriadOn)
     {
-        _borrowed = new Chord[12 * ModeCount][];
-        for (int tonic = 0; tonic < 12; tonic++)
-        {
-            foreach (Mode mode in Enum.GetValues<Mode>())
-            {
-                Key key = new(tonic, mode);
-                _borrowed[Index(key)] = key.IsMajor
-                    ? [.. new[] { 7, 4, 6 }.Select(new Key(tonic, Mode.Aeolian).TriadOn)]
-                    : [.. new[] { 5, 4 }.Select(new Key(tonic, Mode.Ionian).TriadOn)];
-            }
-        }
+        _borrowed = [.. Key.All.Select(key => key.IsMajor
+            ? new[] { 7, 4, 6 }.Select(new Key(key.Tonic, Mode.Aeolian).TriadOn).ToArray()
+            : new[] { 5, 4 }.Select(new Key(key.Tonic, Mode.Ionian).TriadOn).ToArray())];
     }
 
     protected override Chord Uncoloured(Chord chord)
@@ -52,7 +44,7 @@ public sealed class PopRules : ScaleRules
 
     protected override Chord? Borrowed(int pitchClass, Key key)
     {
-        foreach (Chord chord in _borrowed[Index(key)])
+        foreach (Chord chord in _borrowed[key.Index])
         {
             if (chord.Contains(pitchClass))
             {

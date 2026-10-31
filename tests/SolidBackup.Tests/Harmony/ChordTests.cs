@@ -40,6 +40,15 @@ public sealed class ChordTests
     }
 
     [Fact]
+    public void KeyAll_ListsEveryKeyOnceInIndexOrder()
+    {
+        Key[] keys = [.. Key.All];
+
+        Assert.Equal(Key.Count, keys.Distinct().Count());
+        Assert.All(keys, (key, index) => Assert.Equal(index, key.Index));
+    }
+
+    [Fact]
     public void Key_PrintsTonicAndMode()
     {
         Assert.Equal("F# Dorian", new Key(6, Mode.Dorian).ToString());

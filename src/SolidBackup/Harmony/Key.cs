@@ -3,7 +3,16 @@ namespace SolidBackup.Harmony;
 /// <summary>A tonic pitch class (0 = C) and a mode.</summary>
 public readonly record struct Key(int Tonic, Mode Mode)
 {
+    /// <summary>The number of keys, 12 tonics × 7 modes: the length of a table with one entry per key.</summary>
+    public const int Count = 12 * 7;
+
     private static readonly int[] IonianSteps = [0, 2, 4, 5, 7, 9, 11];
+
+    /// <summary>Every key, in <see cref="Index"/> order.</summary>
+    public static IEnumerable<Key> All => Enumerable.Range(0, Count).Select(index => new Key(index / 7, (Mode)(index % 7)));
+
+    /// <summary>This key's place in a table with one entry per key, 0 to <see cref="Count"/> − 1.</summary>
+    public int Index => (Tonic * 7) + (int)Mode;
 
     /// <summary>Ionian, Lydian and Mixolydian have a major third; the styles without modes treat them as major.</summary>
     public bool IsMajor => Mode is Mode.Ionian or Mode.Lydian or Mode.Mixolydian;
