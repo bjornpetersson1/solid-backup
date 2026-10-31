@@ -23,7 +23,7 @@ public class AudioPreflightTests
     [InlineData(MicrophonePermission.Unknown)]
     public void CheckMicrophone_WhenAllowedOrUnknown_IsClear(MicrophonePermission status)
     {
-        AudioPreflight preflight = new(new FakePermission(status), new FakeRoutes(), "Terminal");
+        AudioPreflight preflight = TestPreflight.Create(status, new FakeRoutes());
 
         Assert.Equal(MicrophoneCheck.Clear, preflight.CheckMicrophone());
     }
@@ -31,7 +31,7 @@ public class AudioPreflightTests
     [Fact]
     public void CheckMicrophone_WhenNotAskedYet_ContinuesWithANotice()
     {
-        AudioPreflight preflight = new(new FakePermission(MicrophonePermission.NotDetermined), new FakeRoutes(), "Terminal");
+        AudioPreflight preflight = TestPreflight.Create(MicrophonePermission.NotDetermined);
 
         Assert.Equal(new MicrophoneCheck(false, AudioPreflight.FirstUseNotice), preflight.CheckMicrophone());
     }
@@ -66,7 +66,7 @@ public class AudioPreflightTests
     [InlineData("blue", null, false)]
     public void IsBuiltInSpeakers_OnlyForBuiltInInternalSpeakers(string transport, string? source, bool expected)
     {
-        AudioPreflight preflight = new(new FakePermission(MicrophonePermission.Authorized), new FakeRoutes(new OutputRoute(transport, source)), "Terminal");
+        AudioPreflight preflight = TestPreflight.Create(routes: new FakeRoutes(new OutputRoute(transport, source)));
 
         Assert.Equal(expected, preflight.IsBuiltInSpeakers("Utgång"));
     }
@@ -81,7 +81,7 @@ public class AudioPreflightTests
     [Fact]
     public void IsBuiltInSpeakers_WhenTheRouteCannotBeRead_IsFalse()
     {
-        AudioPreflight preflight = new(new FakePermission(MicrophonePermission.Authorized), new FakeRoutes(), "Terminal");
+        AudioPreflight preflight = TestPreflight.Create(routes: new FakeRoutes());
 
         Assert.False(preflight.IsBuiltInSpeakers("Utgång"));
     }

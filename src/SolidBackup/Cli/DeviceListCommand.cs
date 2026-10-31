@@ -28,7 +28,7 @@ public sealed class DeviceListCommand(
         }
     }
 
-    public static string Describe(AudioDeviceInfo device, AudioDirection direction, bool chosen, bool builtInSpeakers)
+    private static string Describe(AudioDeviceInfo device, AudioDirection direction, bool chosen, bool builtInSpeakers)
     {
         int channels = device.Channels(direction);
         string[] tags =
@@ -53,7 +53,7 @@ public sealed class DeviceListCommand(
 
         if (chosen is null)
         {
-            console.MarkupLineInterpolated($"[yellow]  {DeviceSelector.MissingMessage(devices, chosenName, direction)}[/]");
+            ConsoleMessages.Warning(console, $"  {DeviceSelector.MissingMessage(devices, chosenName, direction)}");
         }
     }
 }

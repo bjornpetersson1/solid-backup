@@ -76,7 +76,10 @@ public sealed class PortAudioOutput(AudioDeviceInfo device, int sampleRate, int 
         _handOver.Read(mono);
         for (int frame = 0; frame < mono.Length; frame++)
         {
-            interleaved.Slice(frame * _channels, _channels).Fill(mono[frame]);
+            for (int channel = 0; channel < _channels; channel++)
+            {
+                interleaved[(frame * _channels) + channel] = mono[frame];
+            }
         }
 
         interleaved[(mono.Length * _channels)..].Clear();

@@ -12,7 +12,6 @@ public sealed class PortAudioDevices : IAudioDevices
     private readonly PortAudioSession _session;
     private readonly PortAudioInput _input;
     private readonly PortAudioOutput _output;
-    private int _disposed;
 
     private PortAudioDevices(PortAudioSession session, AudioDeviceInfo inputDevice, AudioDeviceInfo outputDevice, AppSettings settings)
     {
@@ -52,13 +51,9 @@ public sealed class PortAudioDevices : IAudioDevices
         }
     }
 
+    // Each part ignores a second dispose, so this needs no guard of its own.
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1)
-        {
-            return;
-        }
-
         try
         {
             _output.Dispose();
