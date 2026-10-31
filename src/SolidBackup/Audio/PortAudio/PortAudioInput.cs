@@ -1,11 +1,13 @@
 using PortAudioSharp;
 
+using SolidBackup.Audio.Devices;
+
 using PaStream = PortAudioSharp.Stream;
 
 namespace SolidBackup.Audio.PortAudio;
 
 /// <summary>A mono input-only stream on one device.</summary>
-public sealed class PortAudioInput(PortAudioDevice device, int sampleRate, int bufferSize) : IAudioInput
+public sealed class PortAudioInput(AudioDeviceInfo device, int sampleRate, int bufferSize) : IAudioInput
 {
     private const string DeviceName = "Ljudingången";
 
@@ -28,7 +30,7 @@ public sealed class PortAudioInput(PortAudioDevice device, int sampleRate, int b
 
         _handler = handler;
         _stream = PortAudioStreams.Open(
-            PortAudioStreams.Parameters(device, 1), null, sampleRate, bufferSize, OnAudio, DeviceName);
+            PortAudioStreams.Parameters(device, AudioDirection.Input, 1), null, sampleRate, bufferSize, OnAudio, DeviceName);
     }
 
     public void Stop()

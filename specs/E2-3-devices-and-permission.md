@@ -4,7 +4,7 @@
 - **Labels:** `E2 Audio`
 - **Phase:** 2. Audio
 - **Depends on:** E2-2 (#6)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 128 tests passed; `--devices`, AVFoundation status and CoreAudio routes checked on the owner's Mac); a denied permission, headphones and named devices in a real terminal are manual checks for the owner
 
 ## Summary
 List the audio devices, choose input and output by name through settings and flags, stop with Swedish instructions when the microphone permission is denied, and warn when the output goes to the built-in speakers. Until the menu arrives in E6-2, this is reachable through `--devices`, `--input`, `--output` and the `--passthrough` flag from E2-2.
@@ -43,14 +43,14 @@ List the audio devices, choose input and output by name through settings and fla
 6. **The canonical check passes**, on macOS and in CI on Ubuntu (tests never call AVFoundation, CoreAudio or PortAudio).
 
 ## Tasks
-- [ ] Device catalogue interface and PortAudio implementation.
-- [ ] Settings `InputDevice`/`OutputDevice`, validation, `appsettings.json`, README.
-- [ ] Name resolution with the Swedish error.
-- [ ] `--devices`, `--input`, `--output`; wire the resolved devices into `--passthrough`.
-- [ ] Microphone permission source (AVFoundation via the Objective-C runtime) and the decision logic.
-- [ ] Output route source (CoreAudio transport type and data source) and the warning logic.
-- [ ] Tests with fakes for catalogue, permission and route.
-- [ ] README: `--devices`, `--input`, `--output`, the permission message and the speaker warning.
+- [x] Device catalogue interface and PortAudio implementation.
+- [x] Settings `InputDevice`/`OutputDevice`, validation, `appsettings.json`, README.
+- [x] Name resolution with the Swedish error.
+- [x] `--devices`, `--input`, `--output`; wire the resolved devices into `--passthrough`.
+- [x] Microphone permission source (AVFoundation via the Objective-C runtime) and the decision logic.
+- [x] Output route source (CoreAudio transport type and data source) and the warning logic.
+- [x] Tests with fakes for catalogue, permission and route.
+- [x] README: `--devices`, `--input`, `--output`, the permission message and the speaker warning.
 
 ## Decisions
 - **Settings plus flags until the menu exists.** `InputDevice`/`OutputDevice` are what E6-2 will save; `--input`/`--output` are one-run overrides and are not saved. (Owner's choice.)
@@ -62,6 +62,15 @@ List the audio devices, choose input and output by name through settings and fla
 - **A warning, not a stop, for speakers** (from the issue and the constitution's Feedback row).
 - **Not yet asked → continue** (default): macOS then asks the owner itself, which is the normal first-run experience.
 - **Status unreadable → continue silently** (default): a failed check must never block a working microphone.
+- **CoreAudio device found by name** (implementation): PortAudio does not expose the CoreAudio device id, so the route source looks the device up by the name PortAudio reports (`kAudioObjectPropertyName`). Checked on the owner's Mac: "Högtalare i MacBook Pro" reads as built-in (`bltn`) with data source `ispk`, and an unknown name gives no route (no warning).
+- **The terminal is named in the permission message** (implementation): from `TERM_PROGRAM` (Terminal, iTerm, Visual Studio Code), otherwise "terminalappen", so the instructions say which app to turn on.
+- **`--devices` reports a chosen device that is missing, but still lists** (implementation): it is a listing, so a missing choice is a yellow line, not an error; `--passthrough` with the same choice fails with exit code 1.
+- **`--devices` takes precedence over `--passthrough`** (implementation): when both are given, the devices are listed and nothing is played.
+- **`PortAudioSession` owns initialise and terminate** (implementation): `--devices` needs PortAudio without streams, so the session is split out of `PortAudioDevices`, which now resolves the devices from the session's catalogue.
+- **Clean code:** the speaker rule lives in `AudioPreflight` only (`IsBuiltInSpeakers`, `SpeakerProblem`), and `--devices` uses it too; CoreAudio's devices are read once per route source instead of once per lookup; a missing chosen device gives the same message from `DeviceSelector` in `--devices` and `--passthrough`; tests share `TestSettings`, `TestConsoles` and the permission and route fakes.
+- **Left for E6** (clean-code findings deferred): splitting "choose the devices" from "open them" (so the checks can run on the chosen pair before anything opens, and E6-2's menu can show a choice before saving it), one start-up step shared by `--passthrough` and live mode, and a general layer for run-only setting overrides. These shape the menu and live mode, so they are decided in their specs; today the streams only open on `Start`, after the checks.
+- **Code review fixes:** a one-channel output is opened mono instead of failing as stereo; PortAudio is terminated on any error while reading the devices; names are compared in the same Unicode form (macOS may decompose "ö"); `--input`/`--output` without `--passthrough` or `--devices` is an error instead of being ignored; the speaker warning covers a built-in output with no readable data source, so only the headphone jack (`hdpn`) rules it out; the fallback "terminalappen" is capitalised at the start of the permission message; the two commands share how settings messages and audio errors are shown; `PortAudioDevice` was replaced by `AudioDeviceInfo` with `LowLatency(direction)`.
+- **Two devices with the same name: the first one wins** (code review finding declined): the spec chooses devices by name, so identical names cannot be told apart by design; choosing by a unique id would change the settings format and belongs to the menu in E6-2 if it turns out to matter.
 
 ## Open Questions
 - None
