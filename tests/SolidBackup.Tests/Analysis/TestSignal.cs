@@ -7,11 +7,11 @@ internal static class TestSignal
 {
     public const int SampleRate = 48_000;
 
-    public static float[] Sine(int midi, double amplitude, double seconds = 1)
+    public static float[] Sine(int midi, double amplitude, double seconds = 1, int sampleRate = SampleRate)
     {
         double frequency = Pitch.Frequency(midi * 100.0);
-        return Enumerable.Range(0, (int)(SampleRate * seconds))
-            .Select(i => (float)(amplitude * Math.Sin(2 * Math.PI * frequency * i / SampleRate)))
+        return Enumerable.Range(0, (int)(sampleRate * seconds))
+            .Select(i => (float)(amplitude * Math.Sin(2 * Math.PI * frequency * i / sampleRate)))
             .ToArray();
     }
 

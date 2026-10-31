@@ -70,6 +70,44 @@ public class AppCommandTests
     }
 
     [Fact]
+    public void Help_ListsHarmonizeOptionsWithSwedishDescriptions()
+    {
+        (int exitCode, string output, _) = Invoke("--help");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--harmonize <wav>", output);
+        Assert.Contains("Kör tonhöjdsanalys och harmoni på en WAV-fil och skriv ut ackordbytena.", output);
+        Assert.Contains("--style", output);
+        Assert.Contains("--key", output);
+        Assert.Contains("--mode", output);
+    }
+
+    [Theory]
+    [InlineData("--style", "Campfire")]
+    [InlineData("--key", "G")]
+    [InlineData("--mode", "Dorian")]
+    public void HarmonyOptionWithoutHarmonize_FailsWithSwedishMessage(string option, string value)
+    {
+        (int exitCode, string output, string error) = Invoke(option, value);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.HarmonyOptionsAloneMessage} {AppCommand.HelpHint}", error.Trim());
+        Assert.Empty(output);
+    }
+
+    [Theory]
+    [InlineData("--passthrough")]
+    [InlineData("--devices")]
+    public void HarmonizeWithPassThroughOrDevices_FailsWithSwedishMessage(string option)
+    {
+        (int exitCode, string output, string error) = Invoke("--harmonize", "melodi.wav", option);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.HarmonizeCombinedMessage} {AppCommand.HelpHint}", error.Trim());
+        Assert.Empty(output);
+    }
+
+    [Fact]
     public void Version_PrintsProjectVersion()
     {
         (int exitCode, string output, _) = Invoke("--version");
