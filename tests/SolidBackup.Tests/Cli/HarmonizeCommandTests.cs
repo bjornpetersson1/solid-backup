@@ -2,6 +2,7 @@ using SolidBackup.Analysis;
 using SolidBackup.Cli;
 using SolidBackup.Configuration;
 using SolidBackup.Harmony;
+using SolidBackup.Measurement;
 using SolidBackup.Tests.Analysis;
 using SolidBackup.Tests.Audio;
 
@@ -11,6 +12,9 @@ namespace SolidBackup.Tests.Cli;
 
 public sealed class HarmonizeCommandTests : IDisposable
 {
+    // The default key is auto; most tests use a fixed key so the chords follow from the first note.
+    private static readonly AppSettings FixedKeySettings = TestSettings.Default with { Key = "C" };
+
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "solid-backup-tests", Guid.NewGuid().ToString("N"));
     private readonly string _wavPath;
 
@@ -35,7 +39,7 @@ public sealed class HarmonizeCommandTests : IDisposable
         (int exitCode, string[] lines) = Run();
 
         Assert.Equal(0, exitCode);
-        Assert.Equal($"{_wavPath}: harmonistil Kyrko, tonart C jonisk", lines[0]);
+        Assert.Equal($"{_wavPath}: harmonistil Kyrko, tonart C-dur", lines[0]);
         Assert.Equal(["C4   C", "B4   G"], ChangesWithoutTimes(lines));
     }
 
@@ -73,9 +77,38 @@ public sealed class HarmonizeCommandTests : IDisposable
     }
 
     [Fact]
-    public void AutoKey_FailsUntilKeyDetectionIsBuilt()
+    public void AutoKey_PrintsTheKeyBeforeTheFirstChord()
     {
-        AssertFails(HarmonizeCommand.AutoKeyNotBuiltMessage, key: HarmonySettings.AutoKey);
+        CorpusClip melody = GeneratedCorpus.Melodies(TestSignal.SampleRate).Single(clip => clip.Name == "generated-melody-a-minor");
+        File.WriteAllBytes(_wavPath, TestWav.Pcm16(TestSignal.SampleRate, 1, melody.Samples));
+
+        // The default settings, whose key is auto.
+        (int exitCode, string[] lines) = Run(settings: TestSettings.Default);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal($"{_wavPath}: harmonistil Kyrko, tonart auto", lines[0]);
+        Assert.EndsWith(" s  tonart A-moll", lines[1]);
+        Assert.Equal(lines[1].Split(' ')[0], lines[2].Split(' ')[0]);
+        Assert.Single(lines, line => line.Contains("tonart A-moll", StringComparison.Ordinal));
+        Assert.DoesNotContain(lines[2..], line => line.Contains("tonart", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AutoKeyOnAShortClip_SaysNoKeyWasFound()
+    {
+        (int exitCode, string[] lines) = Run(key: HarmonySettings.AutoKey);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal([$"{_wavPath}: harmonistil Kyrko, tonart auto", HarmonizeCommand.NoKeyMessage], lines);
+    }
+
+    [Fact]
+    public void ModeWithAutoKey_WarnsThatItIsIgnored()
+    {
+        (int exitCode, string[] lines) = Run(key: HarmonySettings.AutoKey, mode: "Dorian");
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(HarmonizeCommand.ModeIgnoredMessage, lines[0]);
     }
 
     [Fact]
@@ -156,10 +189,10 @@ public sealed class HarmonizeCommandTests : IDisposable
         Assert.Equal([message], lines);
     }
 
-    private (int ExitCode, string[] Lines) Run(string? path = null, string? style = null, string? key = null, string? mode = null)
+    private (int ExitCode, string[] Lines) Run(string? path = null, string? style = null, string? key = null, string? mode = null, AppSettings? settings = null)
     {
         TestConsole console = TestConsoles.Wide();
-        int exitCode = new HarmonizeCommand(console, () => new SettingsLoadResult(TestSettings.Default, null)).Run(path ?? _wavPath, style, key, mode);
+        int exitCode = new HarmonizeCommand(console, () => new SettingsLoadResult(settings ?? FixedKeySettings, null)).Run(path ?? _wavPath, style, key, mode);
         return (exitCode, console.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.TrimEnd()).ToArray());
     }
 }

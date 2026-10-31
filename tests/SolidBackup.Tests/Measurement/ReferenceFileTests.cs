@@ -1,3 +1,4 @@
+using SolidBackup.Harmony;
 using SolidBackup.Measurement;
 
 namespace SolidBackup.Tests.Measurement;
@@ -24,13 +25,17 @@ public sealed class ReferenceFileTests : IDisposable
                 new ReferenceSegment(980, 1000, SegmentKind.Unclear),
                 new ReferenceSegment(1000, 1200, SegmentKind.OutOfRange, [9000]),
             ],
-            [100.5, 400]);
+            [100.5, 400])
+        {
+            Keys = [new ReferenceKey(0, new Key(3, Mode.Ionian)), new ReferenceKey(400, new Key(6, Mode.Aeolian))],
+        };
 
         ReferenceFile.Write(_path, reference);
         ClipReference read = ReferenceFile.Read(_path);
 
         Assert.Equal(reference.Segments, read.Segments);
         Assert.Equal(reference.OnsetsMs, read.OnsetsMs);
+        Assert.Equal(reference.Keys, read.Keys);
     }
 
     [Theory]
@@ -39,6 +44,9 @@ public sealed class ReferenceFileTests : IDisposable
     [InlineData("segment,0,100,hum", "okänd typ 'hum'")]
     [InlineData("onset,abc", "'abc' är inget tal")]
     [InlineData("pitch,0", "okänd rad")]
+    [InlineData("key,0,H,Ionian", "okänd tonart 'H Ionian'")]
+    [InlineData("key,0,C,dur", "okänd tonart 'C dur'")]
+    [InlineData("key,-5,C,Ionian", "tonarten vid -5 ms kommer inte efter den förra")]
     [InlineData("segment,10,100,silence", "segmentet 10–100 ms följer inte direkt på det förra (som slutar vid 0 ms)")]
     [InlineData("segment,0,0,silence", "segmentet 0–0 ms följer inte direkt på det förra (som slutar vid 0 ms)")]
     public void InvalidLine_GivesSwedishErrorWithLineNumber(string line, string problem)
@@ -47,6 +55,15 @@ public sealed class ReferenceFileTests : IDisposable
             () => ReferenceFile.Parse(["# comment", "", line], "test.ref.csv"));
 
         Assert.Equal($"Referensfilen test.ref.csv, rad 3: {problem}.", error.Message);
+    }
+
+    [Fact]
+    public void KeysOutOfOrder_GiveSwedishError()
+    {
+        InvalidDataException error = Assert.Throws<InvalidDataException>(
+            () => ReferenceFile.Parse(["key,5000,G,Ionian", "key,0,C,Ionian"], "test.ref.csv"));
+
+        Assert.Equal("Referensfilen test.ref.csv, rad 2: tonarten vid 0 ms kommer inte efter den förra.", error.Message);
     }
 
     [Fact]

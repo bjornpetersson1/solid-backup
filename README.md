@@ -35,7 +35,7 @@ dotnet run --project src/SolidBackup -- --harmonize corpus/recordings/singing.wa
 
 `--devices` lists the inputs and outputs and marks the system defaults, the chosen devices and the built-in speakers. `--input` and `--output` choose a device by its exact name (case does not matter) for that run only; they are not saved.
 
-`--harmonize <wav>` runs the pitch detection and the harmony (see [`docs/harmony.md`](docs/harmony.md)) over a WAV file and prints the time, the note and the chord at every chord change. `--style`, `--key` and `--mode` override `HarmonyStyle`, `Key` and `Mode` for that run only. The file's own sample rate is used (44100 or 48000 Hz). `--harmonize` cannot be combined with `--passthrough` or `--devices`.
+`--harmonize <wav>` runs the pitch detection and the harmony (see [`docs/harmony.md`](docs/harmony.md)) over a WAV file and prints the time, the note and the chord at every chord change. `--style`, `--key` and `--mode` override `HarmonyStyle`, `Key` and `Mode` for that run only. With `Key` set to `auto` it also prints the key when it is first found and at every change. The file's own sample rate is used (44100 or 48000 Hz). `--harmonize` cannot be combined with `--passthrough` or `--devices`.
 
 The menu needs an interactive terminal.
 
@@ -116,10 +116,12 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `OnsetMinIntervalMs` | `100` | Shortest time between two onsets (above 0, at most 2000 ms) |
 | `LatencyTargetMs` | `50` | Latency target in milliseconds |
 | `HarmonyStyle` | `Church` | Harmony style: `Church`, `Campfire` or `Drone` so far; the rest of the styles in [`docs/harmony.md`](docs/harmony.md) are accepted but not built yet |
-| `Key` | `C` | The key's tonic (`C`, `F#`, `Bb`, …), or `auto` to estimate it (not built yet) |
-| `Mode` | `Ionian` | The key's mode: `Ionian`, `Dorian`, `Phrygian`, `Lydian`, `Mixolydian`, `Aeolian` or `Locrian` |
+| `Key` | `auto` | The key's tonic (`C`, `F#`, `Bb`, …), or `auto` to estimate the tonic and major or minor from the notes |
+| `Mode` | `Ionian` | The key's mode: `Ionian`, `Dorian`, `Phrygian`, `Lydian`, `Mixolydian`, `Aeolian` or `Locrian`; ignored with `auto` |
 | `MinNoteForChangeMs` | `120` | While singing, a new note must last this long before it may change the chord (above 0) |
 | `MinChordDurationMs` | `250` | While singing, the shortest time between two chord changes (above 0) |
 | `PhraseResetMs` | `2000` | After a silence this long, the previous chord is forgotten (above 0) |
+| `KeyChangeSeconds` | `4` | With `auto`, a modulation is followed within this many seconds (above 0) |
+| `KeyFirstSeconds` | `2` | With `auto`, no key (and no chord) until at least this many seconds of notes have been heard (above 0) |
 
 The menu's choices are saved to `~/Library/Application Support/solid-backup/usersettings.json`, which only holds the settings that differ from the defaults. A missing or invalid user settings file is ignored with a message, and the defaults are used.

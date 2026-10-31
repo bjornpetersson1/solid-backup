@@ -16,8 +16,9 @@ namespace SolidBackup.Cli;
 /// </summary>
 public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResult> loadSettings)
 {
-    public const string AutoKeyNotBuiltMessage = "Tonarten auto (tonartsdetektering) är inte byggd än; ange en fast tonart med --key.";
     public const string NoNotesMessage = "Inga toner hittades.";
+    public const string NoKeyMessage = "Ingen tonart hittades: inspelningen är för kort eller för tvetydig för tonarten auto. Ange en fast tonart med --key.";
+    public const string ModeIgnoredMessage = "--mode gäller inte med tonarten auto, som bara skattar dur eller moll.";
 
     public int Run(string path, string? style = null, string? key = null, string? mode = null)
     {
@@ -54,16 +55,19 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
             return ConsoleMessages.Error(console, $"Ogiltigt värde för {error.Setting}: {error.Problem}.");
         }
 
-        switch (Harmonizer.Check(settings))
+        if (!Harmonizer.HasBuiltStyle(settings))
         {
-            case HarmonizerProblem.StyleNotBuilt:
-                return ConsoleMessages.Error(console, NotBuiltMessage(settings.HarmonyStyle));
-            case HarmonizerProblem.AutoKey:
-                return ConsoleMessages.Error(console, AutoKeyNotBuiltMessage);
+            return ConsoleMessages.Error(console, NotBuiltMessage(settings.HarmonyStyle));
         }
 
         Harmonizer harmonizer = Harmonizer.FromSettings(settings);
-        console.WriteLine($"{path}: harmonistil {StyleName(settings.HarmonyStyle)}, tonart {PitchClass.Name(harmonizer.Key.Tonic)} {HarmonyNames.Mode(harmonizer.Key.Mode)}");
+        if (mode is not null && harmonizer.Key is null)
+        {
+            ConsoleMessages.Warning(console, ModeIgnoredMessage);
+        }
+
+        string keyName = harmonizer.Key is { } fixedKey ? HarmonyNames.Key(fixedKey) : HarmonySettings.AutoKey;
+        console.WriteLine($"{path}: harmonistil {StyleName(settings.HarmonyStyle)}, tonart {keyName}");
         ChangeRecorder recorder = new(PitchDetector.FromSettings(settings), harmonizer);
         using (MemoryAudioInput input = new(audio.Samples, audio.SampleRate, settings.BufferSize))
         {
@@ -75,9 +79,13 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
             console.WriteLine(line);
         }
 
-        if (recorder.Lines.Count == 0)
+        if (!recorder.HeardNotes)
         {
             console.WriteLine(NoNotesMessage);
+        }
+        else if (harmonizer.Key is null)
+        {
+            console.WriteLine(NoKeyMessage);
         }
 
         return 0;
@@ -99,6 +107,12 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
         return string.Create(CultureInfo.InvariantCulture, $"{estimate.TimeMs / 1000:0.00} s  {PitchClass.NoteName(estimate.MidiNote),-4} {chord}");
     }
 
+    /// <summary>A key found or changed with <c>auto</c>, as printed, e.g. "2.40 s  tonart A-moll".</summary>
+    public static string KeyLine(PitchEstimate estimate, Key key)
+    {
+        return string.Create(CultureInfo.InvariantCulture, $"{estimate.TimeMs / 1000:0.00} s  tonart {HarmonyNames.Key(key)}");
+    }
+
     private static string StyleName(string style)
     {
         return HarmonySettings.TryParseName(style, out HarmonyStyle harmonyStyle) ? HarmonyNames.Style(harmonyStyle) : style;
@@ -109,10 +123,20 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
     {
         public List<string> Lines { get; } = [];
 
+        public bool HeardNotes { get; private set; }
+
         public void OnBuffer(ReadOnlySpan<float> samples)
         {
             PitchEstimate estimate = detector.Process(samples);
-            if (harmonizer.Process(estimate) && harmonizer.Chord is { } chord)
+            HeardNotes |= estimate.HasNote;
+            Key? keyBefore = harmonizer.Key;
+            bool chordChanged = harmonizer.Process(estimate);
+            if (harmonizer.Key is { } key && key != keyBefore)
+            {
+                Lines.Add(KeyLine(estimate, key));
+            }
+
+            if (chordChanged && harmonizer.Chord is { } chord)
             {
                 Lines.Add(ChangeLine(estimate, chord));
             }

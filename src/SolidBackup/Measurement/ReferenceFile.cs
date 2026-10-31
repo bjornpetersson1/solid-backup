@@ -1,17 +1,19 @@
 using System.Globalization;
 using System.Text;
 
+using SolidBackup.Harmony;
+
 namespace SolidBackup.Measurement;
 
 /// <summary>
 /// Reads and writes a clip's <c>.ref.csv</c>. Each line is either
 /// <c>segment,&lt;start ms&gt;,&lt;end ms&gt;,&lt;kind&gt;[,&lt;cents&gt;,…]</c>, where a note has one or more pitch
-/// values spaced evenly from start to end, or <c>onset,&lt;ms&gt;</c>; lines starting with <c>#</c> and blank
-/// lines are ignored.
+/// values spaced evenly from start to end, <c>onset,&lt;ms&gt;</c>, or for a generated melody
+/// <c>key,&lt;start ms&gt;,&lt;tonic&gt;,&lt;mode&gt;</c>; lines starting with <c>#</c> and blank lines are ignored.
 /// </summary>
 public static class ReferenceFile
 {
-    private const string Header = "# segment,start_ms,end_ms,kind[,midi_cents,...] | onset,time_ms";
+    private const string Header = "# segment,start_ms,end_ms,kind[,midi_cents,...] | onset,time_ms | key,start_ms,tonic,mode";
 
     private static readonly Dictionary<SegmentKind, string> KindNames = new()
     {
@@ -34,6 +36,7 @@ public static class ReferenceFile
     {
         List<ReferenceSegment> segments = [];
         List<double> onsets = [];
+        List<ReferenceKey> keys = [];
         int lineNumber = 0;
         foreach (string rawLine in lines)
         {
@@ -53,12 +56,15 @@ public static class ReferenceFile
                 case "onset" when fields.Length == 2:
                     onsets.Add(ParseNumber(fields[1], source, lineNumber));
                     break;
+                case "key" when fields.Length == 4:
+                    keys.Add(ParseKey(fields, keys.Count == 0 ? -1 : keys[^1].StartMs, source, lineNumber));
+                    break;
                 default:
                     throw Invalid(source, lineNumber, "okänd rad");
             }
         }
 
-        return new ClipReference(segments, onsets);
+        return new ClipReference(segments, onsets) { Keys = keys };
     }
 
     public static void Write(string path, ClipReference reference)
@@ -80,6 +86,12 @@ public static class ReferenceFile
         foreach (double onset in reference.OnsetsMs)
         {
             text.Append("onset,").Append(Format(onset)).Append('\n');
+        }
+
+        foreach (ReferenceKey key in reference.Keys)
+        {
+            text.Append("key,").Append(Format(key.StartMs)).Append(',').Append(PitchClass.Name(key.Key.Tonic))
+                .Append(',').Append(key.Key.Mode).Append('\n');
         }
 
         File.WriteAllText(path, text.ToString());
@@ -108,6 +120,23 @@ public static class ReferenceFile
         }
 
         return segment;
+    }
+
+    // Keys must be in time order, which the key tests rely on.
+    private static ReferenceKey ParseKey(string[] fields, double previousStart, string source, int lineNumber)
+    {
+        double start = ParseNumber(fields[1], source, lineNumber);
+        if (start <= previousStart || start < 0)
+        {
+            throw Invalid(source, lineNumber, $"tonarten vid {start} ms kommer inte efter den förra");
+        }
+
+        if (!PitchClass.TryParse(fields[2], out int tonic) || !HarmonySettings.TryParseName(fields[3], out Mode mode))
+        {
+            throw Invalid(source, lineNumber, $"okänd tonart '{fields[2]} {fields[3]}'");
+        }
+
+        return new ReferenceKey(start, new Key(tonic, mode));
     }
 
     private static double ParseNumber(string text, string source, int lineNumber)

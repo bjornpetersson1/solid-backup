@@ -36,6 +36,12 @@ public sealed class ChordTests
         Assert.All(Enumerable.Range(0, 12), pitchClass => Assert.Equal(pitchClasses.Contains(pitchClass), chord.Contains(pitchClass)));
     }
 
+    [Fact]
+    public void Key_PrintsTonicAndMode()
+    {
+        Assert.Equal("F# Dorian", new Key(6, Mode.Dorian).ToString());
+    }
+
     [Theory]
     [InlineData("C", 0)]
     [InlineData("F#", 6)]
