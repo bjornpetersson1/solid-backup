@@ -45,8 +45,7 @@ public sealed class CoreAudioRouteSource : IOutputRouteSource
             {
                 if (DeviceName(device) is { } name && ReadUInt32(device, TransportType, GlobalScope) is { } transport)
                 {
-                    string? source = ReadUInt32(device, DataSource, OutputScope) is { } code ? FourCharString(code) : null;
-                    routes.TryAdd(name, new OutputRoute(FourCharString(transport), source));
+                    routes.TryAdd(name, new OutputRoute(FourCharString(transport), BuiltInDataSource(device, transport)));
                 }
             }
         }
@@ -56,6 +55,14 @@ public sealed class CoreAudioRouteSource : IOutputRouteSource
         }
 
         return routes;
+    }
+
+    // Only the speaker check reads the data source, and only for built-in devices.
+    private static string? BuiltInDataSource(uint device, uint transport)
+    {
+        return FourCharString(transport) == OutputRoute.BuiltInTransport && ReadUInt32(device, DataSource, OutputScope) is { } code
+            ? FourCharString(code)
+            : null;
     }
 
     private static uint[] DeviceIds()

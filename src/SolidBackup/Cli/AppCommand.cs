@@ -88,7 +88,7 @@ public static class AppCommand
             }
 
             return parseResult.GetValue(passThroughOption)
-                ? CreatePassThrough(createConsole(), loadSettings).Run()
+                ? new PassThroughCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight()).Run()
                 : new MainMenu(createConsole()).Run();
         });
         return root;
@@ -108,11 +108,6 @@ public static class AppCommand
     private static SettingsLoadResult LoadSettings()
     {
         return new SettingsStore(SettingsStore.BundledDefaultsPath, SettingsStore.DefaultUserSettingsPath).Load();
-    }
-
-    private static PassThroughCommand CreatePassThrough(IAnsiConsole console, Func<SettingsLoadResult> loadSettings)
-    {
-        return new PassThroughCommand(console, loadSettings, PortAudioDevices.Open, CreatePreflight());
     }
 
     private static AudioPreflight CreatePreflight()

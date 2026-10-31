@@ -28,23 +28,21 @@ public sealed class PassThroughCommand(
     {
         if (!console.Profile.Capabilities.Interactive)
         {
-            console.MarkupLine($"[red]{NotInteractiveMessage}[/]");
-            return 1;
+            return ConsoleMessages.Error(console, NotInteractiveMessage);
         }
 
         SettingsLoadResult loaded = loadSettings();
         ConsoleMessages.SettingsMessage(console, loaded);
 
         MicrophoneCheck microphone = preflight.CheckMicrophone();
-        if (microphone.Blocked)
+        if (microphone is { Blocked: true, Message: { } problem })
         {
-            console.MarkupLineInterpolated($"[red]{microphone.Message}[/]");
-            return 1;
+            return ConsoleMessages.Error(console, problem);
         }
 
         if (microphone.Message is { } notice)
         {
-            console.MarkupLineInterpolated($"[yellow]{notice}[/]");
+            ConsoleMessages.Warning(console, notice);
         }
 
         try
@@ -52,7 +50,7 @@ public sealed class PassThroughCommand(
             using IAudioDevices devices = openDevices(loaded.Settings);
             if (preflight.SpeakerProblem(devices.OutputDeviceName) is { } warning)
             {
-                console.MarkupLineInterpolated($"[yellow]{warning}[/]");
+                ConsoleMessages.Warning(console, warning);
             }
 
             RunUntilStopped(devices, cancellation);

@@ -37,15 +37,12 @@ public sealed class PortAudioSession : IAudioDeviceCatalog
         {
             return new PortAudioSession(ReadDevices());
         }
-        catch (PortAudioException exception)
+        catch (Exception exception)
         {
             Pa.Terminate();
-            throw new AudioDeviceException($"Ljudenheterna kunde inte läsas ({Pa.GetErrorText(exception.ErrorCode)}).", exception);
-        }
-        catch
-        {
-            Pa.Terminate();
-            throw;
+            throw exception is PortAudioException portAudioError
+                ? new AudioDeviceException($"Ljudenheterna kunde inte läsas ({Pa.GetErrorText(portAudioError.ErrorCode)}).", exception)
+                : exception;
         }
     }
 
