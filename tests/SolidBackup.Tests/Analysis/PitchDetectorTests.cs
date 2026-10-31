@@ -1,11 +1,10 @@
 using SolidBackup.Analysis;
-using SolidBackup.Measurement;
 
 namespace SolidBackup.Tests.Analysis;
 
 public sealed class PitchDetectorTests
 {
-    private const int SampleRate = 48_000;
+    private const int SampleRate = TestSignal.SampleRate;
     private const int Buffer = 64;
     private const int E2 = 40;
     private const int C7 = 96;
@@ -17,7 +16,7 @@ public sealed class PitchDetectorTests
     [InlineData(108)]
     public void ToneWellOutsideTheRange_GivesNoNote(int midi)
     {
-        Assert.DoesNotContain(Steady(new PitchDetector(SampleRate, E2, C7, 0.8), Sine(midi, 0.5)), estimate => estimate.HasNote);
+        Assert.DoesNotContain(Steady(new PitchDetector(SampleRate, E2, C7, 0.8), TestSignal.Sine(midi, 0.5)), estimate => estimate.HasNote);
     }
 
     [Theory]
@@ -25,7 +24,7 @@ public sealed class PitchDetectorTests
     [InlineData(C7)]
     public void ToneAtEitherEndOfTheRange_IsFound(int midi)
     {
-        Assert.All(Steady(new PitchDetector(SampleRate, E2, C7, 0.8), Sine(midi, 0.5)), estimate => Assert.Equal(midi, estimate.MidiNote));
+        Assert.All(Steady(new PitchDetector(SampleRate, E2, C7, 0.8), TestSignal.Sine(midi, 0.5)), estimate => Assert.Equal(midi, estimate.MidiNote));
     }
 
     [Theory]
@@ -37,13 +36,13 @@ public sealed class PitchDetectorTests
     {
         PitchDetector detector = new(SampleRate, lowestMidi: 57, highestMidi: 69, 0.8);
 
-        Assert.All(Steady(detector, Sine(midi, 0.5)), estimate => Assert.Equal(expected, estimate.HasNote));
+        Assert.All(Steady(detector, TestSignal.Sine(midi, 0.5)), estimate => Assert.Equal(expected, estimate.HasNote));
     }
 
     [Fact]
     public void ConfidenceBelowTheThreshold_GivesNoNote()
     {
-        float[] noisy = Mix(Sine(57, 0.3), Noise(0.3));
+        float[] noisy = Mix(TestSignal.Sine(57, 0.3), Noise(0.3));
 
         Assert.All(Steady(new PitchDetector(SampleRate, E2, C7, 0.5), noisy), estimate => Assert.True(estimate.HasNote));
         Assert.All(Steady(new PitchDetector(SampleRate, E2, C7, 0.99), noisy), estimate => Assert.False(estimate.HasNote));
@@ -53,14 +52,14 @@ public sealed class PitchDetectorTests
     public void DigitalSilenceAndToneBelowTheEnergyFloor_GiveNoNote()
     {
         Assert.All(Run(new PitchDetector(SampleRate, E2, C7, 0.8), new float[SampleRate]), estimate => Assert.False(estimate.HasNote));
-        Assert.All(Run(new PitchDetector(SampleRate, E2, C7, 0.8), Sine(57, 0.00003)), estimate => Assert.False(estimate.HasNote));
+        Assert.All(Run(new PitchDetector(SampleRate, E2, C7, 0.8), TestSignal.Sine(57, 0.00003)), estimate => Assert.False(estimate.HasNote));
     }
 
     [Fact]
     public void NoteChange_IsReportedWithinHalfAWindowPlusTheHold()
     {
         PitchDetector detector = new(SampleRate, E2, C7, 0.8);
-        float[] change = [.. Sine(57, 0.5), .. Sine(60, 0.5)];
+        float[] change = [.. TestSignal.Sine(57, 0.5), .. TestSignal.Sine(60, 0.5)];
         double changeMs = 1000;
 
         PitchEstimate first = Run(detector, change).First(estimate => estimate.TimeMs > changeMs - 100 && estimate.MidiNote == 60);
@@ -83,7 +82,7 @@ public sealed class PitchDetectorTests
     [Fact]
     public void SameInputTwice_GivesIdenticalEstimates()
     {
-        float[] input = [.. Mix(Sine(52, 0.4), Noise(0.05)), .. Sine(64, 0.4)];
+        float[] input = [.. Mix(TestSignal.Sine(52, 0.4), Noise(0.05)), .. TestSignal.Sine(64, 0.4)];
 
         Assert.Equal(Run(new PitchDetector(SampleRate, E2, C7, 0.8), input), Run(new PitchDetector(SampleRate, E2, C7, 0.8), input));
     }
@@ -92,7 +91,7 @@ public sealed class PitchDetectorTests
     public void PerBufferCall_AllocatesNothing()
     {
         PitchDetector detector = new(SampleRate, E2, C7, 0.8);
-        float[] tone = Sine(57, 0.5);
+        float[] tone = TestSignal.Sine(57, 0.5);
         for (int offset = 0; offset < SampleRate / 2; offset += Buffer)
         {
             detector.Process(tone.AsSpan(offset, Buffer));
@@ -112,7 +111,7 @@ public sealed class PitchDetectorTests
     {
         PitchDetector detector = new(SampleRate, E2, C7, 0.8);
 
-        float[] tone = Sine(57, 0.5);
+        float[] tone = TestSignal.Sine(57, 0.5);
 
         // The first estimate is held back: a new note needs two estimates.
         detector.Process(tone.AsSpan(0, 4096));
@@ -123,25 +122,13 @@ public sealed class PitchDetectorTests
 
     private static PitchEstimate[] Run(PitchDetector detector, float[] samples)
     {
-        List<PitchEstimate> estimates = [];
-        for (int offset = 0; offset + Buffer <= samples.Length; offset += Buffer)
-        {
-            estimates.Add(detector.Process(samples.AsSpan(offset, Buffer)));
-        }
-
-        return [.. estimates];
+        return TestSignal.InBuffers(samples, Buffer, (all, offset) => detector.Process(all.AsSpan(offset, Buffer)));
     }
 
     // The estimates once the window is full and the hold has passed.
     private static PitchEstimate[] Steady(PitchDetector detector, float[] samples)
     {
         return Run(detector, samples).Skip(SampleRate / 10 / Buffer).ToArray();
-    }
-
-    private static float[] Sine(int midi, double amplitude)
-    {
-        double frequency = Pitch.Frequency(midi * 100.0);
-        return Enumerable.Range(0, SampleRate).Select(i => (float)(amplitude * Math.Sin(2 * Math.PI * frequency * i / SampleRate))).ToArray();
     }
 
     private static float[] Noise(double amplitude)
