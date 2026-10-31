@@ -1,3 +1,5 @@
+using SolidBackup.Analysis;
+
 namespace SolidBackup.Measurement;
 
 /// <summary>Builds a generated clip piece by piece, writing its reference as it goes.</summary>
@@ -78,7 +80,7 @@ internal sealed class ClipBuilder(int sampleRate, uint seed)
         for (int i = 0; i < frames; i++)
         {
             double cents = fromCents + ((toCents - fromCents) * i / frames);
-            double frequency = CorpusRange.Frequency(cents);
+            double frequency = Pitch.Frequency(cents);
             double value = waveform == Waveform.Sine ? Math.Sin(phase) : Sawtooth(phase, frequency);
             _samples.Add((float)(value * amplitude * Fade(i, frames, fadeFrames)));
             phase += 2 * Math.PI * frequency / sampleRate;

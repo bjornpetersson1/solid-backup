@@ -14,6 +14,7 @@ public static class Program
           tones <mapp> [<samplingsfrekvens>]   skriv de genererade tonerna som WAV med referensfiler
           suggest <klipp> ...                  föreslå en tonlista för inspelningar som inte står i listan än
           label [<klipp> ...]                  märk inspelningarna (alla, eller de angivna) och skriv .ref.csv
+          report                               mät tonhöjdsdetektorn på hela korpusen och skriv en rapport i markdown
         """;
 
     public static int Main(string[] args)
@@ -33,17 +34,14 @@ public static class Program
     {
         string command = args.Length > 0 ? args[0] : "";
         string[] rest = args.Length > 0 ? args[1..] : [];
-        if (command == "tones" && rest.Length is 1 or 2)
+        return command switch
         {
-            return WriteTones(rest[0], rest.Length == 2 ? ParseSampleRate(rest[1]) : 48_000);
-        }
-
-        if (command == "suggest" && rest.Length > 0)
-        {
-            return Suggest(rest);
-        }
-
-        return command == "label" ? Label(rest) : ShowUsage();
+            "tones" when rest.Length is 1 or 2 => WriteTones(rest[0], rest.Length == 2 ? ParseSampleRate(rest[1]) : 48_000),
+            "suggest" when rest.Length > 0 => Suggest(rest),
+            "label" => Label(rest),
+            "report" when rest.Length == 0 => Report(),
+            _ => ShowUsage(),
+        };
     }
 
     private static int WriteTones(string folder, int sampleRate)
@@ -69,6 +67,15 @@ public static class Program
             Console.WriteLine($"{name}: {string.Join(" ", notes)}");
         }
 
+        return 0;
+    }
+
+    private static int Report()
+    {
+        AppSettings settings = new SettingsStore(SettingsStore.BundledDefaultsPath, "").Load().Settings;
+        CorpusDirectory corpus = CorpusDirectory.Locate(Directory.GetCurrentDirectory());
+        IEnumerable<CorpusClip> clips = GeneratedCorpus.Create(settings.SampleRate).Concat(RecordedCorpus.Load(corpus));
+        Console.WriteLine(PitchMeasurement.Run(clips, settings).ToMarkdown());
         return 0;
     }
 

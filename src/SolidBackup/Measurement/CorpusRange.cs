@@ -11,13 +11,9 @@ public static class CorpusRange
         return midi is >= LowestMidi and <= HighestMidi;
     }
 
-    public static double Frequency(double midiCents)
+    /// <summary>Whether a pitch's nearest note lies in the range; a pitch exactly halfway counts as the upper note, as in <c>PitchEstimate.MidiNote</c>.</summary>
+    public static bool ContainsPitch(double midiCents)
     {
-        return 440 * Math.Pow(2, (midiCents - 6900) / 1200);
-    }
-
-    public static double Cents(double frequency)
-    {
-        return 6900 + (1200 * Math.Log2(frequency / 440));
+        return Contains((int)Math.Round(midiCents / 100, MidpointRounding.AwayFromZero));
     }
 }
