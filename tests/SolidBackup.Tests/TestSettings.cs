@@ -8,7 +8,7 @@ internal static class TestSettings
     public static readonly AppSettings Default = new()
     {
         LowestNote = "E2",
-        HighestNote = "C6",
+        HighestNote = "C7",
         BufferSize = 64,
         SampleRate = 48_000,
         InputDevice = "",
