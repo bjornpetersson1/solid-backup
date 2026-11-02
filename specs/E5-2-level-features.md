@@ -106,6 +106,7 @@ Four level features, each a separate switchable component behind one mechanism: 
   - the common-tone rule is written once (`CommonTones`) and used by both the synthesizer's whole-chord change and `HeldPattern`;
   - the settings errors for a pair (quiet/loud, sparse/full) name both settings;
   - `SynthCommand` and its preflight are built only for `--render` and `--play`.
+- **PR review fix:** the gate check in the combination test requires silence from exactly the segment's start plus `GateHoldMs` plus the release, as criterion 6 says, without an extra settling margin.
 - **Clean code: allocation.** A `ReadOnlySpan<int>` property over a collection expression allocated in the measured path (found by the allocation test); it is a static array now.
 
 ## Open Questions

@@ -51,7 +51,7 @@ public class FeatureCombinationTests(FeatureCombinationTests.SingingRuns runs) :
         {
             if (settings.GateOn)
             {
-                double quietFrom = silence.StartMs + settings.GateHoldMs + SoundPreset.For(Sound.Pad).PlayedReleaseMs + SettleMs;
+                double quietFrom = silence.StartMs + settings.GateHoldMs + SoundPreset.For(Sound.Pad).PlayedReleaseMs;
                 Assert.All(Within(steps, quietFrom, silence.EndMs), step => Assert.True(step.Silent, $"Sound at {step.Analysis.TimeMs:0} ms."));
             }
             else if (silence.StartMs > firstChordMs && silence.EndMs - silence.StartMs < settings.PhraseResetMs)
