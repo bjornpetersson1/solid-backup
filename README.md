@@ -31,6 +31,7 @@ dotnet run --project src/SolidBackup -- --passthrough --input "USB Audio" --outp
 dotnet run --project src/SolidBackup -- --harmonize corpus/recordings/singing.wav --style Campfire --key G
 dotnet run --project src/SolidBackup -- --render chords.wav --sound Organ --chords "C Am F G7" --chord-ms 800
 dotnet run --project src/SolidBackup -- --play --sound Pluck --output "Externa hörlurar"
+dotnet run --project src/SolidBackup -- --accompany corpus/recordings/singing.wav --render sung.wav --features gate,dynamics
 ```
 
 `--passthrough` plays the chosen input in the chosen output until you press `q`, `Esc` or Ctrl+C, then prints the dropout counts. Use headphones: there is no echo cancellation, and the app warns when the output is the built-in speakers. If the terminal app has no microphone access, it stops with instructions instead of starting (System Settings → Privacy & Security → Microphone). On first use macOS asks for access; answer the dialog, and run again if the audio does not start.
@@ -42,6 +43,10 @@ dotnet run --project src/SolidBackup -- --play --sound Pluck --output "Externa h
 The menu needs an interactive terminal.
 
 `--render <wav>` plays chords with the built-in synthesizer and writes them to a mono 16-bit WAV file at `SampleRate`; `--play` plays them on the output device (the setting or `--output`) until the end, or until `q`, `Esc` or Ctrl+C. `--sound` (`Pad`, `Organ` or `Pluck`) overrides `Sound` for that run, `--chords` takes chord symbols as in [`docs/harmony.md`](docs/harmony.md) separated by spaces (default `"C Am F G"`), and `--chord-ms` how long each lasts (100–10000 ms, default 1000); the last chord's release ends the sound. The first chord is in close voicing with its root in octave 3; each next one keeps the tones it shares with the one before and moves the others as little as it can, within C3–C5.
+
+`--accompany <wav> --render <out.wav>` runs a recording through the whole chain, as live mode will: pitch, level, gate and onsets, the level features that are on, the harmony and the synthesizer playing the chord held. It writes the voice mixed with the accompaniment to a 16-bit WAV at the recording's rate, or the accompaniment alone with `--no-voice`. `--style`, `--key`, `--mode` and `--sound` override the settings for that run, and `--features` the four level-feature switches: a comma-separated list of `gate`, `onsets`, `character` and `dynamics`, or `none`.
+
+Each way of running (`--passthrough`, `--devices`, `--harmonize`, `--accompany`, `--render`, `--play`) excludes the others, and an option that does not belong to the chosen one gives a Swedish error.
 
 ## Audio on macOS (E2-1 findings)
 
@@ -128,5 +133,13 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `KeyChangeSeconds` | `4` | With `auto`, a modulation is followed within this many seconds (above 0) |
 | `KeyFirstSeconds` | `2` | With `auto`, no key (and no chord) until at least this many seconds of notes have been heard (above 0) |
 | `Sound` | `Pad` | The synthesizer's sound: `Pad`, `Organ` or `Pluck` |
+| `GateOn` | `true` | Level feature: notes count, and the chord sounds, only while the noise gate is open; off, the chord keeps sounding through silence until `PhraseResetMs` |
+| `DynamicsOn` | `true` | Level feature: the chord's strength follows the input level |
+| `ChordCharacterOn` | `true` | Level feature: soft singing gives a sparse chord (root and fifth), loud singing a full one (with the root an octave down) |
+| `OnsetsOn` | `true` | Level feature: an articulated note changes the chord at once, without the hold times, and strikes it anew |
+| `DynamicsQuietDbfs` | `-42` | Dynamics: at this level and below the chord plays 24 dB below full strength (−90 to 0, below `DynamicsLoudDbfs`) |
+| `DynamicsLoudDbfs` | `-12` | Dynamics: at this level and above the chord plays at full strength (−90 to 0) |
+| `CharacterSparseBelowDbfs` | `-30` | Chord character: below this level the chord is sparse (−90 to 0, at least 6 dB below `CharacterFullAboveDbfs`) |
+| `CharacterFullAboveDbfs` | `-18` | Chord character: above this level the chord is full (−90 to 0); a level must pass a boundary by 3 dB to change the character |
 
 The menu's choices are saved to `~/Library/Application Support/solid-backup/usersettings.json`, which only holds the settings that differ from the defaults. A missing or invalid user settings file is ignored with a message, and the defaults are used.

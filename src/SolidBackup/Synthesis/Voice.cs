@@ -25,6 +25,10 @@ internal sealed class Voice(SoundPreset preset, int sampleRate, double gain)
     private readonly double _decayStep = (1 - preset.Sustain) / Duration.Samples(preset.PlayedDecayMs, sampleRate);
     private readonly long _releaseSamples = Duration.Samples(preset.PlayedReleaseMs, sampleRate);
     private readonly long _stealSamples = Duration.Samples(SoundPreset.MinEdgeMs, sampleRate);
+
+    // A strength change glides with this time constant, so it never steps.
+    private readonly double _glide = 1 - Math.Exp(-1.0 / Duration.Samples(SoundPreset.MinEdgeMs, sampleRate));
+    private double _targetAmplitude;
     private readonly double _detune = Math.Pow(2, preset.DetuneCents / 1200);
     private readonly bool _detuned = preset.DetuneCents > 0;
     private readonly bool _filtered = preset.CutoffHz > 0;
@@ -67,6 +71,19 @@ internal sealed class Voice(SoundPreset preset, int sampleRate, double gain)
         Begin(strength);
     }
 
+    /// <summary>Moves a held tone, or a stolen voice's next tone, to a new strength.</summary>
+    public void SetStrength(double strength)
+    {
+        if (Stage == VoiceStage.Stolen)
+        {
+            _pendingStrength = strength;
+        }
+        else if (IsHeld)
+        {
+            _targetAmplitude = gain * Math.Clamp(strength, 0, 1);
+        }
+    }
+
     /// <summary>Releases the tone; a stolen voice keeps its fade and its new tone never starts.</summary>
     public void Release(long now)
     {
@@ -106,6 +123,7 @@ internal sealed class Voice(SoundPreset preset, int sampleRate, double gain)
             sample = _filterState;
         }
 
+        _amplitude += (_targetAmplitude - _amplitude) * _glide;
         return sample * _level * _amplitude;
     }
 
@@ -118,6 +136,7 @@ internal sealed class Voice(SoundPreset preset, int sampleRate, double gain)
     {
         Stage = VoiceStage.Attack;
         _amplitude = gain * Math.Clamp(strength, 0, 1);
+        _targetAmplitude = _amplitude;
         _level = 0;
         _phase = 0;
         _detunedPhase = 0;

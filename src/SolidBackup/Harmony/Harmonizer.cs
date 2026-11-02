@@ -26,6 +26,7 @@ public sealed class Harmonizer
     private bool _pending;
     private double _lastChangeMs;
     private bool _phraseReset;
+    private double _nowMs;
 
     /// <summary>A harmonizer in a fixed key.</summary>
     public Harmonizer(IChordRules rules, Key key, HarmonyTiming timing)
@@ -63,6 +64,9 @@ public sealed class Harmonizer
     /// <summary>The chord in effect, or null before the first note.</summary>
     public Chord? Chord { get; private set; }
 
+    /// <summary>True while a note sounds, and through a silence until it has lasted <see cref="HarmonyTiming.PhraseResetMs"/>.</summary>
+    public bool InPhrase => _sounding || _nowMs - _silenceStartMs < _timing.PhraseResetMs;
+
     /// <summary>Whether the rules of validated settings' style are built yet.</summary>
     public static bool HasBuiltStyle(AppSettings settings)
     {
@@ -97,9 +101,14 @@ public sealed class Harmonizer
         return new Harmonizer(rules, new Key(tonic, mode), timing);
     }
 
-    /// <summary>Takes the next estimate; true when the chord changed.</summary>
-    public bool Process(PitchEstimate estimate)
+    /// <summary>
+    /// Takes the next estimate; true when the chord changed. With <paramref name="immediate"/> (an articulated note,
+    /// E5-2's onsets), a new note is evaluated at once, without <see cref="HarmonyTiming.MinNoteForChangeMs"/> and
+    /// <see cref="HarmonyTiming.MinChordDurationMs"/>.
+    /// </summary>
+    public bool Process(PitchEstimate estimate, bool immediate = false)
     {
+        _nowMs = estimate.TimeMs;
         if (_keyEstimator is not null && _keyEstimator.Process(estimate))
         {
             // A modulation re-evaluates the sounding note under the usual hold times; the first key chooses
@@ -166,7 +175,8 @@ public sealed class Harmonizer
             _pending = true;
         }
 
-        if (!_pending || now - _noteStartMs < _timing.MinNoteForChangeMs || now - _lastChangeMs < _timing.MinChordDurationMs)
+        bool held = now - _noteStartMs >= _timing.MinNoteForChangeMs && now - _lastChangeMs >= _timing.MinChordDurationMs;
+        if (!_pending || !(held || immediate))
         {
             return false;
         }

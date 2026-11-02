@@ -50,7 +50,7 @@ Three settings in `appsettings.json` (validated, with Swedish errors, listed in 
 3. **Silence keeps the chord.** "No note" does not change the chord; the harmony keeps its state. Whether the chord keeps sounding is up to E5.
 4. **Phrase reset.** If the silence before a note lasted at least `PhraseResetMs`, that note chooses as if there were no previous chord, and Blues returns to the menu's key.
 
-Whether an onset (E3-3) may count as a new phrase start is decided in E5-2, which owns onset-triggered chord change.
+An onset (E3-3) is not a phrase start. With the onsets level feature on (E5-2), a new note right after an onset is evaluated at once, without the hold times, and its chord is struck anew.
 
 ### Choosing among candidates (key-based styles)
 

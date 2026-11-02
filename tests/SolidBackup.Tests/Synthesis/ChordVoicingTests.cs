@@ -17,7 +17,7 @@ public class ChordVoicingTests
     [InlineData("Bbm7(11)", new[] { 58, 61, 63, 65, 68 })]
     public void Voice_PutsTheRootInOctaveThreeAndStacksEachToneNearestAbove(string symbol, int[] expected)
     {
-        Assert.True(ChordSymbol.TryParse(symbol, out Chord chord));
+        Chord chord = TestChords.Parse(symbol);
         Span<int> notes = stackalloc int[ChordVoicing.MaxTones];
 
         int count = ChordVoicing.Voice(chord, notes);
@@ -66,10 +66,10 @@ public class ChordVoicingTests
     public void Lead_KeepsSharedTonesAndMovesNewOnesNearestTheLeavingOnes(string from, string to, int[] expected)
     {
         Span<int> previous = stackalloc int[ChordVoicing.MaxTones];
-        int previousCount = ChordVoicing.Voice(Parse(from), previous);
+        int previousCount = ChordVoicing.Voice(TestChords.Parse(from), previous);
         Span<int> notes = stackalloc int[ChordVoicing.MaxTones];
 
-        int count = ChordVoicing.Lead(Parse(to), previous[..previousCount], notes);
+        int count = ChordVoicing.Lead(TestChords.Parse(to), previous[..previousCount], notes);
 
         Assert.Equal(expected, notes[..count].ToArray());
     }
@@ -79,7 +79,7 @@ public class ChordVoicingTests
     {
         Span<int> notes = stackalloc int[ChordVoicing.MaxTones];
 
-        int count = ChordVoicing.Lead(Parse("Am"), [], notes);
+        int count = ChordVoicing.Lead(TestChords.Parse("Am"), [], notes);
 
         Assert.Equal(new[] { 57, 60, 64 }, notes[..count].ToArray());
     }
@@ -93,7 +93,7 @@ public class ChordVoicingTests
         int previousCount = 0;
         foreach (string symbol in symbols)
         {
-            int count = ChordVoicing.Lead(Parse(symbol), previous[..previousCount], notes);
+            int count = ChordVoicing.Lead(TestChords.Parse(symbol), previous[..previousCount], notes);
             foreach (int note in notes[..count])
             {
                 Assert.InRange(note, ChordVoicing.LowestNote, ChordVoicing.HighestNote);
@@ -102,11 +102,5 @@ public class ChordVoicingTests
             notes[..count].CopyTo(previous);
             previousCount = count;
         }
-    }
-
-    private static Chord Parse(string symbol)
-    {
-        Assert.True(ChordSymbol.TryParse(symbol, out Chord chord));
-        return chord;
     }
 }
