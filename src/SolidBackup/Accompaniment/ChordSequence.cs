@@ -26,7 +26,11 @@ public static class ChordSequence
             int index = start / chordSamples;
             int boundary = start < end ? (index + 1) * chordSamples : samples.Length;
             int length = Math.Min(MaxPiece, boundary - start);
-            AccompanimentFrame frame = AccompanimentFrame.Neutral(start < end ? chords[index] : null, sounding: start < end);
+            // Each listed chord is struck where it begins, so a repeated chord is heard again even with a sound that dies away.
+            AccompanimentFrame frame = AccompanimentFrame.Neutral(start < end ? chords[index] : null, sounding: start < end) with
+            {
+                Strike = start < end && start % chordSamples == 0,
+            };
             pattern.Play(AnalysisFrame.Position(start + length, length, settings.SampleRate), frame, synthesizer);
             synthesizer.Render(samples.AsSpan(start, length));
             start += length;

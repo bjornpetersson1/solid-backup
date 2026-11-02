@@ -108,7 +108,8 @@ public sealed class SynthCommand(
     {
         SettingsLoadResult loaded = loadSettings();
         ConsoleMessages.SettingsMessage(console, loaded);
-        AppSettings settings = RhythmOverrides.Apply(rhythm, loaded.Settings with { Sound = sound ?? loaded.Settings.Sound });
+        AppSettings withSound = loaded.Settings with { Sound = sound ?? loaded.Settings.Sound };
+        AppSettings settings = rhythm?.Apply(withSound) ?? withSound;
         if (SettingsValidator.Validate(settings) is { } error)
         {
             ConsoleMessages.Error(console, $"Ogiltigt värde för {error.Setting}: {error.Problem}.");

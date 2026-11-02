@@ -105,6 +105,29 @@ public class RhythmPatternTests
     }
 
     [Fact]
+    public void Strum_StoppingRightAfterABeat_LeavesNoStrumToneHanging()
+    {
+        // The gate closes in the buffer after the beat, while E and G are still waiting to start.
+        PatternRun run = PatternRun.Play(new StrumPattern(Grid), 48_000, 40_000, start => start < 32_032 ? C : null);
+
+        foreach (ToneEvent start in run.Starts.Where(tone => tone.Sample >= 32_000))
+        {
+            Assert.Contains(run.Releases, release => release.Note == start.Note && release.Sample >= start.Sample);
+        }
+    }
+
+    [Fact]
+    public void Arpeggio_AChordPassedThroughBetweenSteps_DoesNotMoveTheVoicing()
+    {
+        Chord g = TestChords.Parse("G");
+
+        PatternRun plain = PatternRun.Play(new ArpeggioPattern(Grid), 48_000, 40_000, _ => C);
+        PatternRun flicker = PatternRun.Play(new ArpeggioPattern(Grid), 48_000, 40_000, start => start is >= 20_000 and < 25_000 ? g : C);
+
+        Assert.Equal(plain.Starts, flicker.Starts);
+    }
+
+    [Fact]
     public void ChordCharacter_AppliesFromTheNextStep()
     {
         PatternRun run = PatternRun.Play(new StrumPattern(Grid), 48_000, 40_000, start => Frame(start < 10_000 ? ChordShape.Whole : ChordShape.Full));

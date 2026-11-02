@@ -120,6 +120,17 @@ public sealed class SynthCommandTests : IDisposable
         Assert.NotEqual(heldSamples, arpeggioSamples);
     }
 
+    [Fact]
+    public void Render_ARepeatedChordWithASoundThatDiesAway_IsPluckedAgain()
+    {
+        string path = Path.Combine(_folder, "pluck.wav");
+
+        Command(TestConsoles.Wide()).Render(path, "Pluck", "C C", chordMs: 1000);
+
+        float[] samples = WavReader.Read(path).Samples;
+        Assert.Contains(samples[48_000..54_000], sample => Math.Abs(sample) > 0.05);
+    }
+
     [Theory]
     [InlineData("Swing", null, null, "Ogiltigt värde för RhythmPattern")]
     [InlineData(null, 300, null, "Ogiltigt värde för Bpm: 300 måste vara mellan 40 och 240")]

@@ -65,7 +65,6 @@ public sealed class TempoGrid(int sampleRate, int bpm, int beatsPerBar)
     public struct StepEnumerator(TempoGrid grid, long start, long end, int stepsPerBeat)
     {
         private long _next = grid.FirstStepAtOrAfter(start, stepsPerBeat);
-        private long _sample = long.MinValue;
 
         public Step Current { get; private set; }
 
@@ -76,13 +75,13 @@ public sealed class TempoGrid(int sampleRate, int bpm, int beatsPerBar)
 
         public bool MoveNext()
         {
-            _sample = grid.StepSample(_next, stepsPerBeat);
-            if (_sample >= end)
+            long sample = grid.StepSample(_next, stepsPerBeat);
+            if (sample >= end)
             {
                 return false;
             }
 
-            Current = new Step(_next, (int)(_sample - start));
+            Current = new Step(_next, (int)(sample - start));
             _next++;
             return true;
         }

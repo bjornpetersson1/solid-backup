@@ -26,9 +26,10 @@ public sealed class ArpeggioPattern(TempoGrid grid) : IRhythmPattern
             return;
         }
 
-        ReadOnlySpan<int> notes = _chord.For(chord, frame.Shape);
         foreach (TempoGrid.Step step in grid.StepsIn(analysis.StartSample, analysis.EndSample, StepsPerBeat))
         {
+            // Voiced only on a step, so a chord the harmony passes through between steps does not move the voicing.
+            ReadOnlySpan<int> notes = _chord.For(chord, frame.Shape);
             int stepInBar = grid.StepInBar(step.Index, StepsPerBeat);
             if (_sounding != NoTone)
             {

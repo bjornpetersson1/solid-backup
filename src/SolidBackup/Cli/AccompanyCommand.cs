@@ -27,7 +27,7 @@ public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResu
             return 1;
         }
 
-        AppSettings settings = RhythmOverrides.Apply(options.Rhythm, loaded.Settings) with
+        AppSettings settings = (options.Rhythm?.Apply(loaded.Settings) ?? loaded.Settings) with
         {
             SampleRate = audio.SampleRate,
             HarmonyStyle = options.Style ?? loaded.Settings.HarmonyStyle,

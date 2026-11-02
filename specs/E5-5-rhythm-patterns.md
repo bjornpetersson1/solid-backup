@@ -4,7 +4,7 @@
 - **Labels:** `E5 Sound`
 - **Phase:** 5. Sound
 - **Depends on:** E5-4 (#17), E5-1 (#14); builds on E5-2 (#15)
-- **Status:** Implemented — pending verification
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 860 tests passed); listening to the patterns against a metronome is a manual check for the owner; CI on Ubuntu is checked on the PR
 
 ## Summary
 The tempo grid and the three patterns from `docs/rhythm.md` (Held, Arpeggio, Strum) between E5-2's level features and E5-1's synthesizer, with the settings `RhythmPattern`, `Bpm` and `TimeSignature`, and the examples R1–R12 as tests.
@@ -62,3 +62,10 @@ The tempo grid and the three patterns from `docs/rhythm.md` (Held, Arpeggio, Str
 - **Tone events for tests** (implementation): the synthesizer tells an optional `IToneListener` the sample of every tone start and release; the tests read positions from it, so they are exact and independent of the sound.
 - **Overrides as one record** (implementation): `RhythmOverrides` carries `--pattern`, `--bpm` and `--time-signature` to `--render`, `--play` and `--accompany`.
 - **Clean code:** `TempoGrid.FromSettings` builds the grid in one place (E5-6's harmony uses it too), and `TempoGrid.StepsIn` walks the steps of a buffer without allocating, so the patterns no longer repeat that loop. `HeldPattern` shares `ChordTones` with the other patterns, `AnalysisFrame.Position` builds a frame for rendering, the time signatures are one table, and the ten-minute drift test checks the grid directly plus the last minute played.
+- **Code review fixes:**
+  - when a strum stops (the gate closes, the phrase ends, `--render` reaches its end) while its later tones are still waiting to start, each such tone is released on its own start, so none hangs;
+  - Arpeggio and Strum voice a chord only on a step, so a chord the harmony passes through between steps does not move the voice leading;
+  - `--render` and `--play` strike each listed chord where it begins, so a repeated chord is heard again with a sound that dies away (Pluck), as before E5-5;
+  - the synthesizer tells its listener when it takes over a held voice, so no tone ends unreported;
+  - the strum spread uses `Duration.Samples`, and one sample-to-ms helper serves the chain and rendering.
+- **Strength of a sounding tone in Arpeggio and Strum** (code review finding declined): `docs/rhythm.md` says dynamics set each tone's strength when it starts and only Held follows the level continuously, so a strum keeps its strength until the next beat, as a struck chord does.

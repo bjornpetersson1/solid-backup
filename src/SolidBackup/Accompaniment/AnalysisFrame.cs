@@ -16,6 +16,11 @@ public readonly record struct AnalysisFrame(
     /// <summary>Only a buffer's place, for playing a pattern without analysis (rendering chords, tests).</summary>
     public static AnalysisFrame Position(long endSample, int bufferLength, int sampleRate)
     {
-        return new AnalysisFrame(endSample, endSample * 1000.0 / sampleRate, bufferLength, 0, 0, GateOpen: true, Onset: false, default);
+        return new AnalysisFrame(endSample, TimeMsAt(endSample, sampleRate), bufferLength, 0, 0, GateOpen: true, Onset: false, default);
+    }
+
+    public static double TimeMsAt(long sample, int sampleRate)
+    {
+        return sample * 1000.0 / sampleRate;
     }
 }

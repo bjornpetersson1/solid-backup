@@ -269,7 +269,14 @@ public sealed class Synthesizer
 
     private void Start(int note, double strength)
     {
-        FreeVoice().Start(note, strength, _now);
+        Voice voice = FreeVoice();
+        if (voice.IsHeld)
+        {
+            // A held voice is taken over: its tone ends here.
+            Listener?.OnRelease(_now, voice.Note);
+        }
+
+        voice.Start(note, strength, _now);
         Starts++;
         Listener?.OnStart(_now, note, strength);
     }

@@ -73,7 +73,7 @@ public sealed class Accompanist : IAudioProcessor
         // The smoothing would start each phrase from the silence floor, so right after the gate opens (while the level
         // meter's window fills) the smoothed level follows the level; within a phrase it is smoothed.
         double smoothed = _position - _gateOpenedAt <= _followSamples ? _smoother.Follow(level) : _smoother.Process(level, input.Length);
-        return new AnalysisFrame(_position, _position * 1000.0 / _sampleRate, input.Length, level, smoothed, open, onset, estimate);
+        return new AnalysisFrame(_position, AnalysisFrame.TimeMsAt(_position, _sampleRate), input.Length, level, smoothed, open, onset, estimate);
     }
 
     /// <summary>
