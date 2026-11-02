@@ -28,5 +28,18 @@ internal static class TestSettings
         PhraseResetMs = 2000,
         KeyChangeSeconds = 4,
         KeyFirstSeconds = 2,
+        Sound = "Pad",
+        GateOn = true,
+        DynamicsOn = true,
+        ChordCharacterOn = true,
+        OnsetsOn = true,
+        DynamicsQuietDbfs = -42,
+        DynamicsLoudDbfs = -12,
+        CharacterSparseBelowDbfs = -30,
+        CharacterFullAboveDbfs = -18,
+        RecordingFolder = "recordings",
+        RhythmPattern = "Held",
+        Bpm = 90,
+        TimeSignature = "4/4",
     };
 }

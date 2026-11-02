@@ -16,6 +16,9 @@ public readonly record struct Chord(int Root, ChordQuality Quality, int Tension 
     // Semitones above the root, indexed by ChordQuality.
     private static readonly int[][] IntervalsByQuality = [[0, 4, 7], [0, 3, 7], [0, 3, 6], [0, 7], [0, 4, 7, 2], [0, 3, 7, 2], [0, 5, 7], [0, 4, 7, 10], [0, 4, 7, 11], [0, 3, 7, 10], [0, 3, 6, 10], [0, 3, 6, 9]];
 
+    /// <summary>No tension and every tension a chord may have, as the check on <see cref="Tension"/> accepts them.</summary>
+    public static IReadOnlyList<int> Tensions { get; } = Array.AsReadOnly([NoTension, 1, 2, 5, 6]);
+
     /// <summary>Bit n is set when pitch class n is in the chord; the allocation-free form for the audio path.</summary>
     public int PitchClassMask
     {

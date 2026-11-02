@@ -109,6 +109,23 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "KeyChangeSeconds": 0 }""", "KeyChangeSeconds")]
     [InlineData("""{ "KeyChangeSeconds": -4 }""", "KeyChangeSeconds")]
     [InlineData("""{ "KeyFirstSeconds": 0 }""", "KeyFirstSeconds")]
+    [InlineData("""{ "Sound": "Piano" }""", "Sound")]
+    [InlineData("""{ "Sound": "pad" }""", "Sound")]
+    [InlineData("""{ "Sound": null }""", "Sound")]
+    [InlineData("""{ "DynamicsQuietDbfs": -12 }""", "DynamicsQuietDbfs och DynamicsLoudDbfs")]
+    [InlineData("""{ "DynamicsQuietDbfs": -91 }""", "DynamicsQuietDbfs")]
+    [InlineData("""{ "DynamicsLoudDbfs": 1 }""", "DynamicsLoudDbfs")]
+    [InlineData("""{ "CharacterSparseBelowDbfs": -18 }""", "CharacterSparseBelowDbfs och CharacterFullAboveDbfs")]
+    [InlineData("""{ "CharacterFullAboveDbfs": -26 }""", "CharacterSparseBelowDbfs och CharacterFullAboveDbfs")]
+    [InlineData("""{ "CharacterFullAboveDbfs": 0.5 }""", "CharacterFullAboveDbfs")]
+    [InlineData("""{ "GateOn": "ja" }""", "GateOn")]
+    [InlineData("""{ "RecordingFolder": "" }""", "RecordingFolder")]
+    [InlineData("""{ "RhythmPattern": "Swing" }""", "RhythmPattern")]
+    [InlineData("""{ "RhythmPattern": "held" }""", "RhythmPattern")]
+    [InlineData("""{ "Bpm": 39 }""", "Bpm")]
+    [InlineData("""{ "Bpm": 241 }""", "Bpm")]
+    [InlineData("""{ "TimeSignature": "6/8" }""", "TimeSignature")]
+    [InlineData("""{ "RecordingFolder": null }""", "RecordingFolder")]
     public void Load_InvalidValue_IgnoresWholeFileAndNamesSetting(string content, string setting)
     {
         WriteUserFile(content);
@@ -158,6 +175,19 @@ public sealed class SettingsStoreTests : IDisposable
             PhraseResetMs = 3000,
             KeyChangeSeconds = 6,
             KeyFirstSeconds = 3,
+            Sound = "Organ",
+            GateOn = false,
+            DynamicsOn = true,
+            ChordCharacterOn = false,
+            OnsetsOn = true,
+            DynamicsQuietDbfs = -50,
+            DynamicsLoudDbfs = -10,
+            CharacterSparseBelowDbfs = -35,
+            CharacterFullAboveDbfs = -15,
+            RecordingFolder = "/tmp/inspelningar",
+            RhythmPattern = "Strum",
+            Bpm = 120,
+            TimeSignature = "3/4",
         };
 
         CreateStore().Save(saved);

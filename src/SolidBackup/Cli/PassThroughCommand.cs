@@ -1,6 +1,7 @@
 using SolidBackup.Audio;
 using SolidBackup.Audio.Devices;
 using SolidBackup.Configuration;
+using SolidBackup.Recording;
 
 using Spectre.Console;
 
@@ -16,15 +17,17 @@ public sealed class PassThroughCommand(
     IAnsiConsole console,
     Func<SettingsLoadResult> loadSettings,
     Func<AppSettings, IAudioDevices> openDevices,
-    AudioPreflight preflight)
+    AudioPreflight preflight,
+    Func<AppSettings, (string Path, Stream Stream)>? createRecording = null)
 {
     public const string RunningMessage = "Medhörning pågår: mikrofonen spelas upp i utgången. Tryck q eller Esc för att sluta.";
     public const string NotInteractiveMessage = "Medhörningen kräver en interaktiv terminal.";
 
-    private static readonly TimeSpan KeyPollInterval = TimeSpan.FromMilliseconds(50);
+    private readonly Func<AppSettings, (string Path, Stream Stream)> _createRecording =
+        createRecording ?? (settings => RecordingFile.Create(settings.RecordingFolder, DateTime.Now));
 
-    /// <summary>Runs until a stop key, Ctrl+C or <paramref name="cancellation"/>.</summary>
-    public int Run(CancellationToken cancellation = default)
+    /// <summary>Runs until a stop key, Ctrl+C or <paramref name="cancellation"/>; with <paramref name="record"/>, records the input and the output to WAV.</summary>
+    public int Run(CancellationToken cancellation = default, bool record = false)
     {
         if (!console.Profile.Capabilities.Interactive)
         {
@@ -53,9 +56,49 @@ public sealed class PassThroughCommand(
                 ConsoleMessages.Warning(console, warning);
             }
 
-            RunUntilStopped(devices, cancellation);
+            RecordingSession? recording = null;
+            if (record)
+            {
+                recording = RecordingSession.Open(
+                    console, devices.Input, loaded.Settings.RecordingFolder, () => _createRecording(loaded.Settings));
+                if (recording is null)
+                {
+                    return 1;
+                }
+            }
+
+            AudioPipeline pipeline = new(devices.Input, devices.Output, new PassThroughProcessor(), recording?.Recorder);
+            try
+            {
+                pipeline.Start();
+            }
+            catch
+            {
+                recording?.Discard();
+                throw;
+            }
+
+            bool recorded = true;
+            try
+            {
+                console.WriteLine(RunningMessage);
+                StopKeys.WaitForStop(console, () => false, cancellation);
+            }
+            finally
+            {
+                // The audio stops before the file is finished, and the file is finished even if stopping fails.
+                try
+                {
+                    pipeline.Stop();
+                }
+                finally
+                {
+                    recorded = recording?.Finish(console) ?? true;
+                }
+            }
+
             console.WriteLine(Summary(devices.Counters));
-            return 0;
+            return recorded ? 0 : 1;
         }
         catch (AudioDeviceException exception)
         {
@@ -70,55 +113,5 @@ public sealed class PassThroughCommand(
             + $"tomma överlämningar: {counters.HandOverUnderruns}, "
             + $"tappade överlämningar: {counters.HandOverOverruns}, "
             + $"driftkorrigeringar: {counters.DriftCorrections}.";
-    }
-
-    private void RunUntilStopped(IAudioDevices devices, CancellationToken cancellation)
-    {
-        AudioPipeline pipeline = new(devices.Input, devices.Output, new PassThroughProcessor());
-        using CancellationTokenSource stop = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-
-        // Ctrl+C would end the process at once; once the audio runs, turn it into a normal stop so
-        // the audio closes. Before that, opening can block on the permission dialog, and Ctrl+C
-        // must still be able to end the process.
-        ConsoleCancelEventHandler stopOnCtrlC = (_, args) =>
-        {
-            args.Cancel = true;
-            stop.Cancel();
-        };
-        pipeline.Start();
-        Console.CancelKeyPress += stopOnCtrlC;
-        try
-        {
-            console.WriteLine(RunningMessage);
-            WaitForStop(stop.Token);
-            pipeline.Stop();
-        }
-        finally
-        {
-            Console.CancelKeyPress -= stopOnCtrlC;
-        }
-    }
-
-    // Polls instead of blocking in ReadKey, so a cancellation is noticed without a key press.
-    private void WaitForStop(CancellationToken stop)
-    {
-        while (!stop.IsCancellationRequested)
-        {
-            if (!console.Input.IsKeyAvailable())
-            {
-                stop.WaitHandle.WaitOne(KeyPollInterval);
-                continue;
-            }
-
-            if (console.Input.ReadKey(intercept: true) is { } key && IsStopKey(key))
-            {
-                return;
-            }
-        }
-    }
-
-    private static bool IsStopKey(ConsoleKeyInfo key)
-    {
-        return key.Key == ConsoleKey.Escape || char.ToLowerInvariant(key.KeyChar) == 'q';
     }
 }

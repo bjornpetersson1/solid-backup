@@ -3,6 +3,9 @@ namespace SolidBackup.Harmony;
 /// <summary>Pitch classes 0–11 (C = 0) and their spelling in chord symbols.</summary>
 public static class PitchClass
 {
+    /// <summary>No note: silence, where a pitch class is expected.</summary>
+    public const int None = -1;
+
     private static readonly string[] Names = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
     public static string Name(int pitchClass)

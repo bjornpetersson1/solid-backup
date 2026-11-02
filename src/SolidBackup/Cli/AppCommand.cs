@@ -3,6 +3,7 @@ using System.CommandLine.Help;
 using System.CommandLine.Invocation;
 using System.Reflection;
 
+using SolidBackup.Accompaniment;
 using SolidBackup.Audio.Devices;
 using SolidBackup.Audio.MacOS;
 using SolidBackup.Audio.PortAudio;
@@ -16,9 +17,7 @@ public static class AppCommand
 {
     public const string Description = "Lyssnar på en melodistämma i mikrofonen och spelar ackord till den.";
     public const string HelpHint = "Kör med --help för att se vad som finns.";
-    public const string DeviceOptionsAloneMessage = "--input och --output gäller bara tillsammans med --passthrough eller --devices.";
-    public const string HarmonyOptionsAloneMessage = "--style, --key och --mode gäller bara tillsammans med --harmonize.";
-    public const string HarmonizeCombinedMessage = "--harmonize kan inte kombineras med --passthrough eller --devices.";
+    public const string AccompanyNeedsRenderMessage = "--accompany kräver --render <wav> för resultatet.";
 
     /// <summary>
     /// Parses and runs the command line. Parse errors and unexpected exceptions get a Swedish
@@ -76,7 +75,7 @@ public static class AppCommand
         };
         Option<string> styleOption = new("--style")
         {
-            Description = "Harmonistil att använda den här gången: Church, Campfire, Drone, Pop, Modal, Blues eller Free.",
+            Description = "Harmonistil att använda den här gången: Church, Campfire, Drone, Pop, Modal, Blues, Jazz eller Free.",
         };
         Option<string> keyOption = new("--key")
         {
@@ -86,6 +85,56 @@ public static class AppCommand
         {
             Description = "Modus att använda den här gången (t.ex. Ionian, Dorian, Aeolian).",
         };
+        Option<string> renderOption = new("--render")
+        {
+            Description = "Spela ackord med syntten och skriv dem till en WAV-fil.",
+            HelpName = "wav",
+        };
+        Option<bool> playOption = new("--play")
+        {
+            Description = "Spela ackord med syntten i utgången.",
+        };
+        Option<string> soundOption = new("--sound")
+        {
+            Description = "Syntens ljud att använda den här gången: Pad, Organ eller Pluck.",
+        };
+        Option<string> chordsOption = new("--chords")
+        {
+            Description = $"Ackorden att spela, med mellanslag emellan (standard \"{SynthCommand.DefaultChords}\").",
+        };
+        Option<int?> chordMsOption = new("--chord-ms")
+        {
+            Description = $"Hur länge varje ackord spelas, {SynthCommand.MinChordMs}–{SynthCommand.MaxChordMs} ms (standard {SynthCommand.DefaultChordMs}).",
+        };
+        Option<string> accompanyOption = new("--accompany")
+        {
+            Description = "Kör en WAV-fil genom analys, nivåfunktioner, harmoni och synt och skriv resultatet med --render.",
+            HelpName = "wav",
+        };
+        Option<string> patternOption = new("--pattern")
+        {
+            Description = "Rytmmönster att använda den här gången: Held, Arpeggio eller Strum.",
+        };
+        Option<int?> bpmOption = new("--bpm")
+        {
+            Description = $"Tempo att använda den här gången, {Rhythm.RhythmSettings.MinBpm}–{Rhythm.RhythmSettings.MaxBpm} BPM.",
+        };
+        Option<string> timeSignatureOption = new("--time-signature")
+        {
+            Description = "Taktart att använda den här gången: 4/4 eller 3/4.",
+        };
+        Option<bool> recordOption = new("--record")
+        {
+            Description = "Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough).",
+        };
+        Option<bool> noVoiceOption = new("--no-voice")
+        {
+            Description = "Skriv bara ackompanjemanget, utan rösten (med --accompany).",
+        };
+        Option<string> featuresOption = new("--features")
+        {
+            Description = $"Nivåfunktioner att använda den här gången, med kommatecken emellan: {string.Join(", ", LevelFeatures.All.Select(entry => entry.Name))}, eller {AccompanyCommand.NoFeatures}.",
+        };
         root.Options.Add(passThroughOption);
         root.Options.Add(devicesOption);
         root.Options.Add(inputOption);
@@ -94,48 +143,122 @@ public static class AppCommand
         root.Options.Add(styleOption);
         root.Options.Add(keyOption);
         root.Options.Add(modeOption);
+        root.Options.Add(renderOption);
+        root.Options.Add(playOption);
+        root.Options.Add(soundOption);
+        root.Options.Add(chordsOption);
+        root.Options.Add(chordMsOption);
+        root.Options.Add(accompanyOption);
+        root.Options.Add(noVoiceOption);
+        root.Options.Add(recordOption);
+        root.Options.Add(patternOption);
+        root.Options.Add(bpmOption);
+        root.Options.Add(timeSignatureOption);
+        root.Options.Add(featuresOption);
+        // Each way of running and the options that go with it; an option belongs to the modes that list it.
+        RunMode[] modes =
+        [
+            new(passThroughOption, [inputOption, outputOption, recordOption]),
+            new(devicesOption, [inputOption, outputOption]),
+            new(harmonizeOption, [styleOption, keyOption, modeOption, bpmOption, timeSignatureOption]),
+            new(accompanyOption, [renderOption, styleOption, keyOption, modeOption, soundOption, featuresOption, noVoiceOption, patternOption, bpmOption, timeSignatureOption]),
+            new(renderOption, [soundOption, chordsOption, chordMsOption, patternOption, bpmOption, timeSignatureOption]),
+            new(playOption, [soundOption, chordsOption, chordMsOption, outputOption, patternOption, bpmOption, timeSignatureOption]),
+        ];
         root.SetAction(parseResult =>
         {
-            bool playsOrLists = parseResult.GetValue(devicesOption) || parseResult.GetValue(passThroughOption);
-            if (!playsOrLists && (parseResult.GetValue(inputOption) is not null || parseResult.GetValue(outputOption) is not null))
+            if (CheckOptions(parseResult, modes, accompanyOption, renderOption) is { } problem)
             {
-                parseResult.InvocationConfiguration.Error.WriteLine($"{DeviceOptionsAloneMessage} {HelpHint}");
+                parseResult.InvocationConfiguration.Error.WriteLine($"{problem} {HelpHint}");
                 return 1;
             }
 
-            string? harmonizePath = parseResult.GetValue(harmonizeOption);
             string? style = parseResult.GetValue(styleOption);
             string? key = parseResult.GetValue(keyOption);
             string? mode = parseResult.GetValue(modeOption);
-            if (harmonizePath is null && (style is not null || key is not null || mode is not null))
+            string? sound = parseResult.GetValue(soundOption);
+            RhythmOverrides rhythm = new(parseResult.GetValue(patternOption), parseResult.GetValue(bpmOption), parseResult.GetValue(timeSignatureOption));
+            if (parseResult.GetValue(accompanyOption) is { } recording && parseResult.GetValue(renderOption) is { } accompanied)
             {
-                parseResult.InvocationConfiguration.Error.WriteLine($"{HarmonyOptionsAloneMessage} {HelpHint}");
-                return 1;
+                AccompanyOptions options = new(style, key, mode, sound, parseResult.GetValue(featuresOption), parseResult.GetValue(noVoiceOption), rhythm);
+                return new AccompanyCommand(createConsole(), LoadSettings).Run(recording, accompanied, options);
             }
 
-            if (harmonizePath is not null)
-            {
-                if (playsOrLists)
-                {
-                    parseResult.InvocationConfiguration.Error.WriteLine($"{HarmonizeCombinedMessage} {HelpHint}");
-                    return 1;
-                }
-
-                return new HarmonizeCommand(createConsole(), LoadSettings).Run(harmonizePath, style, key, mode);
-            }
-
+            string? chords = parseResult.GetValue(chordsOption);
+            int? chordMs = parseResult.GetValue(chordMsOption);
             Func<SettingsLoadResult> loadSettings =
                 () => WithDevices(LoadSettings(), parseResult.GetValue(inputOption), parseResult.GetValue(outputOption));
+            if (parseResult.GetValue(renderOption) is { } renderPath)
+            {
+                return new SynthCommand(createConsole(), loadSettings, PortAudioPlayback.Open, CreatePreflight()).Render(renderPath, sound, chords, chordMs, rhythm);
+            }
+
+            if (parseResult.GetValue(playOption))
+            {
+                return new SynthCommand(createConsole(), loadSettings, PortAudioPlayback.Open, CreatePreflight()).Play(sound, chords, chordMs, rhythm);
+            }
+
+            if (parseResult.GetValue(harmonizeOption) is { } harmonizePath)
+            {
+                return new HarmonizeCommand(createConsole(), LoadSettings).Run(harmonizePath, style, key, mode, rhythm);
+            }
+
             if (parseResult.GetValue(devicesOption))
             {
                 return new DeviceListCommand(createConsole(), loadSettings, PortAudioSession.Open, CreatePreflight()).Run();
             }
 
             return parseResult.GetValue(passThroughOption)
-                ? new PassThroughCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight()).Run()
+                ? new PassThroughCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight()).Run(record: parseResult.GetValue(recordOption))
                 : new MainMenu(createConsole()).Run();
         });
         return root;
+    }
+
+    public static string CombinedMessage(string first, string second)
+    {
+        return $"{first} kan inte kombineras med {second}.";
+    }
+
+    public static string OptionAloneMessage(string option, IEnumerable<string> modes)
+    {
+        List<string> names = [.. modes];
+        string allowed = names.Count == 1 ? names[0] : $"{string.Join(", ", names[..^1])} eller {names[^1]}";
+        return $"{option} gäller bara tillsammans med {allowed}.";
+    }
+
+    /// <summary>
+    /// At most one mode, and every other option given belongs to it; <c>--render</c> is the output of
+    /// <c>--accompany</c> rather than a mode of its own when both are given. Null when the options fit together.
+    /// </summary>
+    private static string? CheckOptions(ParseResult parseResult, RunMode[] modes, Option accompanyOption, Option renderOption)
+    {
+        bool accompanies = Given(parseResult, accompanyOption);
+        List<RunMode> chosen = [.. modes.Where(mode => Given(parseResult, mode.Option) && !(accompanies && mode.Option == renderOption))];
+        if (chosen.Count > 1)
+        {
+            return CombinedMessage(chosen[0].Option.Name, chosen[1].Option.Name);
+        }
+
+        RunMode? running = chosen.FirstOrDefault();
+        foreach (Option option in modes.SelectMany(mode => mode.Modifiers).Distinct())
+        {
+            if (!Given(parseResult, option) || running?.Modifiers.Contains(option) == true || running?.Option == option)
+            {
+                continue;
+            }
+
+            return running is null
+                ? OptionAloneMessage(option.Name, modes.Where(mode => mode.Modifiers.Contains(option)).Select(mode => mode.Option.Name))
+                : CombinedMessage(option.Name, running.Option.Name);
+        }
+
+        return accompanies && !Given(parseResult, renderOption) ? AccompanyNeedsRenderMessage : null;
+    }
+
+    private static bool Given(ParseResult parseResult, Option option)
+    {
+        return parseResult.GetResult(option) is { Implicit: false };
     }
 
     /// <summary>Applies --input and --output for this run only; they are never saved.</summary>
@@ -168,6 +291,8 @@ public static class AppCommand
             ? $"Okänt argument: {string.Join(", ", parseResult.UnmatchedTokens)}."
             : "Argumenten kunde inte tolkas.";
     }
+
+    private sealed record RunMode(Option Option, IReadOnlyList<Option> Modifiers);
 
     // The built-in version action reads the entry assembly, which is the test host under tests.
     private sealed class PrintVersionAction : SynchronousCommandLineAction

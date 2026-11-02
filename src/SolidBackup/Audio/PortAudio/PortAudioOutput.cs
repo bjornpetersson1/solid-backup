@@ -13,10 +13,9 @@ namespace SolidBackup.Audio.PortAudio;
 /// </summary>
 public sealed class PortAudioOutput(AudioDeviceInfo device, int sampleRate, int bufferSize) : IAudioOutput
 {
-    private const string DeviceName = "Ljudutgången";
-    private const int MaxChannels = 2;
+    public const string DeviceName = "Ljudutgången";
 
-    private readonly int _channels = Math.Min(MaxChannels, device.OutputChannels);
+    private readonly int _channels = PortAudioStreams.OutputChannels(device);
 
     private readonly HandOverBuffer _handOver = new(sampleRate, bufferSize);
     private readonly float[] _mono = new float[bufferSize];
@@ -74,15 +73,7 @@ public sealed class PortAudioOutput(AudioDeviceInfo device, int sampleRate, int 
         Span<float> interleaved = new((void*)output, (int)frameCount * _channels);
         Span<float> mono = _mono.AsSpan(0, Math.Min((int)frameCount, _mono.Length));
         _handOver.Read(mono);
-        for (int frame = 0; frame < mono.Length; frame++)
-        {
-            for (int channel = 0; channel < _channels; channel++)
-            {
-                interleaved[(frame * _channels) + channel] = mono[frame];
-            }
-        }
-
-        interleaved[(mono.Length * _channels)..].Clear();
+        PortAudioStreams.FanOut(mono, interleaved, _channels);
 
         return StreamCallbackResult.Continue;
     }

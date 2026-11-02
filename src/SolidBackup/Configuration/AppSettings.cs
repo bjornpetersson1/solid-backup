@@ -58,4 +58,43 @@ public sealed record AppSettings
 
     /// <summary>With <c>auto</c>, how many seconds of notes are needed before the first key.</summary>
     public required double KeyFirstSeconds { get; init; }
+
+    /// <summary>The synthesizer's sound: <c>Pad</c>, <c>Organ</c> or <c>Pluck</c>.</summary>
+    public required string Sound { get; init; }
+
+    /// <summary>Level feature: notes reach the harmony, and the chord sounds, only while the noise gate is open.</summary>
+    public required bool GateOn { get; init; }
+
+    /// <summary>Level feature: the chord's strength follows the input level.</summary>
+    public required bool DynamicsOn { get; init; }
+
+    /// <summary>Level feature: soft singing gives a sparse chord, loud singing a full one.</summary>
+    public required bool ChordCharacterOn { get; init; }
+
+    /// <summary>Level feature: an articulated note changes the chord without the hold times and strikes it anew.</summary>
+    public required bool OnsetsOn { get; init; }
+
+    /// <summary>Dynamics: the level that plays 24 dB below full strength, and below.</summary>
+    public required double DynamicsQuietDbfs { get; init; }
+
+    /// <summary>Dynamics: the level that plays at full strength, and above.</summary>
+    public required double DynamicsLoudDbfs { get; init; }
+
+    /// <summary>Chord character: below this level the chord is sparse.</summary>
+    public required double CharacterSparseBelowDbfs { get; init; }
+
+    /// <summary>Chord character: above this level the chord is full.</summary>
+    public required double CharacterFullAboveDbfs { get; init; }
+
+    /// <summary>The rhythm pattern: <c>Held</c>, <c>Arpeggio</c> or <c>Strum</c>; see <c>docs/rhythm.md</c>.</summary>
+    public required string RhythmPattern { get; init; }
+
+    /// <summary>The tempo in beats per minute, 40–240.</summary>
+    public required int Bpm { get; init; }
+
+    /// <summary>The time signature: <c>4/4</c> or <c>3/4</c>.</summary>
+    public required string TimeSignature { get; init; }
+
+    /// <summary>Where recordings go: a folder relative to the current directory, or an absolute path.</summary>
+    public required string RecordingFolder { get; init; }
 }

@@ -1,5 +1,8 @@
+using SolidBackup.Accompaniment;
 using SolidBackup.Analysis;
 using SolidBackup.Harmony;
+using SolidBackup.Rhythm;
+using SolidBackup.Synthesis;
 
 namespace SolidBackup.Configuration;
 
@@ -7,6 +10,8 @@ public sealed record SettingsError(string Setting, string Problem);
 
 public static class SettingsValidator
 {
+    private const double MinLevelDbfs = -90;
+
     private static readonly int[] SupportedSampleRates = [44_100, 48_000];
 
     public static SettingsError? Validate(AppSettings settings)
@@ -86,12 +91,75 @@ public static class SettingsValidator
             return new(nameof(AppSettings.LatencyTargetMs), $"{settings.LatencyTargetMs} ms måste vara större än 0");
         }
 
-        return ValidateHarmony(settings);
+        if (string.IsNullOrWhiteSpace(settings.RecordingFolder))
+        {
+            return new(nameof(AppSettings.RecordingFolder), "en mapp krävs, t.ex. \"recordings\"");
+        }
+
+        return ValidateHarmony(settings) ?? ValidateSound(settings) ?? ValidateLevelFeatures(settings) ?? ValidateRhythm(settings);
+    }
+
+    private static SettingsError? ValidateLevelFeatures(AppSettings settings)
+    {
+        SettingsError? outOfRange = OutOfDbfsRange(nameof(AppSettings.DynamicsQuietDbfs), settings.DynamicsQuietDbfs)
+            ?? OutOfDbfsRange(nameof(AppSettings.DynamicsLoudDbfs), settings.DynamicsLoudDbfs)
+            ?? OutOfDbfsRange(nameof(AppSettings.CharacterSparseBelowDbfs), settings.CharacterSparseBelowDbfs)
+            ?? OutOfDbfsRange(nameof(AppSettings.CharacterFullAboveDbfs), settings.CharacterFullAboveDbfs);
+        if (outOfRange is not null)
+        {
+            return outOfRange;
+        }
+
+        if (settings.DynamicsQuietDbfs >= settings.DynamicsLoudDbfs)
+        {
+            return new(
+                $"{nameof(AppSettings.DynamicsQuietDbfs)} och {nameof(AppSettings.DynamicsLoudDbfs)}",
+                $"{settings.DynamicsQuietDbfs} dBFS måste vara lägre än {settings.DynamicsLoudDbfs} dBFS");
+        }
+
+        double minimumGap = 2 * ChordCharacterFeature.HysteresisDb;
+        if (settings.CharacterFullAboveDbfs - settings.CharacterSparseBelowDbfs < minimumGap)
+        {
+            return new(
+                $"{nameof(AppSettings.CharacterSparseBelowDbfs)} och {nameof(AppSettings.CharacterFullAboveDbfs)}",
+                $"{settings.CharacterSparseBelowDbfs} dBFS måste ligga minst {minimumGap} dB under {settings.CharacterFullAboveDbfs} dBFS");
+        }
+
+        return null;
+    }
+
+    private static SettingsError? ValidateRhythm(AppSettings settings)
+    {
+        if (!SettingNames.TryParse<RhythmPatternName>(settings.RhythmPattern, out _))
+        {
+            return new(nameof(AppSettings.RhythmPattern), $"\"{settings.RhythmPattern}\" är inget känt rytmmönster; välj {string.Join(", ", Enum.GetNames<RhythmPatternName>())}");
+        }
+
+        if (settings.Bpm is < RhythmSettings.MinBpm or > RhythmSettings.MaxBpm)
+        {
+            return new(nameof(AppSettings.Bpm), $"{settings.Bpm} måste vara mellan {RhythmSettings.MinBpm} och {RhythmSettings.MaxBpm}");
+        }
+
+        return RhythmSettings.TryParseTimeSignature(settings.TimeSignature, out _)
+            ? null
+            : new(nameof(AppSettings.TimeSignature), $"\"{settings.TimeSignature}\" är ingen taktart som stöds; välj {string.Join(" eller ", RhythmSettings.AllTimeSignatures)}");
+    }
+
+    private static SettingsError? OutOfDbfsRange(string setting, double value)
+    {
+        return value is >= MinLevelDbfs and <= 0 ? null : new(setting, $"{value} dBFS måste vara mellan {MinLevelDbfs} och 0 dBFS");
+    }
+
+    private static SettingsError? ValidateSound(AppSettings settings)
+    {
+        return SettingNames.TryParse<Sound>(settings.Sound, out _)
+            ? null
+            : new(nameof(AppSettings.Sound), $"\"{settings.Sound}\" är inget känt ljud; välj {string.Join(", ", Enum.GetNames<Sound>())}");
     }
 
     private static SettingsError? ValidateHarmony(AppSettings settings)
     {
-        if (!HarmonySettings.TryParseName<HarmonyStyle>(settings.HarmonyStyle, out _))
+        if (!SettingNames.TryParse<HarmonyStyle>(settings.HarmonyStyle, out _))
         {
             return new(nameof(AppSettings.HarmonyStyle), $"\"{settings.HarmonyStyle}\" är ingen känd harmonistil; välj {string.Join(", ", Enum.GetNames<HarmonyStyle>())}");
         }
@@ -101,7 +169,7 @@ public static class SettingsValidator
             return new(nameof(AppSettings.Key), $"\"{settings.Key}\" är ingen giltig tonart; ange en grundton som C, F# eller Bb, eller {HarmonySettings.AutoKey}");
         }
 
-        if (!HarmonySettings.TryParseName<Mode>(settings.Mode, out _))
+        if (!SettingNames.TryParse<Mode>(settings.Mode, out _))
         {
             return new(nameof(AppSettings.Mode), $"\"{settings.Mode}\" är ingen känd modus; välj {string.Join(", ", Enum.GetNames<Mode>())}");
         }

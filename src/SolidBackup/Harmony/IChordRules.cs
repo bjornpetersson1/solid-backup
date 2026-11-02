@@ -25,4 +25,19 @@ public interface IChordRules
     void Reset(Key key)
     {
     }
+
+    /// <summary>
+    /// Called on every estimate, note or not, after <see cref="Choose"/>: a chord the style changes to on its own, at
+    /// a time it keeps (Jazz's loop and cadence), without the hold times; null for none.
+    /// </summary>
+    /// <param name="nowMs">The estimate's time.</param>
+    /// <param name="soundingPitchClass">The stable note sounding now (the last one chosen for), or <see cref="PitchClass.None"/> in silence.</param>
+    /// <param name="notePending">True while a new note waits out its hold time before it is chosen for.</param>
+    Chord? Advance(double nowMs, int soundingPitchClass, bool notePending)
+    {
+        return null;
+    }
+
+    /// <summary>Whether the style keeps the chord going through any silence (Jazz's loop), so the phrase does not end.</summary>
+    bool KeepsPlaying => false;
 }

@@ -2,6 +2,7 @@ using SolidBackup.Audio;
 using SolidBackup.Audio.Devices;
 using SolidBackup.Cli;
 using SolidBackup.Configuration;
+using SolidBackup.Tests.Audio;
 using SolidBackup.Tests.Audio.Devices;
 
 using Spectre.Console.Testing;
@@ -184,6 +185,98 @@ public class PassThroughCommandTests
         Assert.False(opened);
     }
 
+    [Fact]
+    public void Record_SaysWhereItRecordsAndHowLongTheRecordingIs()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Q);
+        KeptStream stream = new();
+        FakeDevices devices = new();
+        PassThroughCommand command = new(console, () => new(Settings, null), _ => devices, TestPreflight.Create(), _ => ("inspelning.wav", stream));
+
+        int exitCode = command.Run(record: true);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains(RecordingSession.RecordingMessage("inspelning.wav"), console.Output);
+        Assert.Contains(RecordingSession.RecordedMessage("inspelning.wav", Settings.BufferSize / (double)Settings.SampleRate, 0), console.Output);
+        Assert.Equal(44 + (Settings.BufferSize * 4), stream.Contents.Length);
+    }
+
+    [Fact]
+    public void Record_FolderCannotBeWritten_FailsBeforeTheAudioStarts()
+    {
+        TestConsole console = TestConsoles.Wide();
+        FakeDevices devices = new();
+        PassThroughCommand command = new(
+            console, () => new(Settings, null), _ => devices, TestPreflight.Create(), _ => throw new UnauthorizedAccessException("nej"));
+
+        int exitCode = command.Run(record: true);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains(RecordingSession.RecordingFolderMessage(Settings.RecordingFolder), console.Output);
+        Assert.False(devices.Input.Started);
+        Assert.True(devices.Disposed);
+    }
+
+    [Fact]
+    public void Record_AudioFailsToStart_LeavesNoFileAndClaimsNoRecording()
+    {
+        TestConsole console = TestConsoles.Wide();
+        string path = Path.Combine(Path.GetTempPath(), $"solid-backup-{Guid.NewGuid():N}.wav");
+        PassThroughCommand command = new(
+            console, () => new(Settings, null), _ => new FakeDevices(failOnStart: true), TestPreflight.Create(), _ => (path, File.Create(path)));
+
+        int exitCode = command.Run(record: true);
+
+        Assert.Equal(1, exitCode);
+        Assert.False(File.Exists(path));
+        Assert.DoesNotContain("Inspelningen sparad", console.Output);
+    }
+
+    [Fact]
+    public void Record_HeaderCannotBeWritten_ClosesAndRemovesTheFile()
+    {
+        TestConsole console = TestConsoles.Wide();
+        string path = Path.Combine(Path.GetTempPath(), $"solid-backup-{Guid.NewGuid():N}.wav");
+        ReadOnlyFile stream = new(path);
+        FakeDevices devices = new();
+        PassThroughCommand command = new(console, () => new(Settings, null), _ => devices, TestPreflight.Create(), _ => (path, stream));
+
+        int exitCode = command.Run(record: true);
+
+        Assert.Equal(1, exitCode);
+        Assert.True(stream.Disposed);
+        Assert.False(File.Exists(path));
+        Assert.DoesNotContain(RecordingSession.RecordingMessage(path), console.Output);
+        Assert.False(devices.Input.Started);
+    }
+
+    [Fact]
+    public void Record_AudioFailsToStop_StillFinishesTheFile()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Q);
+        KeptStream stream = new();
+        PassThroughCommand command = new(
+            console, () => new(Settings, null), _ => new FakeDevices(failOnStop: true), TestPreflight.Create(), _ => ("inspelning.wav", stream));
+
+        command.Run(record: true);
+
+        Assert.Contains("Inspelningen sparad: inspelning.wav", console.Output);
+        Assert.Equal((uint)(Settings.BufferSize * 4), System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(stream.Contents.AsSpan(40)));
+    }
+
+    [Fact]
+    public void WithoutRecord_CreatesNoRecording()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Q);
+        PassThroughCommand command = new(
+            console, () => new(Settings, null), _ => new FakeDevices(), TestPreflight.Create(), _ => throw new InvalidOperationException("No recording was asked for."));
+
+        Assert.Equal(0, command.Run());
+    }
+
     private static PassThroughCommand Command(
         TestConsole console, Func<AppSettings, IAudioDevices> openDevices, AudioPreflight? preflight = null)
     {
@@ -274,6 +367,23 @@ public class PassThroughCommandTests
 
         public void Dispose()
         {
+        }
+    }
+
+    // A real file that refuses the header, as a full disk would.
+    private sealed class ReadOnlyFile(string path) : FileStream(path, FileMode.Create)
+    {
+        public bool Disposed { get; private set; }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            throw new IOException("Disken är full.");
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
         }
     }
 }

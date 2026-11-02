@@ -97,7 +97,7 @@ public sealed class HarmonizeCommandTests : IDisposable
         (int exitCode, string[] lines) = Run(style: "Free", key: "D", mode: "Dorian");
 
         Assert.Equal(0, exitCode);
-        Assert.Equal(HarmonizeCommand.KeyIgnoredMessage, lines[0]);
+        Assert.Equal(HarmonySetup.KeyIgnoredMessage, lines[0]);
     }
 
     [Fact]
@@ -109,13 +109,6 @@ public sealed class HarmonizeCommandTests : IDisposable
 
         Assert.Equal(0, exitCode);
         Assert.Equal(HarmonizeCommand.NoNotesMessage, lines[^1]);
-    }
-
-    [Theory]
-    [InlineData(HarmonyStyle.Jazz)]
-    public void StyleNotBuiltYet_FailsWithSwedishMessage(HarmonyStyle style)
-    {
-        AssertFails($"Harmonistilen {HarmonyNames.Style(style)} är inte byggd än.", style: style.ToString());
     }
 
     [Fact]
@@ -150,7 +143,7 @@ public sealed class HarmonizeCommandTests : IDisposable
         (int exitCode, string[] lines) = Run(key: HarmonySettings.AutoKey, mode: "Dorian");
 
         Assert.Equal(0, exitCode);
-        Assert.Equal(HarmonizeCommand.ModeIgnoredMessage, lines[0]);
+        Assert.Equal(HarmonySetup.ModeIgnoredMessage, lines[0]);
     }
 
     [Fact]
@@ -169,7 +162,7 @@ public sealed class HarmonizeCommandTests : IDisposable
         (int exitCode, string[] lines) = Run(path: missing);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal([HarmonizeCommand.MissingFileMessage(missing)], lines);
+        Assert.Equal([RecordingFiles.MissingFileMessage(missing)], lines);
     }
 
     [Fact]
@@ -221,6 +214,28 @@ public sealed class HarmonizeCommandTests : IDisposable
     private static string[] ChangesWithoutTimes(string[] lines)
     {
         return [.. lines[1..].Select(line => line[(line.IndexOf("s  ", StringComparison.Ordinal) + 3)..])];
+    }
+
+    [Fact]
+    public void Jazz_PrintsTheLoopsChangesInSilenceWithoutANote()
+    {
+        File.WriteAllBytes(_wavPath, TestWav.Pcm16(TestSignal.SampleRate, 1, [.. TestSignal.Sine(60, 0.3, 0.5), .. TestSignal.Silence(2.5)]));
+
+        TestConsole console = TestConsoles.Wide();
+        int exitCode = new HarmonizeCommand(console, () => new SettingsLoadResult(FixedKeySettings, null))
+            .Run(_wavPath, "Jazz", "C", rhythm: new RhythmOverrides(Bpm: 120));
+        string[] lines = console.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.TrimEnd()).ToArray();
+
+        Assert.Equal(0, exitCode);
+        Assert.EndsWith("Cmaj7", lines[1]);
+        Assert.Contains(lines, line => line.EndsWith("–    Am7"));
+        Assert.Contains(lines, line => line.EndsWith("–    Dm7"));
+    }
+
+    [Fact]
+    public void ChangeLine_WithoutANote_ShowsADash()
+    {
+        Assert.Equal("1.00 s  –    G7", HarmonizeCommand.ChangeLine(PitchEstimate.NoNote(1000, 0), new Chord(7, ChordQuality.Dominant7)));
     }
 
     private void AssertFails(string message, string? style = null, string? key = null)
