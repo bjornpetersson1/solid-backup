@@ -17,13 +17,6 @@ public class LiveCommandTests
 {
     private static readonly AppSettings Settings = TestSettings.Default;
 
-    private static readonly LiveSnapshot Playing = new(
-        new LiveState(new PitchEstimate(0, HasNote: true, 6912, Confidence: 1), -24, GateOpen: true, new Chord(9, ChordQuality.Minor), new Key(0, Mode.Ionian)),
-        ["gate", "dynamics"],
-        "Held",
-        new LiveLatency(6, 30.5, 1.3333, 5),
-        new AudioCounters(1, 2, 0, 0, 0));
-
     [Theory]
     [InlineData(ConsoleKey.Q, 'q')]
     [InlineData(ConsoleKey.Escape, '\u001b')]
@@ -36,7 +29,7 @@ public class LiveCommandTests
         int exitCode = Command(console, devices).Run(new SettingOverrides());
 
         Assert.Equal(0, exitCode);
-        Assert.Contains(LiveCommand.RunningMessage, console.Output);
+        Assert.Contains(LiveDashboard.Footer(new DashboardContext(ReturnsToMenu: false, OnSpeakers: false)), console.Output);
         Assert.Contains("Live-läget stoppat. Avbrott: 3 (överflöden i ingången: 1, underflöden i utgången: 2).", console.Output);
         Assert.Contains("ingång 6.0 + kedja 34.0 + överlämning 1.3 + utgång 5.0 ms", console.Output);
         Assert.True(devices.Input.Started && devices.Input.Stopped);
@@ -90,26 +83,27 @@ public class LiveCommandTests
     }
 
     [Fact]
-    public void WhileRunning_ShowsTheStatusLine()
+    public void WhileRunning_ShowsTheDashboard()
     {
-        TestConsole console = TestConsoles.Wide().EmitAnsiSequences();
+        TestConsole console = TestConsoles.Wide();
         console.Input.PushKey(ConsoleKey.Q);
 
         Command(console, new FakeDevices()).Run(new SettingOverrides());
 
-        Assert.Contains("\rTon – · Ackord – · Tonart – · Latens 46.3 ms (under målet 50 ms) · Avbrott 3\u001b[K", console.Output);
+        Assert.Contains(LiveDashboard.Title, console.Output);
+        Assert.Contains("46.3 ms", console.Output);
+        Assert.Contains("q/Esc: avsluta", console.Output);
     }
 
     [Fact]
-    public void AStatusLineWiderThanTheTerminal_IsCutSoItCanBeRewritten()
+    public void FromTheMenu_TheDashboardSaysQAndEscLeadBack()
     {
-        TestConsole console = TestConsoles.Wide().EmitAnsiSequences();
-        console.Profile.Width = 37;
+        TestConsole console = TestConsoles.Wide();
         console.Input.PushKey(ConsoleKey.Q);
 
-        Command(console, new FakeDevices()).Run(new SettingOverrides());
+        new LiveCommand(console, () => new(Settings, null), _ => new FakeDevices(), TestPreflight.Create(), returnsToMenu: true).Play(Settings);
 
-        Assert.Contains("\rTon – · Ackord – · Tonart – · Latens\u001b[K", console.Output);
+        Assert.Contains("q/Esc: tillbaka till menyn", console.Output);
     }
 
     [Fact]
@@ -221,27 +215,30 @@ public class LiveCommandTests
     }
 
     [Fact]
-    public void StatusLine_ShowsNoteChordKeyLatencyAndDropouts()
+    public void Summary_GivesTheDropoutsAndTheLatencyParts()
     {
+        LiveSnapshot stopped = TestSnapshots.Playing with { Counters = new AudioCounters(1, 2, 0, 0, 0) };
+
         Assert.Equal(
-            "Ton A4 +12 cent · Ackord Am · Tonart C-dur · Latens 42.8 ms (under målet 50 ms) · Avbrott 3",
-            LiveCommand.StatusLine(Playing, 50));
+            "Live-läget stoppat. Avbrott: 3 (överflöden i ingången: 1, underflöden i utgången: 2). Latens: 42.8 ms (under målet 50 ms), "
+            + "ingång 6.0 + kedja 30.5 + överlämning 1.3 + utgång 5.0 ms.",
+            LiveCommand.Summary(stopped));
     }
 
     [Fact]
-    public void LatencyText_SaysWhenTheTargetIsMissed()
+    public void Summary_SaysWhenTheTargetIsMissed()
     {
-        Assert.Equal("42.8 ms (över målet 40 ms)", LiveCommand.LatencyText(Playing.Latency, 40));
-        Assert.Equal("50.0 ms (över målet 50 ms)", LiveCommand.LatencyText(new LiveLatency(10, 30, 5, 5), 50));
+        LiveSnapshot slow = TestSnapshots.Playing with { Latency = new LiveLatency(10, 30, 5, 5) };
+
+        Assert.Contains("Latens: 50.0 ms (över målet 50 ms)", LiveCommand.Summary(slow));
     }
 
     [Fact]
-    public void UnknownChainDelay_IsShownAsAQuestionMark()
+    public void Summary_ShowsAnUnknownChainDelayAsAQuestionMark()
     {
-        LiveLatency unknown = new(6, null, 1.3, 5);
+        LiveSnapshot unknown = TestSnapshots.Playing with { Latency = new LiveLatency(6, null, 1.3, 5) };
 
-        Assert.Equal("? ms (målet 50 ms)", LiveCommand.LatencyText(unknown, 50));
-        Assert.Equal("ingång 6.0 + kedja ? + överlämning 1.3 + utgång 5.0 ms", LiveCommand.PartsText(unknown));
+        Assert.Contains("Latens: ? ms (målet 50 ms), ingång 6.0 + kedja ? + överlämning 1.3 + utgång 5.0 ms.", LiveCommand.Summary(unknown));
     }
 
     private static LiveCommand Command(TestConsole console, FakeDevices devices)

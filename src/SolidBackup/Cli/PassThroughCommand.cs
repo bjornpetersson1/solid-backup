@@ -52,10 +52,10 @@ public sealed class PassThroughCommand(
         private AudioPipeline? _pipeline;
         private IAudioDevices? _devices;
 
-        public void Start(IAudioDevices devices, SessionRecorder? recorder)
+        public void Start(AudioStart start)
         {
-            _devices = devices;
-            _pipeline = new AudioPipeline(devices.Input, devices.Output, new PassThroughProcessor(), recorder);
+            _devices = start.Devices;
+            _pipeline = new AudioPipeline(start.Devices.Input, start.Devices.Output, new PassThroughProcessor(), start.Recorder);
             _pipeline.Start();
         }
 

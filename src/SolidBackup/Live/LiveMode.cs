@@ -23,8 +23,8 @@ public sealed class LiveMode
     private readonly LiveChain _chain;
     private readonly double? _chainDelayMs;
     private readonly double _bufferMs;
-    private readonly IReadOnlyList<string> _featuresOn;
-    private readonly string _rhythmPattern;
+    private readonly AppSettings _settings;
+    private readonly SessionRecorder? _recorder;
     private LiveState _lastState;
 
     /// <param name="chainDelayMs">The chain's delay from <see cref="ChainDelay.MeasureMs"/>, measured before the devices open.</param>
@@ -34,8 +34,8 @@ public sealed class LiveMode
         _chain = new LiveChain(new Accompanist(settings), recorder);
         _chainDelayMs = chainDelayMs;
         _bufferMs = settings.BufferSize * 1000.0 / settings.SampleRate;
-        _featuresOn = LevelFeatures.NamesOn(settings);
-        _rhythmPattern = settings.RhythmPattern;
+        _settings = settings;
+        _recorder = recorder;
     }
 
     /// <summary>The latency parts; the device latencies are known once <see cref="Start"/> has opened the streams.</summary>
@@ -79,6 +79,7 @@ public sealed class LiveMode
             _lastState = state;
         }
 
-        return new LiveSnapshot(_lastState, _featuresOn, _rhythmPattern, Latency, _devices.Counters);
+        RecordingStatus? recording = _recorder is { } recorder ? new RecordingStatus(recorder.Seconds, recorder.Overruns) : null;
+        return new LiveSnapshot(_lastState, _settings, Latency, _devices.Counters, recording);
     }
 }

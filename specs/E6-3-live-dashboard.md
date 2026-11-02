@@ -4,7 +4,7 @@
 - **Labels:** `E6 Live mode`
 - **Phase:** 6. Live mode
 - **Depends on:** E6-1 (#19)
-- **Status:** Approved
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 979 tests passed); readability on the owner's terminal and an hour with the dashboard on are manual checks for the owner
 
 ## Summary
 The live view while playing: one Swedish panel, redrawn about five times a second from E6-1's lock-free snapshot, showing the note and cents, a level meter, the chord, the key, the style, sound and rhythm, the level features that are on, the measured latency and a dropout counter. It replaces E6-1's status line in live mode, from `--live` and from the menu (E6-2).
@@ -43,11 +43,11 @@ The live view while playing: one Swedish panel, redrawn about five times a secon
    - An hour of play with the dashboard on and the dropout count at 0 is part of E6-1's manual check.
 
 ## Tasks
-- [ ] The dashboard view, built from a snapshot (a pure function from snapshot and width to the rendered panel).
-- [ ] Redrawing in place about five times a second on the console thread, replacing E6-1's status line in live mode.
-- [ ] Add to the snapshot what the rows need and E6-1 did not already carry (style, sound, BPM and time signature, gate threshold, speaker warning, recording length), set once at start where they do not change.
-- [ ] Tests for the content, the widths and the redraw interval.
-- [ ] README and `docs/manual-testing.md` E6 step 4.
+- [x] The dashboard view, built from a snapshot (a pure function from snapshot and width to the rendered panel).
+- [x] Redrawing in place about five times a second on the console thread, replacing E6-1's status line in live mode.
+- [x] Add to the snapshot what the rows need and E6-1 did not already carry (style, sound, BPM and time signature, gate threshold, speaker warning, recording length), set once at start where they do not change.
+- [x] Tests for the content, the widths and the redraw interval.
+- [x] README and `docs/manual-testing.md` E6 step 4.
 
 ## Decisions
 - **One panel of rows** (owner's choice): simple to read, and fits narrower windows than a grid of panels.
@@ -55,5 +55,18 @@ The live view while playing: one Swedish panel, redrawn about five times a secon
 - **Builds on E6-1:** the dashboard only reads E6-1's snapshot, so it cannot reach the audio callbacks; the values that never change during a run are captured once at start rather than published per buffer.
 - **The speaker warning on the dashboard** (default): the requirements' Feedback row asks for it in the menu and on the dashboard.
 - **Widths are tested, not just looked at** (default): "readable" is made checkable as no wrapping and no cut-off values at 120 columns.
+
+- **What the snapshot carries** (implementation): `LiveSnapshot` now holds the run's `AppSettings` (style, sound, rhythm, features, gate threshold and switch, latency target, key setting for `(auto)`) in place of E6-1's feature names and pattern, and a `RecordingStatus` (length, dropped buffers) read from the recorder. The speaker warning and where q/Esc lead are not live state; they are a `DashboardContext` handed to the view, made once at start: `AudioSession` hands the speaker warning it already computed to the activity in an `AudioStart` (devices, recorder, warning), and the menu builds its `LiveCommand` with `returnsToMenu`.
+- **Spectre's live display** (implementation): `console.Live(...)` redraws the panel in place; the stop keys' 50 ms poll asks a `RedrawPacer` whether 200 ms have passed, so a redraw costs nothing on the audio threads. It replaces E6-1's status line. The display ends when `WaitForStop` returns, before the fade-out and the stop.
+- **Fitting 80 columns** (implementation): the labels have a fixed width of 10 (`Funktioner`), the latency row is written compactly (`42.8 ms ✓ mål 50 · in 6.0 · kedja 30.5 · överl. 1.3 · ut 5.0`), and the meter takes the width that is left, 10 to 40 cells. At 120 columns the widest values (the longest chord symbol, key, style, five-digit latencies, seven-digit counts) still fit on one line each.
+- **Marks** (implementation): ✓ and ✗ for the features and the latency, as in the layout the owner chose; the dropout count is red and bold above 0; the speaker warning is a yellow row.
+
+- **Clean code:** the meter's width follows from the label column (the longest label), the panel's borders and the level text at its widest, not a hand-counted number; milliseconds and the latency's parts are written by one `LatencyTexts` helper for the dashboard and the summary; the summary takes only the snapshot, which carries the target; `--live` no longer prints the old "Live-läget pågår" line, as the dashboard's footer says how to stop; the tests share `TestSnapshots`.
+- **Kept as they are** (clean-code findings declined): the run's settings stay in the snapshot rather than in `DashboardContext`, as this spec's task says the snapshot carries what the rows need; the dashboard is rebuilt from the snapshot on each redraw rather than caching the rows that never change, since it is a pure function of the snapshot (simple to test) and the cost is a few dozen small objects five times a second on the console thread, never on the audio threads; the test that the audio side allocates nothing while the dashboard draws on another thread stays, as criterion 3 asks for exactly that.
+
+- **Code review fixes:** the panel shows the speaker warning as a short row (`ljudet går till de inbyggda högtalarna – använd hörlurar`), since the full sentence (128 characters) cannot fit; the latency row drops the target's unit so two-digit device latencies and a three-digit total still fit 80 columns (tested with 45 + 34 + 10.7 + 33.3 = 123.0 ms); a level below the meter's floor reads `<-60 dBFS`, so the level text never grows past the room kept for it; a gate threshold below the floor is not marked rather than drawn at −60; the dBFS figure has its own format rather than the latency helper's; the speaker check runs once, in `AudioSession`, and reaches live mode through `AudioStart`; the allocation test waits for the dashboard's first draw before it measures.
+- **`LevelFeatures.NamesOn` stays** (code review finding declined): `AccompanyCommand.WrittenMessage` still uses it.
+
+- **PR review fix:** `DashboardContext` says only whether the output is the built-in speakers (`OnSpeakers`), since the panel always shows its own short warning row.
 
 ## Open Questions

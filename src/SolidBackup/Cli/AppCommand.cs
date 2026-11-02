@@ -291,7 +291,7 @@ public static class AppCommand
     private static MainMenu CreateMenu(IAnsiConsole console)
     {
         AudioPreflight preflight = CreatePreflight();
-        LiveCommand live = new(console, LoadSettings, PortAudioDevices.Open, preflight);
+        LiveCommand live = new(console, LoadSettings, PortAudioDevices.Open, preflight, returnsToMenu: true);
         return new MainMenu(console, CreateStore(), PortAudioSession.Open, preflight, settings => live.Play(settings, settings.RecordOn));
     }
 

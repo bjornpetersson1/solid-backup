@@ -45,9 +45,10 @@ internal sealed class AudioSession(
         try
         {
             using IAudioDevices devices = openDevices(settings);
-            if (preflight.SpeakerProblem(devices.OutputDeviceName) is { } warning)
+            string? speakerWarning = preflight.SpeakerProblem(devices.OutputDeviceName);
+            if (speakerWarning is not null)
             {
-                ConsoleMessages.Warning(console, warning);
+                ConsoleMessages.Warning(console, speakerWarning);
             }
 
             RecordingSession? recording = null;
@@ -76,7 +77,8 @@ internal sealed class AudioSession(
             Console.CancelKeyPress += onCtrlC;
             try
             {
-                return RunStarted(activity, devices, recording, () => Volatile.Write(ref running, true), interrupt.Token);
+                AudioStart start = new(devices, recording?.Recorder, speakerWarning);
+                return RunStarted(activity, start, recording, () => Volatile.Write(ref running, true), interrupt.Token);
             }
             finally
             {
@@ -89,11 +91,11 @@ internal sealed class AudioSession(
         }
     }
 
-    private int RunStarted(IAudioActivity activity, IAudioDevices devices, RecordingSession? recording, Action started, CancellationToken interrupt)
+    private int RunStarted(IAudioActivity activity, AudioStart start, RecordingSession? recording, Action started, CancellationToken interrupt)
     {
         try
         {
-            activity.Start(devices, recording?.Recorder);
+            activity.Start(start);
         }
         catch
         {
@@ -125,11 +127,13 @@ internal sealed class AudioSession(
     }
 }
 
+/// <summary>What an activity starts with: the opened devices, the recorder when recording, and the speaker warning when the output is the built-in speakers.</summary>
+internal sealed record AudioStart(IAudioDevices Devices, SessionRecorder? Recorder, string? SpeakerWarning);
+
 /// <summary>The audio an <see cref="AudioSession"/> runs.</summary>
 internal interface IAudioActivity
 {
-    /// <summary>Starts the audio on the opened devices, with the recorder when recording.</summary>
-    void Start(IAudioDevices devices, SessionRecorder? recorder);
+    void Start(AudioStart start);
 
     /// <summary>Returns when the user stops it (q, Esc, Ctrl+C) or on <paramref name="cancellation"/>, which Ctrl+C also sets.</summary>
     void WaitForStop(IAnsiConsole console, CancellationToken cancellation);
