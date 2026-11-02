@@ -115,5 +115,7 @@ Church, C Ionian, 120 BPM in 4/4 (one beat = 500 ms, one bar = 2000 ms), times i
   - `Harmonizer.FromSettings` builds one `TempoGrid` for the rules and the timing (`HarmonyTiming.FromSettings(settings, grid)`).
   - The dashboard's widest-values test uses `Beat`, the longest Byten text; `docs/harmony.md` names the menu item Ackordbyten as it is.
 
+- **PR review fixes:** the README's `--harmonize` line says the grid serves Jazz and `ChordChangesPerBar`, and the README and `AppSettings` describe the onsets as making a note ready, changing the chord at once with `Off` or on the next allowed beat.
+
 ## Open Questions
 - None.

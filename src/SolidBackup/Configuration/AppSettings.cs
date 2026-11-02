@@ -80,7 +80,10 @@ public sealed record AppSettings
     /// <summary>Level feature: soft singing gives a sparse chord, loud singing a full one.</summary>
     public required bool ChordCharacterOn { get; init; }
 
-    /// <summary>Level feature: an articulated note changes the chord without the hold times and strikes it anew.</summary>
+    /// <summary>
+    /// Level feature: an articulated note is ready without the hold times, changes the chord at once or on the next
+    /// allowed beat, and strikes it anew.
+    /// </summary>
     public required bool OnsetsOn { get; init; }
 
     /// <summary>Dynamics: the level that plays 24 dB below full strength, and below.</summary>
