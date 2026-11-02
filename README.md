@@ -141,6 +141,8 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `Mode` | `Ionian` | The key's mode: `Ionian`, `Dorian`, `Phrygian`, `Lydian`, `Mixolydian`, `Aeolian` or `Locrian`; ignored with `auto` |
 | `MinNoteForChangeMs` | `120` | While singing, a new note must last this long before it may change the chord (above 0) |
 | `MinChordDurationMs` | `250` | While singing, the shortest time between two chord changes (above 0) |
+| `ChordChangesPerBar` | `2` | While singing, the most chord changes per bar, each on an allowed beat of the `Bpm` and `TimeSignature` grid: `1` (beat 1), `2` (beats 1 and 3), `Beat` (every beat) or `Off` (as soon as the hold times allow); the first chord after silence still comes at once. The menu's Ackordbyten choice |
+| `ChordChangeSensitivity` | `Medium` | How easily a new note changes the chord: `Low`, `Medium` or `High` multiply `MinNoteForChangeMs` and `MinChordDurationMs` by 2, 1 or 0.5. The menu's Ackordbyten choice |
 | `PhraseResetMs` | `2000` | After a silence this long, the previous chord is forgotten (above 0) |
 | `KeyChangeSeconds` | `4` | With `auto`, a modulation is followed within this many seconds (above 0) |
 | `KeyFirstSeconds` | `2` | With `auto`, no key (and no chord) until at least this many seconds of notes have been heard (above 0) |

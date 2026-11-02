@@ -50,6 +50,15 @@ public sealed record AppSettings
     /// <summary>While singing, the shortest time between two chord changes.</summary>
     public required double MinChordDurationMs { get; init; }
 
+    /// <summary>
+    /// While singing, the most chord changes per bar, each on an allowed beat of the tempo grid: <c>Off</c>, <c>1</c>,
+    /// <c>2</c> or <c>Beat</c>; see <c>docs/harmony.md</c>.
+    /// </summary>
+    public required string ChordChangesPerBar { get; init; }
+
+    /// <summary>How easily a new note changes the chord: <c>Low</c>, <c>Medium</c> or <c>High</c>, a factor of 2, 1 or 0.5 on both hold times.</summary>
+    public required string ChordChangeSensitivity { get; init; }
+
     /// <summary>After a silence this long, the previous chord is forgotten.</summary>
     public required double PhraseResetMs { get; init; }
 

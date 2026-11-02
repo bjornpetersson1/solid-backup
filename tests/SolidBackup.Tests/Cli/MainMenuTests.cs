@@ -18,6 +18,7 @@ public sealed class MainMenuTests : IDisposable
     private static readonly int Style = Item("Stil");
     private static readonly int Sound = Item("Ljud");
     private static readonly int Rhythm = Item("Rytm");
+    private static readonly int ChordChanges = Item("Ackordbyten");
     private static readonly int Features = Item("Nivåfunktioner");
     private static readonly int Recording = Item("Inspelning");
     private static readonly int Quit = Item(MainMenu.QuitChoice);
@@ -47,6 +48,7 @@ public sealed class MainMenuTests : IDisposable
         Assert.Contains(MainMenu.QuitChoice, console.Output);
         Assert.Contains("Kyrko", console.Output);
         Assert.Contains("Held, 90 BPM, 4/4", console.Output);
+        Assert.Contains("2 per takt, känslighet medel", console.Output);
         Assert.Contains("grind, ansättningar, ackordkaraktär, dynamik", console.Output);
         Assert.Empty(_started);
     }
@@ -100,6 +102,7 @@ public sealed class MainMenuTests : IDisposable
         Assert.Contains("Blues", next.Output);
         Assert.Contains("Organ", next.Output);
         Assert.Contains("Strum, 120 BPM, 3/4", next.Output);
+        Assert.Contains("varje slag, känslighet hög", next.Output);
         Assert.Contains("ansättningar, ackordkaraktär, dynamik", next.Output);
         Assert.Equal(Changed, Assert.Single(_started));
     }
@@ -322,6 +325,8 @@ public sealed class MainMenuTests : IDisposable
         RhythmPattern = "Strum",
         Bpm = 120,
         TimeSignature = "3/4",
+        ChordChangesPerBar = "Beat",
+        ChordChangeSensitivity = "High",
         GateOn = false,
         RecordOn = true,
     };
@@ -344,6 +349,9 @@ public sealed class MainMenuTests : IDisposable
         Choose(console, 2); // Held, Arpeggio, Strum
         console.Input.PushTextWithEnter("120");
         Choose(console, 1); // 4/4, 3/4
+        Choose(console, ChordChanges);
+        Choose(console, 1); // Off, 1, 2, Beat
+        Choose(console, 1); // Low, Medium, High
         Choose(console, Features);
         console.Input.PushKey(ConsoleKey.Spacebar); // gate off
         console.Input.PushKey(ConsoleKey.Enter);

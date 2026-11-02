@@ -8,7 +8,8 @@ namespace SolidBackup.Harmony;
 /// Turns the pitch detector's estimates into the current chord, following the common rules in
 /// <c>docs/harmony.md</c>: the first note after silence chooses at once; while singing, a new note is
 /// evaluated once it has lasted <see cref="HarmonyTiming.MinNoteForChangeMs"/> and the chord has lasted
-/// <see cref="HarmonyTiming.MinChordDurationMs"/>; silence keeps the chord, and a silence of
+/// <see cref="HarmonyTiming.MinChordDurationMs"/>, and with <see cref="HarmonyTiming.ChangeBeats"/> the change waits for
+/// the next allowed beat, if the note still sounds then; silence keeps the chord, and a silence of
 /// <see cref="HarmonyTiming.PhraseResetMs"/> forgets it. With <c>auto</c> it plays nothing until its
 /// <see cref="KeyEstimator"/> is sure of the key (a style without a key does not wait), and it tells the rules
 /// about a key change and a phrase reset through <see cref="IChordRules.Reset"/>. Time comes from the estimates,
@@ -25,6 +26,8 @@ public sealed class Harmonizer
     private int _notePitchClass;
     private double _noteStartMs;
     private bool _pending;
+    // When a ready note is evaluated: on its beat, or at once without a grid; null while no note is ready.
+    private double? _changeAtMs;
     private double _lastChangeMs;
     private bool _phraseReset;
     private double _nowMs;
@@ -81,9 +84,10 @@ public sealed class Harmonizer
             throw new ArgumentException($"The harmony style {settings.HarmonyStyle} is not valid.", nameof(settings));
         }
 
-        IChordRules rules = ChordRules.Create(style, TempoGrid.FromSettings(settings));
+        TempoGrid grid = TempoGrid.FromSettings(settings);
+        IChordRules rules = ChordRules.Create(style, grid);
 
-        HarmonyTiming timing = HarmonyTiming.FromSettings(settings);
+        HarmonyTiming timing = HarmonyTiming.FromSettings(settings, grid);
         if (!rules.UsesKey)
         {
             return new Harmonizer(rules, timing);
@@ -102,12 +106,17 @@ public sealed class Harmonizer
         return new Harmonizer(rules, new Key(tonic, mode), timing);
     }
 
+    /// <summary>True while a ready note waits for its allowed beat to be evaluated.</summary>
+    public bool AwaitsBeat => _changeAtMs is not null;
+
     /// <summary>
     /// Takes the next estimate; true when the chord changed. With <paramref name="immediate"/> (an articulated note,
-    /// E5-2's onsets), a new note is evaluated at once, without <see cref="HarmonyTiming.MinNoteForChangeMs"/> and
-    /// <see cref="HarmonyTiming.MinChordDurationMs"/>.
+    /// E5-2's onsets), a new note is ready at once, without <see cref="HarmonyTiming.MinNoteForChangeMs"/> and
+    /// <see cref="HarmonyTiming.MinChordDurationMs"/>, and is evaluated at once or on the next allowed beat.
+    /// <paramref name="clockMs"/> is the time a change on a beat is weighed against (default the estimate's time); the
+    /// chain gives its buffer's last sample, so a change on a beat is in effect for the buffer the pattern plays the beat in.
     /// </summary>
-    public bool Process(PitchEstimate estimate, bool immediate = false)
+    public bool Process(PitchEstimate estimate, bool immediate = false, double? clockMs = null)
     {
         _nowMs = estimate.TimeMs;
         if (_keyEstimator is not null && _keyEstimator.Process(estimate))
@@ -138,10 +147,12 @@ public sealed class Harmonizer
             return false;
         }
 
-        bool changed = ProcessNote(estimate, immediate, key);
+        bool changed = ProcessNote(estimate, immediate, clockMs ?? estimate.TimeMs, key);
 
-        // A style that keeps time (Jazz) changes on its own, without the hold times.
-        if (_rules.Advance(estimate.TimeMs, _sounding ? _chosenPitchClass : PitchClass.None, _sounding && _pending && _notePitchClass != _chosenPitchClass) is { } timed)
+        // A style that keeps time (Jazz) changes on its own, without the hold times. It waits for a new note still in
+        // its hold times, but not for one that is ready and waits for its beat.
+        bool holding = _sounding && _pending && _notePitchClass != _chosenPitchClass && _changeAtMs is null;
+        if (_rules.Advance(estimate.TimeMs, _sounding ? _notePitchClass : PitchClass.None, holding) is { } timed)
         {
             changed |= Change(timed, estimate.TimeMs);
         }
@@ -149,7 +160,7 @@ public sealed class Harmonizer
         return changed;
     }
 
-    private bool ProcessNote(PitchEstimate estimate, bool immediate, Key key)
+    private bool ProcessNote(PitchEstimate estimate, bool immediate, double clockMs, Key key)
     {
         double now = estimate.TimeMs;
         if (!estimate.HasNote)
@@ -177,6 +188,7 @@ public sealed class Harmonizer
             _notePitchClass = pitchClass;
             _noteStartMs = now;
             _pending = false;
+            _changeAtMs = null;
             Chord? previous = now - _silenceStartMs >= _timing.PhraseResetMs ? null : Chord;
             _phraseReset = false;
             _chosenPitchClass = pitchClass;
@@ -188,15 +200,29 @@ public sealed class Harmonizer
             _notePitchClass = pitchClass;
             _noteStartMs = now;
             _pending = true;
+            _changeAtMs = null;
         }
 
+        if (!_pending)
+        {
+            return false;
+        }
+
+        // Once the note is ready (after the hold times, or at once after an onset), it is evaluated on the next
+        // allowed beat, or at once without a grid.
         bool held = now - _noteStartMs >= _timing.MinNoteForChangeMs && now - _lastChangeMs >= _timing.MinChordDurationMs;
-        if (!_pending || !(held || immediate))
+        if (_changeAtMs is null && (held || immediate))
+        {
+            _changeAtMs = _timing.ChangeBeats?.NextAtOrAfter(now) ?? now;
+        }
+
+        if (_changeAtMs is not { } changeAt || clockMs < changeAt)
         {
             return false;
         }
 
         _pending = false;
+        _changeAtMs = null;
         _chosenPitchClass = pitchClass;
         return Change(_rules.Choose(pitchClass, key, Chord), now);
     }

@@ -125,6 +125,9 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "Bpm": 39 }""", "Bpm")]
     [InlineData("""{ "Bpm": 241 }""", "Bpm")]
     [InlineData("""{ "TimeSignature": "6/8" }""", "TimeSignature")]
+    [InlineData("""{ "ChordChangesPerBar": "3" }""", "ChordChangesPerBar")]
+    [InlineData("""{ "ChordChangesPerBar": "off" }""", "ChordChangesPerBar")]
+    [InlineData("""{ "ChordChangeSensitivity": "Extreme" }""", "ChordChangeSensitivity")]
     [InlineData("""{ "RecordingFolder": null }""", "RecordingFolder")]
     public void Load_InvalidValue_IgnoresWholeFileAndNamesSetting(string content, string setting)
     {
@@ -172,6 +175,8 @@ public sealed class SettingsStoreTests : IDisposable
             Mode = "Dorian",
             MinNoteForChangeMs = 80,
             MinChordDurationMs = 300,
+            ChordChangesPerBar = "Beat",
+            ChordChangeSensitivity = "High",
             PhraseResetMs = 3000,
             KeyChangeSeconds = 6,
             KeyFirstSeconds = 3,
@@ -245,6 +250,24 @@ public sealed class SettingsStoreTests : IDisposable
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(store.Load);
 
         Assert.Equal($"Standardinställningarna i {missingDefaults} kunde inte läsas.", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("ChordChangesPerBar", "\"2\"", "\"Sometimes\"")]
+    [InlineData("ChordChangeSensitivity", "\"Medium\"", "\"medium\"")]
+    public void Load_InvalidValueInTheDefaultsFile_ThrowsSwedishMessage(string setting, string bundled, string invalid)
+    {
+        Directory.CreateDirectory(_folder);
+        string defaults = Path.Combine(_folder, "appsettings.json");
+        string original = $"\"{setting}\": {bundled}";
+        string content = File.ReadAllText(SettingsStore.BundledDefaultsPath);
+        Assert.Contains(original, content);
+        File.WriteAllText(defaults, content.Replace(original, $"\"{setting}\": {invalid}"));
+        SettingsStore store = new(defaults, _userSettingsPath);
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(store.Load);
+
+        Assert.StartsWith($"Standardinställningarna i {defaults} har ett ogiltigt värde för {setting}: ", exception.Message);
     }
 
     [Fact]

@@ -25,6 +25,8 @@ internal static class TestSettings
         Mode = "Ionian",
         MinNoteForChangeMs = 120,
         MinChordDurationMs = 250,
+        ChordChangesPerBar = "2",
+        ChordChangeSensitivity = "Medium",
         PhraseResetMs = 2000,
         KeyChangeSeconds = 4,
         KeyFirstSeconds = 2,
@@ -43,4 +45,10 @@ internal static class TestSettings
         Bpm = 90,
         TimeSignature = "4/4",
     };
+
+    /// <summary>
+    /// The settings the examples in <c>docs/harmony.md</c> run with, except the change-rate examples: the defaults
+    /// with <c>ChordChangesPerBar</c> <c>Off</c>.
+    /// </summary>
+    public static readonly AppSettings Examples = Default with { ChordChangesPerBar = "Off" };
 }

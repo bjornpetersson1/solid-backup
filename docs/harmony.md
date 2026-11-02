@@ -37,20 +37,27 @@ Root names are always spelled `C Db D Eb E F F# G Ab A Bb B`. Symbols: `C` major
 
 ### When the chord may change
 
-Three settings in `appsettings.json` (validated, with Swedish errors, listed in the README):
+Five settings in `appsettings.json` (validated, with Swedish errors, listed in the README); the last two are chosen in the menu (E7-1):
 
 | Setting | Default | Meaning |
 |---|---|---|
 | `MinNoteForChangeMs` | 120 | While singing, a new note must have lasted this long before it may change the chord. |
 | `MinChordDurationMs` | 250 | While singing, a chord change comes no earlier than this long after the previous change. |
 | `PhraseResetMs` | 2000 | After a silence this long, the previous chord is forgotten. |
+| `ChordChangesPerBar` | `2` | While singing, the most chord changes per bar, each on an allowed beat: `1`, `2`, `Beat` or `Off`. Menu: Ackordbyten, first question (Av, 1, 2, Varje slag). |
+| `ChordChangeSensitivity` | `Medium` | How easily a new note changes the chord: `Low`, `Medium` or `High`. Menu: Ackordbyten, second question (Låg, Medel, Hög). |
 
-1. **After silence, at once.** The first note after "no note" (or at start) chooses a chord immediately, so the first chord is within the latency target. Neither hold time applies.
-2. **While singing, after the hold times.** When the note changes without silence in between, the new note is evaluated once it has lasted `MinNoteForChangeMs` *and* `MinChordDurationMs` has passed since the last change, whichever is later, provided the note is still sounding. A shorter passing note changes nothing.
+- **Sensitivity** multiplies both hold times, `MinNoteForChangeMs` and `MinChordDurationMs`: Low ×2, Medium ×1, High ×0.5. With the defaults that is 240/500 ms, 120/250 ms and 60/125 ms. "The hold times" below are the scaled ones.
+- **Allowed beats** are counted on the tempo grid of `docs/rhythm.md` from the start of live mode (`Bpm`, `TimeSignature`), beat 1 of each bar being its downbeat: `1` allows beat 1 of each bar; `2` beats 1 and 3, in 4/4 and in 3/4 alike; `Beat` every beat; `Off` uses no grid.
+
+1. **After silence, at once.** The first note after "no note" (or at start) chooses a chord immediately, so the first chord is within the latency target. Neither hold time applies, it does not wait for a beat, and it is not counted against `ChordChangesPerBar`.
+2. **While singing, after the hold times, on an allowed beat.** When the note changes without silence in between, the new note becomes *ready* once it has lasted `MinNoteForChangeMs` *and* `MinChordDurationMs` has passed since the last change, whichever is later. With `ChordChangesPerBar` `Off`, a ready note is evaluated at once. Otherwise it is evaluated on the first allowed beat at or after it became ready, if it is still the sounding note then; the change takes effect on that beat. A shorter passing note changes nothing, and a ready note that has ended before its beat changes nothing either (rule 3). A new note that starts before the beat must become ready on its own.
 3. **Silence keeps the chord.** "No note" does not change the chord; the harmony keeps its state. Whether the chord keeps sounding is up to E5.
 4. **Phrase reset.** If the silence before a note lasted at least `PhraseResetMs`, that note chooses as if there were no previous chord, and Blues returns to the menu's key.
 
-An onset (E3-3) is not a phrase start. With the onsets level feature on (E5-2), a new note right after an onset is evaluated at once, without the hold times, and its chord is struck anew.
+An onset (E3-3) is not a phrase start. With the onsets level feature on (E5-2), a new note right after an onset is ready at once, without the hold times, and is evaluated at once with `Off` or on the next allowed beat otherwise; its chord is struck anew.
+
+Jazz's tonic loop and a modulation's II – V – I change on their own beats; they are neither limited by `ChordChangesPerBar` nor counted against it. Jazz changes caused by the melody follow rule 2.
 
 ### Choosing among candidates (key-based styles)
 
@@ -199,7 +206,7 @@ Decided with the owner in E5-6. Jazz uses the tempo grid from `docs/rhythm.md` (
 
 ## Examples
 
-Unless a row says otherwise, each note lasts 500 ms, the notes follow without silence, and the settings are the defaults, so every note passes the hold times. "Chord" is the chord in effect while that note sounds, after its hold time.
+Unless a row says otherwise, each note lasts 500 ms, the notes follow without silence, and the settings are the defaults with `ChordChangesPerBar` `Off` (and `ChordChangeSensitivity` `Medium`), so every note passes the hold times; the change-rate examples (C) say their own. "Chord" is the chord in effect while that note sounds, after its hold time.
 
 ### Timing (Church, C Ionian)
 
@@ -211,6 +218,22 @@ Unless a row says otherwise, each note lasts 500 ms, the notes follow without si
 | T4 | C 0–50, B 50–500 | C at 0, G at 250 | The hold time is met at 170, but `MinChordDurationMs` holds the change until 250. |
 | T5 | B 0–500, A 500–1000, silence 1000–1800, C 1800–2300 | G, Am, Am | 800 ms silence: Am remembered and contains C. |
 | T6 | B 0–500, A 500–1000, silence 1000–3500, C 3500–4000 | G, Am, C | 2500 ms silence ≥ `PhraseResetMs`: chosen afresh, priority gives I. |
+
+### Change rate (Church, C Ionian)
+
+120 BPM in 4/4 (one beat = 500 ms, one bar = 2000 ms), times in ms from the start of live mode, Medium sensitivity, onsets off, unless a row says otherwise.
+
+| # | Setup | Notes (start–end, ms) | Chords | Why |
+|---|---|---|---|---|
+| C1 | `2` | C 0–500, B 500–1500 | C at 0, G at 1000 | B is ready at 620; the next allowed beat is beat 3 at 1000. |
+| C2 | `1` | C 0–500, B 500–2500 | C at 0, G at 2000 | Only beat 1 is allowed; the next one is at 2000. |
+| C3 | `2` | C 0–500, A 500–1200 | C at 0, F at 1000 | A is ready at 620 and still sounds at 1000; candidates F, Am → priority 4. |
+| C4 | `2` | C 0–500, B 500–900, silence 900–1100, A 1100–1600 | C at 0, F at 1100 | B is ready at 620 but has ended before 1000; A is the first note after a short silence and chooses at once. |
+| C5 | `Beat`, High | C 0–200, B 200–700 | C at 0, G at 500 | Ready at 260 (60 ms note, 125 ms chord); the next beat is 500. |
+| C6 | `Off`, Low | C 0–500, B 500–1000 | C at 0, G at 740 | No grid; ready at 500 + 240 (compare T3, G at 620). |
+| C7 | `2`, 3/4 | C 0–500, B 500–1300, A 1300–2000 | C at 0, G at 1000, Am at 1500 | 3/4: allowed beats 0, 1000, 1500, 2500 …; A is ready at 1420, beat 1 of bar 2 is at 1500. |
+| C8 | `2`, onsets on | C 0–500, B with an onset 500–1500 | C at 0, G at 1000 | The onset makes B ready at once; it still waits for 1000. |
+| C9 | `2`, Jazz, C major | C 0–4000 | Cmaj7 at 0, Am7 at 1000, Dm7 at 2000, G7(11) at 3000 | J1 unchanged: the loop is not limited. |
 
 ### Church
 
