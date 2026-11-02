@@ -1,5 +1,6 @@
 using SolidBackup.Analysis;
 using SolidBackup.Configuration;
+using SolidBackup.Rhythm;
 
 namespace SolidBackup.Harmony;
 
@@ -27,6 +28,7 @@ public sealed class Harmonizer
     private double _lastChangeMs;
     private bool _phraseReset;
     private double _nowMs;
+    private int _chosenPitchClass = PitchClass.None;
 
     /// <summary>A harmonizer in a fixed key.</summary>
     public Harmonizer(IChordRules rules, Key key, HarmonyTiming timing)
@@ -64,23 +66,22 @@ public sealed class Harmonizer
     /// <summary>The chord in effect, or null before the first note.</summary>
     public Chord? Chord { get; private set; }
 
-    /// <summary>True while a note sounds, and through a silence until it has lasted <see cref="HarmonyTiming.PhraseResetMs"/>.</summary>
-    public bool InPhrase => _sounding || _nowMs - _silenceStartMs < _timing.PhraseResetMs;
-
-    /// <summary>Whether the rules of validated settings' style are built yet.</summary>
-    public static bool HasBuiltStyle(AppSettings settings)
-    {
-        return SettingNames.TryParse(settings.HarmonyStyle, out HarmonyStyle style) && ChordRules.IsBuilt(style);
-    }
+    /// <summary>
+    /// True while a note sounds, through a silence until it has lasted <see cref="HarmonyTiming.PhraseResetMs"/>, and
+    /// for as long as the style keeps playing on its own (Jazz's loop).
+    /// </summary>
+    public bool InPhrase => _sounding || _nowMs - _silenceStartMs < _timing.PhraseResetMs || _rules.KeepsPlaying;
 
     /// <summary>Rules for the settings' style, and the settings' fixed key or an estimator for <c>auto</c>. Validate the settings first.</summary>
     /// <exception cref="ArgumentException">The settings are not valid, or their style is not built yet.</exception>
     public static Harmonizer FromSettings(AppSettings settings)
     {
-        if (!SettingNames.TryParse(settings.HarmonyStyle, out HarmonyStyle style) || !ChordRules.TryCreate(style, out IChordRules? rules))
+        if (!SettingNames.TryParse(settings.HarmonyStyle, out HarmonyStyle style))
         {
-            throw new ArgumentException($"The harmony style {settings.HarmonyStyle} is not valid or not built yet.", nameof(settings));
+            throw new ArgumentException($"The harmony style {settings.HarmonyStyle} is not valid.", nameof(settings));
         }
+
+        IChordRules rules = ChordRules.Create(style, TempoGrid.FromSettings(settings));
 
         HarmonyTiming timing = HarmonyTiming.FromSettings(settings);
         if (!rules.UsesKey)
@@ -137,6 +138,19 @@ public sealed class Harmonizer
             return false;
         }
 
+        bool changed = ProcessNote(estimate, immediate, key);
+
+        // A style that keeps time (Jazz) changes on its own, without the hold times.
+        if (_rules.Advance(estimate.TimeMs, _sounding ? _chosenPitchClass : PitchClass.None, _sounding && _pending && _notePitchClass != _chosenPitchClass) is { } timed)
+        {
+            changed |= Change(timed, estimate.TimeMs);
+        }
+
+        return changed;
+    }
+
+    private bool ProcessNote(PitchEstimate estimate, bool immediate, Key key)
+    {
         double now = estimate.TimeMs;
         if (!estimate.HasNote)
         {
@@ -165,6 +179,7 @@ public sealed class Harmonizer
             _pending = false;
             Chord? previous = now - _silenceStartMs >= _timing.PhraseResetMs ? null : Chord;
             _phraseReset = false;
+            _chosenPitchClass = pitchClass;
             return Change(_rules.Choose(pitchClass, key, previous), now);
         }
 
@@ -182,6 +197,7 @@ public sealed class Harmonizer
         }
 
         _pending = false;
+        _chosenPitchClass = pitchClass;
         return Change(_rules.Choose(pitchClass, key, Chord), now);
     }
 

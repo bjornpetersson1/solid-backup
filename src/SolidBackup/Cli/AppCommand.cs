@@ -75,7 +75,7 @@ public static class AppCommand
         };
         Option<string> styleOption = new("--style")
         {
-            Description = "Harmonistil att använda den här gången: Church, Campfire, Drone, Pop, Modal, Blues eller Free.",
+            Description = "Harmonistil att använda den här gången: Church, Campfire, Drone, Pop, Modal, Blues, Jazz eller Free.",
         };
         Option<string> keyOption = new("--key")
         {
@@ -160,7 +160,7 @@ public static class AppCommand
         [
             new(passThroughOption, [inputOption, outputOption, recordOption]),
             new(devicesOption, [inputOption, outputOption]),
-            new(harmonizeOption, [styleOption, keyOption, modeOption]),
+            new(harmonizeOption, [styleOption, keyOption, modeOption, bpmOption, timeSignatureOption]),
             new(accompanyOption, [renderOption, styleOption, keyOption, modeOption, soundOption, featuresOption, noVoiceOption, patternOption, bpmOption, timeSignatureOption]),
             new(renderOption, [soundOption, chordsOption, chordMsOption, patternOption, bpmOption, timeSignatureOption]),
             new(playOption, [soundOption, chordsOption, chordMsOption, outputOption, patternOption, bpmOption, timeSignatureOption]),
@@ -200,7 +200,7 @@ public static class AppCommand
 
             if (parseResult.GetValue(harmonizeOption) is { } harmonizePath)
             {
-                return new HarmonizeCommand(createConsole(), LoadSettings).Run(harmonizePath, style, key, mode);
+                return new HarmonizeCommand(createConsole(), LoadSettings).Run(harmonizePath, style, key, mode, rhythm);
             }
 
             if (parseResult.GetValue(devicesOption))

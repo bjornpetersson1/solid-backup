@@ -17,12 +17,16 @@ public abstract class ScaleRules : IChordRules
     // Indexed by key (tonic × mode) and degree 1 to 7; null where the style leaves a degree out.
     private readonly Chord?[][] _chords;
 
+    // Indexed by key: bit n is set when pitch class n is in one of the style's chords in that key.
+    private readonly int[] _notes;
+
     /// <param name="priority">The degrees the style uses, most preferred first.</param>
     /// <param name="chordOn">The style's chord on a degree of a key, or null when it leaves that degree out.</param>
     protected ScaleRules(int[] priority, Func<Key, int, Chord?> chordOn)
     {
         _priority = priority;
         _chords = [.. Key.All.Select(key => (Chord?[])[null, .. Enumerable.Range(1, 7).Select(degree => priority.Contains(degree) ? chordOn(key, degree) : null)])];
+        _notes = [.. _chords.Select(chords => chords.OfType<Chord>().Aggregate(0, (notes, chord) => notes | chord.PitchClassMask))];
     }
 
     protected static int[] DefaultPriority { get; } = [1, 5, 4, 6, 2, 3, 7];
@@ -61,6 +65,24 @@ public abstract class ScaleRules : IChordRules
         }
 
         return Borrowed(pitchClass, key) ?? current ?? chords[1] ?? throw new InvalidOperationException("Every style has a tonic chord.");
+    }
+
+    /// <summary>The style's chord on a degree of a key, 1 to 7, or null where the style leaves it out.</summary>
+    public Chord? ChordOn(Key key, int degree)
+    {
+        return _chords[key.Index][degree];
+    }
+
+    /// <summary>Whether a note is in one of the style's chords in the key; a note that is not is foreign to it.</summary>
+    public bool ContainsNote(Key key, int pitchClass)
+    {
+        return (_notes[key.Index] & (1 << pitchClass)) != 0;
+    }
+
+    /// <summary>The degree (1 to 7) of one of the style's chords in a key, or 0 when it is not one of them.</summary>
+    public int DegreeOf(Key key, Chord chord)
+    {
+        return DegreeOf(_chords[key.Index], chord);
     }
 
     /// <summary>The style's chords in a key, in priority order.</summary>

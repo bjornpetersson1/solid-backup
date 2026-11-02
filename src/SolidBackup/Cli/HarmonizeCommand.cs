@@ -21,7 +21,7 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
     public const string ModeIgnoredMessage = "--mode gäller inte med tonarten auto, som bara skattar dur eller moll.";
     public const string KeyIgnoredMessage = "--key och --mode gäller inte med harmonistilen Fri, som inte har någon tonart.";
 
-    public int Run(string path, string? style = null, string? key = null, string? mode = null)
+    public int Run(string path, string? style = null, string? key = null, string? mode = null, RhythmOverrides? rhythm = null)
     {
         SettingsLoadResult loaded = loadSettings();
         ConsoleMessages.SettingsMessage(console, loaded);
@@ -30,7 +30,7 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
             return 1;
         }
 
-        AppSettings settings = loaded.Settings with
+        AppSettings settings = (rhythm?.Apply(loaded.Settings) ?? loaded.Settings) with
         {
             SampleRate = audio.SampleRate,
             HarmonyStyle = style ?? loaded.Settings.HarmonyStyle,
@@ -79,12 +79,6 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
             return null;
         }
 
-        if (!Harmonizer.HasBuiltStyle(settings))
-        {
-            ConsoleMessages.Error(console, NotBuiltMessage(settings.HarmonyStyle));
-            return null;
-        }
-
         Harmonizer harmonizer = Harmonizer.FromSettings(settings);
         if ((keyGiven || modeGiven) && !harmonizer.UsesKey)
         {
@@ -103,18 +97,15 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
         return $"Filen {path} finns inte.";
     }
 
-    public static string NotBuiltMessage(string style)
-    {
-        return $"Harmonistilen {StyleName(style)} är inte byggd än.";
-    }
-
     /// <summary>A chord change as printed, e.g. "1.25 s  A4   Am".</summary>
+    /// <remarks>A change that a style makes on its own in silence (Jazz's loop) shows "–" for the note.</remarks>
     public static string ChangeLine(PitchEstimate estimate, Chord chord)
     {
-        return string.Create(CultureInfo.InvariantCulture, $"{estimate.TimeMs / 1000:0.00} s  {PitchClass.NoteName(estimate.MidiNote),-4} {chord}");
+        string note = estimate.HasNote ? PitchClass.NoteName(estimate.MidiNote) : "–";
+        return string.Create(CultureInfo.InvariantCulture, $"{estimate.TimeMs / 1000:0.00} s  {note,-4} {chord}");
     }
 
-    /// <summary>A key found or changed by <c>auto</c>, or moved by Blues, as printed, e.g. "2.40 s  tonart A-moll".</summary>
+    /// <summary>A key found or changed by <c>auto</c>, or moved by Blues or Jazz, as printed, e.g. "2.40 s  tonart A-moll".</summary>
     public static string KeyLine(PitchEstimate estimate, Key key)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{estimate.TimeMs / 1000:0.00} s  tonart {HarmonyNames.Key(key)}");

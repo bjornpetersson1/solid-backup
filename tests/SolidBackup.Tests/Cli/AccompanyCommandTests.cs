@@ -116,6 +116,17 @@ public sealed class AccompanyCommandTests : IDisposable
     }
 
     [Fact]
+    public void Run_Jazz_Accompanies()
+    {
+        string output = Path.Combine(_folder, "jazz.wav");
+
+        int exitCode = Command(TestConsoles.Wide()).Run(_input, output, new AccompanyOptions(Style: "Jazz", Key: "A", NoVoice: true));
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains(WavReader.Read(output).Samples, sample => Math.Abs(sample) > 0.01);
+    }
+
+    [Fact]
     public void Run_MissingRecording_FailsWithSwedishMessage()
     {
         TestConsole console = TestConsoles.Wide();
@@ -125,17 +136,6 @@ public sealed class AccompanyCommandTests : IDisposable
 
         Assert.Equal(1, exitCode);
         Assert.Contains(HarmonizeCommand.MissingFileMessage(missing), console.Output);
-    }
-
-    [Fact]
-    public void Run_StyleNotBuilt_FailsWithSwedishMessage()
-    {
-        TestConsole console = TestConsoles.Wide();
-
-        int exitCode = Command(console).Run(_input, Path.Combine(_folder, "out.wav"), new AccompanyOptions(Style: "Jazz"));
-
-        Assert.Equal(1, exitCode);
-        Assert.Contains(HarmonizeCommand.NotBuiltMessage("Jazz"), console.Output);
     }
 
     private static AccompanyCommand Command(TestConsole console)

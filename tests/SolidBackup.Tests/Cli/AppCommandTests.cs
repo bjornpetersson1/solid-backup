@@ -243,15 +243,15 @@ public class AppCommandTests
     }
 
     [Theory]
-    [InlineData("--pattern", "Strum")]
-    [InlineData("--bpm", "120")]
-    [InlineData("--time-signature", "3/4")]
-    public void RhythmOptionWithoutAMode_FailsWithSwedishMessage(string option, string value)
+    [InlineData("--pattern", "Strum", new[] { "--accompany", "--render", "--play" })]
+    [InlineData("--bpm", "120", new[] { "--harmonize", "--accompany", "--render", "--play" })]
+    [InlineData("--time-signature", "3/4", new[] { "--harmonize", "--accompany", "--render", "--play" })]
+    public void RhythmOptionWithoutAMode_FailsWithSwedishMessage(string option, string value, string[] modes)
     {
         (int exitCode, _, string error) = Invoke(option, value);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal($"{AppCommand.OptionAloneMessage(option, ["--accompany", "--render", "--play"])} {AppCommand.HelpHint}", error.Trim());
+        Assert.Equal($"{AppCommand.OptionAloneMessage(option, modes)} {AppCommand.HelpHint}", error.Trim());
     }
 
     [Fact]

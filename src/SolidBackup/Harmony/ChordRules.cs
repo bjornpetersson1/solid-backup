@@ -1,19 +1,13 @@
-using System.Diagnostics.CodeAnalysis;
+using SolidBackup.Rhythm;
 
 namespace SolidBackup.Harmony;
 
 public static class ChordRules
 {
-    /// <summary>Whether the style's rules exist yet, without building them; agrees with <see cref="TryCreate"/>.</summary>
-    public static bool IsBuilt(HarmonyStyle style)
+    /// <summary>The rules for a style; Jazz keeps time on <paramref name="grid"/>.</summary>
+    public static IChordRules Create(HarmonyStyle style, TempoGrid grid)
     {
-        return style is HarmonyStyle.Church or HarmonyStyle.Campfire or HarmonyStyle.Drone or HarmonyStyle.Pop or HarmonyStyle.Modal or HarmonyStyle.Blues or HarmonyStyle.Free;
-    }
-
-    /// <summary>The rules for a style, or false for a style that is not built yet.</summary>
-    public static bool TryCreate(HarmonyStyle style, [NotNullWhen(true)] out IChordRules? rules)
-    {
-        rules = style switch
+        return style switch
         {
             HarmonyStyle.Church => new ChurchRules(),
             HarmonyStyle.Campfire => new CampfireRules(),
@@ -21,9 +15,9 @@ public static class ChordRules
             HarmonyStyle.Pop => new PopRules(),
             HarmonyStyle.Modal => new ModalRules(),
             HarmonyStyle.Blues => new BluesRules(),
+            HarmonyStyle.Jazz => new JazzRules(grid),
             HarmonyStyle.Free => new FreeRules(),
-            _ => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(style)),
         };
-        return rules is not null;
     }
 }
