@@ -249,6 +249,19 @@ public class SynthesizerTests
     }
 
     [Fact]
+    public void TakingOverAHeldVoice_IsReportedAsItsRelease()
+    {
+        Synthesizer synthesizer = FullSynthesizer();
+        ReleaseLog log = new();
+        synthesizer.Listener = log;
+
+        synthesizer.StartTone(70, strength: 1);
+        Render(synthesizer, BufferSize);
+
+        Assert.Equal([40], log.Released);
+    }
+
+    [Fact]
     public void ReleasingAStolenVoice_LetsItFadeAndStartsNothing()
     {
         Synthesizer synthesizer = FullSynthesizer();
@@ -432,5 +445,19 @@ public class SynthesizerTests
     private static int Ms(double ms)
     {
         return (int)(ms * SampleRate / 1000);
+    }
+
+    private sealed class ReleaseLog : IToneListener
+    {
+        public List<int> Released { get; } = [];
+
+        public void OnStart(long sample, int note, double strength)
+        {
+        }
+
+        public void OnRelease(long sample, int note)
+        {
+            Released.Add(note);
+        }
     }
 }

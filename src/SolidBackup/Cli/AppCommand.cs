@@ -111,6 +111,18 @@ public static class AppCommand
             Description = "Kör en WAV-fil genom analys, nivåfunktioner, harmoni och synt och skriv resultatet med --render.",
             HelpName = "wav",
         };
+        Option<string> patternOption = new("--pattern")
+        {
+            Description = "Rytmmönster att använda den här gången: Held, Arpeggio eller Strum.",
+        };
+        Option<int?> bpmOption = new("--bpm")
+        {
+            Description = $"Tempo att använda den här gången, {Rhythm.RhythmSettings.MinBpm}–{Rhythm.RhythmSettings.MaxBpm} BPM.",
+        };
+        Option<string> timeSignatureOption = new("--time-signature")
+        {
+            Description = "Taktart att använda den här gången: 4/4 eller 3/4.",
+        };
         Option<bool> recordOption = new("--record")
         {
             Description = "Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough).",
@@ -139,6 +151,9 @@ public static class AppCommand
         root.Options.Add(accompanyOption);
         root.Options.Add(noVoiceOption);
         root.Options.Add(recordOption);
+        root.Options.Add(patternOption);
+        root.Options.Add(bpmOption);
+        root.Options.Add(timeSignatureOption);
         root.Options.Add(featuresOption);
         // Each way of running and the options that go with it; an option belongs to the modes that list it.
         RunMode[] modes =
@@ -146,9 +161,9 @@ public static class AppCommand
             new(passThroughOption, [inputOption, outputOption, recordOption]),
             new(devicesOption, [inputOption, outputOption]),
             new(harmonizeOption, [styleOption, keyOption, modeOption]),
-            new(accompanyOption, [renderOption, styleOption, keyOption, modeOption, soundOption, featuresOption, noVoiceOption]),
-            new(renderOption, [soundOption, chordsOption, chordMsOption]),
-            new(playOption, [soundOption, chordsOption, chordMsOption, outputOption]),
+            new(accompanyOption, [renderOption, styleOption, keyOption, modeOption, soundOption, featuresOption, noVoiceOption, patternOption, bpmOption, timeSignatureOption]),
+            new(renderOption, [soundOption, chordsOption, chordMsOption, patternOption, bpmOption, timeSignatureOption]),
+            new(playOption, [soundOption, chordsOption, chordMsOption, outputOption, patternOption, bpmOption, timeSignatureOption]),
         ];
         root.SetAction(parseResult =>
         {
@@ -162,9 +177,10 @@ public static class AppCommand
             string? key = parseResult.GetValue(keyOption);
             string? mode = parseResult.GetValue(modeOption);
             string? sound = parseResult.GetValue(soundOption);
+            RhythmOverrides rhythm = new(parseResult.GetValue(patternOption), parseResult.GetValue(bpmOption), parseResult.GetValue(timeSignatureOption));
             if (parseResult.GetValue(accompanyOption) is { } recording && parseResult.GetValue(renderOption) is { } accompanied)
             {
-                AccompanyOptions options = new(style, key, mode, sound, parseResult.GetValue(featuresOption), parseResult.GetValue(noVoiceOption));
+                AccompanyOptions options = new(style, key, mode, sound, parseResult.GetValue(featuresOption), parseResult.GetValue(noVoiceOption), rhythm);
                 return new AccompanyCommand(createConsole(), LoadSettings).Run(recording, accompanied, options);
             }
 
@@ -174,12 +190,12 @@ public static class AppCommand
                 () => WithDevices(LoadSettings(), parseResult.GetValue(inputOption), parseResult.GetValue(outputOption));
             if (parseResult.GetValue(renderOption) is { } renderPath)
             {
-                return new SynthCommand(createConsole(), loadSettings, PortAudioPlayback.Open, CreatePreflight()).Render(renderPath, sound, chords, chordMs);
+                return new SynthCommand(createConsole(), loadSettings, PortAudioPlayback.Open, CreatePreflight()).Render(renderPath, sound, chords, chordMs, rhythm);
             }
 
             if (parseResult.GetValue(playOption))
             {
-                return new SynthCommand(createConsole(), loadSettings, PortAudioPlayback.Open, CreatePreflight()).Play(sound, chords, chordMs);
+                return new SynthCommand(createConsole(), loadSettings, PortAudioPlayback.Open, CreatePreflight()).Play(sound, chords, chordMs, rhythm);
             }
 
             if (parseResult.GetValue(harmonizeOption) is { } harmonizePath)

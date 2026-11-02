@@ -120,6 +120,11 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "CharacterFullAboveDbfs": 0.5 }""", "CharacterFullAboveDbfs")]
     [InlineData("""{ "GateOn": "ja" }""", "GateOn")]
     [InlineData("""{ "RecordingFolder": "" }""", "RecordingFolder")]
+    [InlineData("""{ "RhythmPattern": "Swing" }""", "RhythmPattern")]
+    [InlineData("""{ "RhythmPattern": "held" }""", "RhythmPattern")]
+    [InlineData("""{ "Bpm": 39 }""", "Bpm")]
+    [InlineData("""{ "Bpm": 241 }""", "Bpm")]
+    [InlineData("""{ "TimeSignature": "6/8" }""", "TimeSignature")]
     [InlineData("""{ "RecordingFolder": null }""", "RecordingFolder")]
     public void Load_InvalidValue_IgnoresWholeFileAndNamesSetting(string content, string setting)
     {
@@ -180,6 +185,9 @@ public sealed class SettingsStoreTests : IDisposable
             CharacterSparseBelowDbfs = -35,
             CharacterFullAboveDbfs = -15,
             RecordingFolder = "/tmp/inspelningar",
+            RhythmPattern = "Strum",
+            Bpm = 120,
+            TimeSignature = "3/4",
         };
 
         CreateStore().Save(saved);

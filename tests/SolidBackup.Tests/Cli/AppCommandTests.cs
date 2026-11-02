@@ -232,6 +232,29 @@ public class AppCommandTests
     }
 
     [Fact]
+    public void Help_ListsTheRhythmOptions()
+    {
+        (_, string output, _) = Invoke("--help");
+
+        Assert.Contains("--pattern", output);
+        Assert.Contains("Rytmmönster att använda den här gången: Held, Arpeggio eller Strum.", output);
+        Assert.Contains("--bpm", output);
+        Assert.Contains("--time-signature", output);
+    }
+
+    [Theory]
+    [InlineData("--pattern", "Strum")]
+    [InlineData("--bpm", "120")]
+    [InlineData("--time-signature", "3/4")]
+    public void RhythmOptionWithoutAMode_FailsWithSwedishMessage(string option, string value)
+    {
+        (int exitCode, _, string error) = Invoke(option, value);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.OptionAloneMessage(option, ["--accompany", "--render", "--play"])} {AppCommand.HelpHint}", error.Trim());
+    }
+
+    [Fact]
     public void AccompanyWithoutRender_FailsWithSwedishMessage()
     {
         (int exitCode, _, string error) = Invoke("--accompany", "x.wav");

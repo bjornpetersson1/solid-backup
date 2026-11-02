@@ -14,9 +14,8 @@ public sealed class HeldPattern : IRhythmPattern
     /// <summary>The smallest change in strength that is passed on; smaller steps are inaudible.</summary>
     public const double StrengthStepDb = 0.1;
 
-    private readonly ChordVoicer _voicer = new();
+    private readonly ChordTones _tones = new();
     private readonly int[] _sounding = new int[ChordVoicing.MaxShapedTones];
-    private readonly int[] _next = new int[ChordVoicing.MaxShapedTones];
     private int _soundingCount;
     private bool _playing;
     private Chord _chord;
@@ -55,11 +54,10 @@ public sealed class HeldPattern : IRhythmPattern
 
     private void Change(Chord chord, ChordShape shape, bool strike, double strength, Synthesizer synthesizer)
     {
-        int count = _voicer.Next(chord, shape, _next);
-        ReadOnlySpan<int> notes = _next.AsSpan(0, count);
+        ReadOnlySpan<int> notes = _tones.For(chord, shape);
         CommonTones.Change(_sounding.AsSpan(0, _soundingCount), notes, strike, new QueuedTones(synthesizer, strength));
         notes.CopyTo(_sounding);
-        _soundingCount = count;
+        _soundingCount = notes.Length;
         _playing = true;
         _chord = chord;
         _shape = shape;
@@ -74,7 +72,7 @@ public sealed class HeldPattern : IRhythmPattern
 
         _soundingCount = 0;
         _playing = false;
-        _voicer.Forget();
+        _tones.Forget();
     }
 
     // Tones queued on the synthesizer at the start of the next buffer.

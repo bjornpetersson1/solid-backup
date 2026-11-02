@@ -1,5 +1,6 @@
 using System.Globalization;
 
+using SolidBackup.Accompaniment;
 using SolidBackup.Audio;
 using SolidBackup.Audio.Devices;
 using SolidBackup.Configuration;
@@ -33,9 +34,9 @@ public sealed class SynthCommand(
     public const string StoppedMessage = "Uppspelningen stoppad.";
     public const string NotInteractiveMessage = "Uppspelningen kräver en interaktiv terminal.";
 
-    public int Render(string path, string? sound = null, string? chords = null, int? chordMs = null)
+    public int Render(string path, string? sound = null, string? chords = null, int? chordMs = null, RhythmOverrides? rhythm = null)
     {
-        if (Prepare(sound, chords, chordMs) is not { } prepared)
+        if (Prepare(sound, chords, chordMs, rhythm) is not { } prepared)
         {
             return 1;
         }
@@ -50,14 +51,14 @@ public sealed class SynthCommand(
     }
 
     /// <summary>Plays until the end, a stop key, Ctrl+C or <paramref name="cancellation"/>.</summary>
-    public int Play(string? sound = null, string? chords = null, int? chordMs = null, CancellationToken cancellation = default)
+    public int Play(string? sound = null, string? chords = null, int? chordMs = null, RhythmOverrides? rhythm = null, CancellationToken cancellation = default)
     {
         if (!console.Profile.Capabilities.Interactive)
         {
             return ConsoleMessages.Error(console, NotInteractiveMessage);
         }
 
-        if (Prepare(sound, chords, chordMs) is not { } prepared)
+        if (Prepare(sound, chords, chordMs, rhythm) is not { } prepared)
         {
             return 1;
         }
@@ -103,11 +104,12 @@ public sealed class SynthCommand(
         return $"--chord-ms måste vara mellan {MinChordMs} och {MaxChordMs} ms; {chordMs} går inte.";
     }
 
-    private Prepared? Prepare(string? sound, string? chords, int? chordMs)
+    private Prepared? Prepare(string? sound, string? chords, int? chordMs, RhythmOverrides? rhythm)
     {
         SettingsLoadResult loaded = loadSettings();
         ConsoleMessages.SettingsMessage(console, loaded);
-        AppSettings settings = loaded.Settings with { Sound = sound ?? loaded.Settings.Sound };
+        AppSettings withSound = loaded.Settings with { Sound = sound ?? loaded.Settings.Sound };
+        AppSettings settings = rhythm?.Apply(withSound) ?? withSound;
         if (SettingsValidator.Validate(settings) is { } error)
         {
             ConsoleMessages.Error(console, $"Ogiltigt värde för {error.Setting}: {error.Problem}.");
@@ -146,8 +148,7 @@ public sealed class SynthCommand(
             parsed.Add(chord);
         }
 
-        Sound chosen = Enum.Parse<Sound>(settings.Sound);
-        return new Prepared(settings, chosen, ChordSequence.Render(chosen, settings.SampleRate, parsed, duration));
+        return new Prepared(settings, Enum.Parse<Sound>(settings.Sound), ChordSequence.Render(settings, parsed, duration));
     }
 
     private sealed record Prepared(AppSettings Settings, Sound Sound, float[] Samples);
