@@ -102,6 +102,33 @@ public class LiveChainTests
         Assert.Equal(settings.BufferSize * 4, (int)System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(stream.Contents.AsSpan(40)));
     }
 
+    [Theory]
+    [InlineData("Pad")]
+    [InlineData("Organ")]
+    public void FadeOut_LetsTheChordRingOutOverTheSoundsRelease(string sound)
+    {
+        AppSettings settings = Chain.Settings("gate") with { Sound = sound };
+        Accompanist accompanist = new(settings);
+        LiveChain chain = new(accompanist);
+        float[] output = new float[settings.BufferSize];
+        Run(chain, Chain.Tone(60, -20, 0.5), output);
+        Assert.False(chain.IsSilent);
+
+        // The voice goes on, but after FadeOut nothing new sounds and the chord's release runs its course.
+        chain.FadeOut();
+        float[] stillSinging = Chain.Tone(60, -20, 2);
+        int buffers = 0;
+        for (int start = 0; !chain.IsSilent && start + output.Length <= stillSinging.Length; start += output.Length, buffers++)
+        {
+            chain.OnBuffer(stillSinging.AsSpan(start, output.Length));
+            chain.Render(output);
+        }
+
+        double fadeMs = buffers * output.Length * 1000.0 / settings.SampleRate;
+        Assert.True(chain.IsSilent);
+        Assert.InRange(fadeMs, accompanist.Synthesizer.Preset.PlayedReleaseMs * 0.5, LiveMode.MaxFadeOut.TotalMilliseconds);
+    }
+
     [Fact]
     public void State_FollowsTheLatestInputBuffer()
     {

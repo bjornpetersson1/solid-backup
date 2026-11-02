@@ -52,7 +52,7 @@ Live mode comes in E6; until then everything in E5 can be heard by rendering to 
 
 This is where the whole experiment is judged; the demo in `Constitution/Requirements-and-goal.md` is the script.
 
-1. **Menu (E6-2):** start without arguments, choose devices, key, style, sound, pattern, tempo, level features and recording, and start live mode. Leave with `Esc` or `q` and restart the app: your choices are the new defaults. Every choice changes what you hear.
+1. **Menu (E6-2):** start without arguments, choose devices, key, style, sound, pattern, tempo, level features and recording, and start live mode. Leave with `Esc` or `q`: the chord rings out and the menu comes back. Restart the app: your choices are the new defaults. Every choice changes what you hear. Ctrl+C in the menu quits at once; Ctrl+C in live mode with recording on quits after the recording is saved, and the file plays back.
 2. **Latency (E6-1):** run `dotnet run --project src/SolidBackup -c Release -- --live --pattern Held` (until the menu exists). With Held and a low-latency microphone, the latency shown on the status line (later the dashboard) is under 50 ms, and the chords feel immediate when you sing. With the built-in MacBook microphone the target is expected to be missed (it reports ~45 ms alone).
 3. **Dropouts (E6-1):** run `--live` for an hour, once without and once with `--record`; the dropout count on the status line and in the summary stays at 0, and the recording plays back with the voice left and the chords right.
 4. **Dashboard (E6-3):** at 120 characters' width the note and cents, level meter, chord, key, features on, latency and dropouts are readable and update a few times per second.

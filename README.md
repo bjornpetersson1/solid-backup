@@ -2,7 +2,7 @@
 
 An experimental .NET console app for macOS. It listens to a single melody line from a microphone, detects its pitch and level, and plays chords in response through its own synthesizer. The requirements are in `Constitution/Requirements-and-goal.md`.
 
-So far the app has its command line, an empty menu and its settings (E1); the audio layer, with pass-through and device listing (E2); the analysis, measured on a test corpus (E3); the harmony (E4); the synthesizer, level features, recording and rhythm patterns (E5); and live mode with `--live` (E6-1). The menu (E6-2) and the dashboard (E6-3) are still to come.
+So far the app has its command line, an empty menu and its settings (E1); the audio layer, with pass-through and device listing (E2); the analysis, measured on a test corpus (E3); the harmony (E4); the synthesizer, level features, recording and rhythm patterns (E5); live mode with `--live` (E6-1); and the start menu (E6-2). The dashboard (E6-3) is still to come.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ Tests need no audio hardware and no network.
 ## Run
 
 ```bash
-dotnet run --project src/SolidBackup              # the menu (choose "Avsluta" to quit)
+dotnet run --project src/SolidBackup              # the menu: choose, then "Starta live"
 dotnet run --project src/SolidBackup -- --help    # help
 dotnet run --project src/SolidBackup -- --version # version
 dotnet run --project src/SolidBackup -- --live        # live mode: chords to what you sing
@@ -50,7 +50,7 @@ The **latency** is the input stream's reported latency + the chain's delay + one
 
 `--harmonize <wav>` (with `--bpm` and `--time-signature` for Jazz's grid) runs the pitch detection and the harmony (see [`docs/harmony.md`](docs/harmony.md)) over a WAV file and prints the time, the note and the chord at every chord change. `--style`, `--key` and `--mode` override `HarmonyStyle`, `Key` and `Mode` for that run only. It also prints the key when `auto` first finds it and whenever the key changes, by `auto` or by Blues or Jazz moving it. The file's own sample rate is used (44100 or 48000 Hz). It cannot be combined with another way of running.
 
-The menu needs an interactive terminal.
+Started without arguments, the app shows the **menu**: a table of the current choices and one item each for the input, the output, the key (`auto`, or a tonic and then a mode), the style, the sound, the rhythm (pattern, tempo 40–240 BPM, time signature), the level features (any of them, or none) and recording (on or off), plus `Starta live` (preselected) and `Avsluta`. Every choice is saved at once to the user settings file below and is the next start's default; a choice that cannot be saved is still used for the session. A saved device that is no longer there is marked `(saknas)`, and the menu shows the speaker warning when the output is the built-in speakers. `Starta live` runs live mode as `--live` does, recording when recording is on; `q` or `Esc` lets the chord ring out (at most 1 s) and returns to the menu, and Ctrl+C quits the app once the audio and the recording are closed (with the exit code of live mode, 1 if the recording could not be saved). In the menu itself Ctrl+C quits at once, as everything is already saved. The menu needs an interactive terminal.
 
 `--render <wav>` plays chords with the built-in synthesizer and writes them to a mono 16-bit WAV file at `SampleRate`; `--play` plays them on the output device (the setting or `--output`) until the end, or until `q`, `Esc` or Ctrl+C. `--sound` (`Pad`, `Organ` or `Pluck`) overrides `Sound` for that run, `--chords` takes chord symbols as in [`docs/harmony.md`](docs/harmony.md) separated by spaces (default `"C Am F G"`), and `--chord-ms` how long each lasts (100–10000 ms, default 1000); the last chord's release ends the sound. The first chord is in close voicing with its root in octave 3; each next one keeps the tones it shares with the one before and moves the others as little as it can, within C3–C5.
 
@@ -157,5 +157,6 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `Bpm` | `90` | Tempo for Arpeggio and Strum, a whole number from 40 to 240 |
 | `TimeSignature` | `4/4` | `4/4` or `3/4` |
 | `RecordingFolder` | `recordings` | Where `--record` puts its WAV files: a folder relative to the current directory, or an absolute path; created if missing |
+| `RecordOn` | `false` | Whether live mode records the session; the menu's Inspelning choice. `--live --record` records for one run also when it is off |
 
 The menu's choices are saved to `~/Library/Application Support/solid-backup/usersettings.json`, which only holds the settings that differ from the defaults. A missing or invalid user settings file is ignored with a message, and the defaults are used.

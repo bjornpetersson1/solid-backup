@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using SolidBackup.Accompaniment;
 using SolidBackup.Audio;
 using SolidBackup.Configuration;
@@ -11,6 +13,12 @@ namespace SolidBackup.Live;
 /// </summary>
 public sealed class LiveMode
 {
+    /// <summary>The longest <see cref="FadeOut"/> waits for the chord's release to ring out.</summary>
+    public static readonly TimeSpan MaxFadeOut = TimeSpan.FromSeconds(1);
+
+    // Often enough that the stop follows the silence closely, without keeping a core busy beside the audio threads.
+    private static readonly TimeSpan FadePoll = TimeSpan.FromMilliseconds(10);
+
     private readonly IAudioDevices _devices;
     private readonly LiveChain _chain;
     private readonly double? _chainDelayMs;
@@ -43,6 +51,19 @@ public sealed class LiveMode
     public void Start()
     {
         AudioStreams.Start(_devices.Input, _chain, _devices.Output, _chain);
+    }
+
+    /// <summary>
+    /// Releases the chord and waits until it has rung out, at most <see cref="MaxFadeOut"/> or until
+    /// <paramref name="cancellation"/>; call it before <see cref="Stop"/>.
+    /// </summary>
+    public void FadeOut(CancellationToken cancellation = default)
+    {
+        _chain.FadeOut();
+        Stopwatch fading = Stopwatch.StartNew();
+        while (!_chain.IsSilent && fading.Elapsed < MaxFadeOut && !cancellation.WaitHandle.WaitOne(FadePoll))
+        {
+        }
     }
 
     public void Stop()

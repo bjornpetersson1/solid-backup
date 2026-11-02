@@ -60,6 +60,36 @@ public class LiveCommandTests
     }
 
     [Fact]
+    public void Cancellation_WhileRecording_FinishesTheFileAndClosesTheDevices()
+    {
+        TestConsole console = TestConsoles.Wide();
+        KeptStream stream = new();
+        FakeDevices devices = new();
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+        LiveCommand command = new(console, () => new(Settings, null), _ => devices, TestPreflight.Create(), _ => ("live.wav", stream));
+
+        int exitCode = command.Run(new SettingOverrides(), record: true, cancellation: cancellation.Token);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Inspelningen sparad: live.wav", console.Output);
+        Assert.Equal((uint)(Settings.BufferSize * 4), System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(stream.Contents.AsSpan(40)));
+        Assert.True(devices.Disposed);
+    }
+
+    [Fact]
+    public void RecordOnInTheSettings_RecordsWithoutTheFlag()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Q);
+        KeptStream stream = new();
+        LiveCommand command = new(console, () => new(Settings with { RecordOn = true }, null), _ => new FakeDevices(), TestPreflight.Create(), _ => ("live.wav", stream));
+
+        Assert.Equal(0, command.Run(new SettingOverrides()));
+        Assert.Contains(RecordingSession.RecordingMessage("live.wav"), console.Output);
+    }
+
+    [Fact]
     public void WhileRunning_ShowsTheStatusLine()
     {
         TestConsole console = TestConsoles.Wide().EmitAnsiSequences();
@@ -176,7 +206,18 @@ public class LiveCommandTests
         console.Input.PushKey(ConsoleKey.Q);
         LiveCommand command = new(console, () => throw new InvalidOperationException("Play loads nothing."), _ => new FakeDevices(), TestPreflight.Create());
 
-        Assert.Equal(0, command.Play(Settings with { Sound = "Organ" }));
+        Assert.Equal(new LiveExit(0, Interrupted: false), command.Play(Settings with { Sound = "Organ" }));
+    }
+
+    [Fact]
+    public void Play_StoppedByCtrlC_SaysItWasInterrupted()
+    {
+        TestConsole console = TestConsoles.Wide();
+        LiveCommand command = new(console, () => new(Settings, null), _ => new FakeDevices(), TestPreflight.Create());
+        using CancellationTokenSource ctrlC = new();
+        ctrlC.Cancel();
+
+        Assert.Equal(new LiveExit(0, Interrupted: true), command.Play(Settings, cancellation: ctrlC.Token));
     }
 
     [Fact]

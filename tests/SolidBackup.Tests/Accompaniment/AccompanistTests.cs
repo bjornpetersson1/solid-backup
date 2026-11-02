@@ -40,7 +40,7 @@ public class AccompanistTests
 
     private static LevelFeatureEntry Entry(ILevelFeature feature, bool on)
     {
-        return new LevelFeatureEntry("test", _ => on, (settings, _) => settings, _ => feature);
+        return new LevelFeatureEntry("test", "test", _ => on, (settings, _) => settings, _ => feature);
     }
 
     private static void Play(Accompanist accompanist, float[] signal, float[] output)

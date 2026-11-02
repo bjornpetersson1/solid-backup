@@ -11,7 +11,8 @@ namespace SolidBackup.Live;
 /// <see cref="SnapshotSlot{T}"/>, so input jitter and clock drift can delay a chord by a buffer but never cut the
 /// sound. A strike is counted, not just flagged, so one decided between two output buffers is still played. The
 /// pattern's grid counts the output's samples. A recording of the output starts with the first output buffer after
-/// the input's first, so the two channels start together. Neither side allocates, locks or does I/O.
+/// the input's first, so the two channels start together. <see cref="FadeOut"/> lets the chord ring out before the
+/// audio stops. Neither side allocates, locks or does I/O.
 /// </summary>
 public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
 {
@@ -28,6 +29,12 @@ public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
     private bool _inputStarted;
     private long _playedStrikes;
     private long _outputEnd;
+
+    // Set from any thread; read by the output's.
+    private volatile bool _fading;
+
+    // Set by the output's thread after each buffer.
+    private volatile bool _silent = true;
 
     /// <param name="recorder">Records the input from the input's thread and the output from the output's.</param>
     public LiveChain(Accompanist accompanist, SessionRecorder? recorder = null)
@@ -59,14 +66,26 @@ public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
             _inputStarted = true;
         }
 
-        AccompanimentFrame frame = _latest.Frame with { Strike = _latest.Strikes != _playedStrikes };
+        AccompanimentFrame frame = _fading
+            ? AccompanimentFrame.Neutral(null, sounding: false)
+            : _latest.Frame with { Strike = _latest.Strikes != _playedStrikes };
         _playedStrikes = _latest.Strikes;
         _outputEnd += output.Length;
         _accompanist.Perform(AnalysisFrame.Position(_outputEnd, output.Length, _accompanist.SampleRate), frame, output);
+        _silent = _accompanist.Synthesizer.IsSilent;
         if (_inputStarted)
         {
             _recorder?.OnOutput(output);
         }
+    }
+
+    /// <summary>True when the last output buffer ended in silence (or none has been played).</summary>
+    public bool IsSilent => _silent;
+
+    /// <summary>From here on nothing new sounds: the chord is released and rings out over the sound's release.</summary>
+    public void FadeOut()
+    {
+        _fading = true;
     }
 
     /// <summary>The state after the latest input buffer, for a reader on another thread; false while a write overlaps or before the first.</summary>

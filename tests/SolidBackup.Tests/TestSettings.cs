@@ -38,6 +38,7 @@ internal static class TestSettings
         CharacterSparseBelowDbfs = -30,
         CharacterFullAboveDbfs = -18,
         RecordingFolder = "recordings",
+        RecordOn = false,
         RhythmPattern = "Held",
         Bpm = 90,
         TimeSignature = "4/4",

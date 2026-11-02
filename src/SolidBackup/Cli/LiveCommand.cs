@@ -11,11 +11,14 @@ using Spectre.Console;
 
 namespace SolidBackup.Cli;
 
+/// <summary>How live mode ended: its exit code, and whether Ctrl+C (or a cancellation) stopped it.</summary>
+public readonly record struct LiveExit(int ExitCode, bool Interrupted);
+
 /// <summary>
 /// Live mode: the microphone through the whole chain to the output, until q, Esc or Ctrl+C. It runs the same checks
 /// and recording as <c>--passthrough</c> (<see cref="AudioSession"/>), shows one status line refreshed about twice a
-/// second while it plays, and ends with the dropouts and the latency. <see cref="Play"/> is the entry point for
-/// settings that are already validated, such as the menu's.
+/// second while it plays, lets the chord ring out on q or Esc (not on Ctrl+C), and ends with the dropouts and the
+/// latency. <see cref="Play"/> is the entry point for settings that are already validated, such as the menu's.
 /// </summary>
 public sealed class LiveCommand(
     IAnsiConsole console,
@@ -31,7 +34,10 @@ public sealed class LiveCommand(
 
     private readonly AudioSession _session = new(console, openDevices, preflight, createRecording);
 
-    /// <summary>Runs live mode with the saved settings and the one-run <paramref name="overrides"/>; with <paramref name="record"/>, records it.</summary>
+    /// <summary>
+    /// Runs live mode with the saved settings and the one-run <paramref name="overrides"/>; it records when the saved
+    /// <c>RecordOn</c> is on, or for this run with <paramref name="record"/>.
+    /// </summary>
     public int Run(SettingOverrides overrides, bool record = false, CancellationToken cancellation = default)
     {
         if (!console.Profile.Capabilities.Interactive)
@@ -48,14 +54,20 @@ public sealed class LiveCommand(
 
         return HarmonySetup.Prepare(console, settings, overrides.Key is not null, overrides.Mode is not null) is null
             ? 1
-            : Play(settings, record, cancellation);
+            : Play(settings, record || settings.RecordOn, cancellation).ExitCode;
     }
 
-    /// <summary>Runs live mode with validated settings until it is stopped; the exit code is 0 when it ran and a recording was written.</summary>
-    public int Play(AppSettings settings, bool record = false, CancellationToken cancellation = default)
+    /// <summary>
+    /// Runs live mode with validated settings until it is stopped. The exit code is 0 when it ran and a recording was
+    /// written; <see cref="LiveExit.Interrupted"/> says it was stopped by Ctrl+C, so a caller such as the menu can quit.
+    /// </summary>
+    public LiveExit Play(AppSettings settings, bool record = false, CancellationToken cancellation = default)
     {
+        LiveActivity? activity = null;
+
         // Measured before anything opens, so the devices and a recording are not held open while it runs.
-        return _session.Run(settings, record, () => new LiveActivity(settings, ChainDelay.MeasureMs(settings)), cancellation);
+        int exitCode = _session.Run(settings, record, () => activity = new LiveActivity(settings, ChainDelay.MeasureMs(settings)), cancellation);
+        return new LiveExit(exitCode, activity?.Interrupted ?? false);
     }
 
     public static string StatusLine(LiveSnapshot snapshot, double targetMs)
@@ -106,6 +118,8 @@ public sealed class LiveCommand(
     {
         private LiveMode? _mode;
 
+        public bool Interrupted { get; private set; }
+
         public void Start(IAudioDevices devices, SessionRecorder? recorder)
         {
             _mode = new LiveMode(devices, settings, chainDelayMs, recorder);
@@ -117,7 +131,7 @@ public sealed class LiveCommand(
             console.WriteLine(RunningMessage);
             Stopwatch sinceStatus = Stopwatch.StartNew();
             ShowStatus(console);
-            StopKeys.WaitForStop(
+            StopReason reason = StopKeys.WaitForStop(
                 console,
                 () =>
                 {
@@ -131,6 +145,14 @@ public sealed class LiveCommand(
                 },
                 cancellation);
             console.WriteLine();
+
+            // q and Esc let the chord ring out; Ctrl+C stops at once, also during the fade.
+            if (reason == StopReason.StopKey)
+            {
+                _mode?.FadeOut(cancellation);
+            }
+
+            Interrupted = reason == StopReason.Interrupted || cancellation.IsCancellationRequested;
         }
 
         public void Stop()

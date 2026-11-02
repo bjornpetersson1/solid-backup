@@ -56,11 +56,8 @@ public class ChainDelayTests
     }
 }
 
-/// <summary>
-/// The time budget of <see cref="ChainDelay.MeasureMs"/>, run alone: live mode measures before its audio starts, with
-/// nothing else competing for the CPU, so other test classes running in parallel would only measure their own load.
-/// </summary>
-[Collection(nameof(ChainDelayTimingTests))]
+/// <summary>The time budget of <see cref="ChainDelay.MeasureMs"/>; live mode measures before its audio starts, with nothing else competing for the CPU.</summary>
+[Collection(TimingCollection.Name)]
 public class ChainDelayTimingTests
 {
     [Theory]
@@ -76,9 +73,4 @@ public class ChainDelayTimingTests
 
         Assert.InRange(watch.ElapsedMilliseconds, 0, 100);
     }
-}
-
-[CollectionDefinition(nameof(ChainDelayTimingTests), DisableParallelization = true)]
-public class ChainDelayTimingCollection
-{
 }
