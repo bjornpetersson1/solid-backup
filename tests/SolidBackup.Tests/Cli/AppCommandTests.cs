@@ -151,6 +151,56 @@ public class AppCommandTests
         Assert.Equal("Ett oväntat fel inträffade: terminalen stängdes", error.ToString().Trim());
     }
 
+    [Fact]
+    public void Help_ListsSynthOptionsWithSwedishDescriptions()
+    {
+        (int exitCode, string output, _) = Invoke("--help");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--render <wav>", output);
+        Assert.Contains("Spela ackord med syntten och skriv dem till en WAV-fil.", output);
+        Assert.Contains("--play", output);
+        Assert.Contains("Spela ackord med syntten i utgången.", output);
+        Assert.Contains("--sound", output);
+        Assert.Contains("Syntens ljud att använda den här gången: Pad, Organ eller Pluck.", output);
+        Assert.Contains("--chords", output);
+        Assert.Contains("--chord-ms", output);
+    }
+
+    [Theory]
+    [InlineData("--sound", "Organ")]
+    [InlineData("--chords", "C G")]
+    [InlineData("--chord-ms", "500")]
+    public void SynthOptionWithoutRenderOrPlay_FailsWithSwedishMessage(string option, string value)
+    {
+        (int exitCode, _, string error) = Invoke(option, value);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.SynthOptionsAloneMessage} {AppCommand.HelpHint}", error.Trim());
+    }
+
+    [Theory]
+    [InlineData("--render", "x.wav", "--play")]
+    [InlineData("--render", "x.wav", "--passthrough")]
+    [InlineData("--play", "--devices")]
+    [InlineData("--play", "--harmonize", "x.wav")]
+    public void RenderOrPlayCombined_FailsWithSwedishMessage(params string[] args)
+    {
+        (int exitCode, _, string error) = Invoke(args);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.SynthCombinedMessage} {AppCommand.HelpHint}", error.Trim());
+    }
+
+    [Fact]
+    public void InputWithPlay_FailsWithSwedishMessage()
+    {
+        (int exitCode, _, string error) = Invoke("--play", "--input", "USB Audio");
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.DeviceOptionsAloneMessage} {AppCommand.HelpHint}", error.Trim());
+    }
+
     private static (int ExitCode, string Output, string Error) Invoke(params string[] args)
     {
         StringWriter output = new();

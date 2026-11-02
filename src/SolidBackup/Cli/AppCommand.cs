@@ -16,9 +16,11 @@ public static class AppCommand
 {
     public const string Description = "Lyssnar på en melodistämma i mikrofonen och spelar ackord till den.";
     public const string HelpHint = "Kör med --help för att se vad som finns.";
-    public const string DeviceOptionsAloneMessage = "--input och --output gäller bara tillsammans med --passthrough eller --devices.";
+    public const string DeviceOptionsAloneMessage = "--input och --output gäller bara tillsammans med --passthrough eller --devices, och --output även med --play.";
     public const string HarmonyOptionsAloneMessage = "--style, --key och --mode gäller bara tillsammans med --harmonize.";
     public const string HarmonizeCombinedMessage = "--harmonize kan inte kombineras med --passthrough eller --devices.";
+    public const string SynthOptionsAloneMessage = "--sound, --chords och --chord-ms gäller bara tillsammans med --render eller --play.";
+    public const string SynthCombinedMessage = "--render och --play kan inte kombineras med varandra eller med --passthrough, --devices eller --harmonize.";
 
     /// <summary>
     /// Parses and runs the command line. Parse errors and unexpected exceptions get a Swedish
@@ -86,6 +88,27 @@ public static class AppCommand
         {
             Description = "Modus att använda den här gången (t.ex. Ionian, Dorian, Aeolian).",
         };
+        Option<string> renderOption = new("--render")
+        {
+            Description = "Spela ackord med syntten och skriv dem till en WAV-fil.",
+            HelpName = "wav",
+        };
+        Option<bool> playOption = new("--play")
+        {
+            Description = "Spela ackord med syntten i utgången.",
+        };
+        Option<string> soundOption = new("--sound")
+        {
+            Description = "Syntens ljud att använda den här gången: Pad, Organ eller Pluck.",
+        };
+        Option<string> chordsOption = new("--chords")
+        {
+            Description = $"Ackorden att spela, med mellanslag emellan (standard \"{SynthCommand.DefaultChords}\").",
+        };
+        Option<int?> chordMsOption = new("--chord-ms")
+        {
+            Description = $"Hur länge varje ackord spelas, {SynthCommand.MinChordMs}–{SynthCommand.MaxChordMs} ms (standard {SynthCommand.DefaultChordMs}).",
+        };
         root.Options.Add(passThroughOption);
         root.Options.Add(devicesOption);
         root.Options.Add(inputOption);
@@ -94,10 +117,18 @@ public static class AppCommand
         root.Options.Add(styleOption);
         root.Options.Add(keyOption);
         root.Options.Add(modeOption);
+        root.Options.Add(renderOption);
+        root.Options.Add(playOption);
+        root.Options.Add(soundOption);
+        root.Options.Add(chordsOption);
+        root.Options.Add(chordMsOption);
         root.SetAction(parseResult =>
         {
             bool playsOrLists = parseResult.GetValue(devicesOption) || parseResult.GetValue(passThroughOption);
-            if (!playsOrLists && (parseResult.GetValue(inputOption) is not null || parseResult.GetValue(outputOption) is not null))
+            string? renderPath = parseResult.GetValue(renderOption);
+            bool play = parseResult.GetValue(playOption);
+            bool outputAllowed = playsOrLists || play;
+            if ((!playsOrLists && parseResult.GetValue(inputOption) is not null) || (!outputAllowed && parseResult.GetValue(outputOption) is not null))
             {
                 parseResult.InvocationConfiguration.Error.WriteLine($"{DeviceOptionsAloneMessage} {HelpHint}");
                 return 1;
@@ -111,6 +142,32 @@ public static class AppCommand
             {
                 parseResult.InvocationConfiguration.Error.WriteLine($"{HarmonyOptionsAloneMessage} {HelpHint}");
                 return 1;
+            }
+
+            string? sound = parseResult.GetValue(soundOption);
+            string? chords = parseResult.GetValue(chordsOption);
+            int? chordMs = parseResult.GetValue(chordMsOption);
+            bool synth = renderPath is not null || play;
+            if (!synth && (sound is not null || chords is not null || chordMs is not null))
+            {
+                parseResult.InvocationConfiguration.Error.WriteLine($"{SynthOptionsAloneMessage} {HelpHint}");
+                return 1;
+            }
+
+            if (synth)
+            {
+                if ((renderPath is not null && play) || playsOrLists || harmonizePath is not null)
+                {
+                    parseResult.InvocationConfiguration.Error.WriteLine($"{SynthCombinedMessage} {HelpHint}");
+                    return 1;
+                }
+
+                SynthCommand synthCommand = new(
+                    createConsole(),
+                    () => WithDevices(LoadSettings(), null, parseResult.GetValue(outputOption)),
+                    PortAudioPlayback.Open,
+                    CreatePreflight());
+                return renderPath is not null ? synthCommand.Render(renderPath, sound, chords, chordMs) : synthCommand.Play(sound, chords, chordMs);
             }
 
             if (harmonizePath is not null)

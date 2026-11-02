@@ -66,14 +66,14 @@ public sealed class Harmonizer
     /// <summary>Whether the rules of validated settings' style are built yet.</summary>
     public static bool HasBuiltStyle(AppSettings settings)
     {
-        return HarmonySettings.TryParseName(settings.HarmonyStyle, out HarmonyStyle style) && ChordRules.IsBuilt(style);
+        return SettingNames.TryParse(settings.HarmonyStyle, out HarmonyStyle style) && ChordRules.IsBuilt(style);
     }
 
     /// <summary>Rules for the settings' style, and the settings' fixed key or an estimator for <c>auto</c>. Validate the settings first.</summary>
     /// <exception cref="ArgumentException">The settings are not valid, or their style is not built yet.</exception>
     public static Harmonizer FromSettings(AppSettings settings)
     {
-        if (!HarmonySettings.TryParseName(settings.HarmonyStyle, out HarmonyStyle style) || !ChordRules.TryCreate(style, out IChordRules? rules))
+        if (!SettingNames.TryParse(settings.HarmonyStyle, out HarmonyStyle style) || !ChordRules.TryCreate(style, out IChordRules? rules))
         {
             throw new ArgumentException($"The harmony style {settings.HarmonyStyle} is not valid or not built yet.", nameof(settings));
         }
@@ -89,7 +89,7 @@ public sealed class Harmonizer
             return new Harmonizer(rules, new KeyEstimator(settings.KeyChangeSeconds, settings.KeyFirstSeconds), timing);
         }
 
-        if (!PitchClass.TryParse(settings.Key, out int tonic) || !HarmonySettings.TryParseName(settings.Mode, out Mode mode))
+        if (!PitchClass.TryParse(settings.Key, out int tonic) || !SettingNames.TryParse(settings.Mode, out Mode mode))
         {
             throw new ArgumentException("The key settings are not valid; validate them first.", nameof(settings));
         }

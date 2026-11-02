@@ -109,6 +109,9 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "KeyChangeSeconds": 0 }""", "KeyChangeSeconds")]
     [InlineData("""{ "KeyChangeSeconds": -4 }""", "KeyChangeSeconds")]
     [InlineData("""{ "KeyFirstSeconds": 0 }""", "KeyFirstSeconds")]
+    [InlineData("""{ "Sound": "Piano" }""", "Sound")]
+    [InlineData("""{ "Sound": "pad" }""", "Sound")]
+    [InlineData("""{ "Sound": null }""", "Sound")]
     public void Load_InvalidValue_IgnoresWholeFileAndNamesSetting(string content, string setting)
     {
         WriteUserFile(content);
@@ -158,6 +161,7 @@ public sealed class SettingsStoreTests : IDisposable
             PhraseResetMs = 3000,
             KeyChangeSeconds = 6,
             KeyFirstSeconds = 3,
+            Sound = "Organ",
         };
 
         CreateStore().Save(saved);

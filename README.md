@@ -29,6 +29,8 @@ dotnet run --project src/SolidBackup -- --passthrough # play the microphone in t
 dotnet run --project src/SolidBackup -- --devices     # list the audio devices
 dotnet run --project src/SolidBackup -- --passthrough --input "USB Audio" --output "Externa hörlurar"
 dotnet run --project src/SolidBackup -- --harmonize corpus/recordings/singing.wav --style Campfire --key G
+dotnet run --project src/SolidBackup -- --render chords.wav --sound Organ --chords "C Am F G7" --chord-ms 800
+dotnet run --project src/SolidBackup -- --play --sound Pluck --output "Externa hörlurar"
 ```
 
 `--passthrough` plays the chosen input in the chosen output until you press `q`, `Esc` or Ctrl+C, then prints the dropout counts. Use headphones: there is no echo cancellation, and the app warns when the output is the built-in speakers. If the terminal app has no microphone access, it stops with instructions instead of starting (System Settings → Privacy & Security → Microphone). On first use macOS asks for access; answer the dialog, and run again if the audio does not start.
@@ -38,6 +40,8 @@ dotnet run --project src/SolidBackup -- --harmonize corpus/recordings/singing.wa
 `--harmonize <wav>` runs the pitch detection and the harmony (see [`docs/harmony.md`](docs/harmony.md)) over a WAV file and prints the time, the note and the chord at every chord change. `--style`, `--key` and `--mode` override `HarmonyStyle`, `Key` and `Mode` for that run only. It also prints the key when `auto` first finds it and whenever the key changes, by `auto` or by Blues moving it. The file's own sample rate is used (44100 or 48000 Hz). `--harmonize` cannot be combined with `--passthrough` or `--devices`.
 
 The menu needs an interactive terminal.
+
+`--render <wav>` plays chords with the built-in synthesizer and writes them to a mono 16-bit WAV file at `SampleRate`; `--play` plays them on the output device (the setting or `--output`) until the end, or until `q`, `Esc` or Ctrl+C. `--sound` (`Pad`, `Organ` or `Pluck`) overrides `Sound` for that run, `--chords` takes chord symbols as in [`docs/harmony.md`](docs/harmony.md) separated by spaces (default `"C Am F G"`), and `--chord-ms` how long each lasts (100–10000 ms, default 1000); the last chord's release ends the sound. The first chord is in close voicing with its root in octave 3; each next one keeps the tones it shares with the one before and moves the others as little as it can, within C3–C5.
 
 ## Audio on macOS (E2-1 findings)
 
@@ -123,5 +127,6 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `PhraseResetMs` | `2000` | After a silence this long, the previous chord is forgotten (above 0) |
 | `KeyChangeSeconds` | `4` | With `auto`, a modulation is followed within this many seconds (above 0) |
 | `KeyFirstSeconds` | `2` | With `auto`, no key (and no chord) until at least this many seconds of notes have been heard (above 0) |
+| `Sound` | `Pad` | The synthesizer's sound: `Pad`, `Organ` or `Pluck` |
 
 The menu's choices are saved to `~/Library/Application Support/solid-backup/usersettings.json`, which only holds the settings that differ from the defaults. A missing or invalid user settings file is ignored with a message, and the defaults are used.
