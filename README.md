@@ -48,7 +48,7 @@ The **latency** is the input stream's reported latency + the chain's delay + one
 
 `--devices` lists the inputs and outputs and marks the system defaults, the chosen devices and the built-in speakers. `--input` and `--output` choose a device by its exact name (case does not matter) for that run only; they are not saved.
 
-`--harmonize <wav>` (with `--bpm` and `--time-signature` for Jazz's grid) runs the pitch detection and the harmony (see [`docs/harmony.md`](docs/harmony.md)) over a WAV file and prints the time, the note and the chord at every chord change. `--style`, `--key` and `--mode` override `HarmonyStyle`, `Key` and `Mode` for that run only. It also prints the key when `auto` first finds it and whenever the key changes, by `auto` or by Blues or Jazz moving it. The file's own sample rate is used (44100 or 48000 Hz). It cannot be combined with another way of running.
+`--harmonize <wav>` (with `--bpm` and `--time-signature` for the grid that Jazz and `ChordChangesPerBar` use; with `ChordChangesPerBar` `Off`, changes come as soon as the hold times allow) runs the pitch detection and the harmony (see [`docs/harmony.md`](docs/harmony.md)) over a WAV file and prints the time, the note and the chord at every chord change. `--style`, `--key` and `--mode` override `HarmonyStyle`, `Key` and `Mode` for that run only. It also prints the key when `auto` first finds it and whenever the key changes, by `auto` or by Blues or Jazz moving it. The file's own sample rate is used (44100 or 48000 Hz). It cannot be combined with another way of running.
 
 Started without arguments, the app shows the **menu**: a table of the current choices and one item each for the input, the output, the key (`auto`, or a tonic and then a mode), the style, the sound, the rhythm (pattern, tempo 40–240 BPM, time signature), the level features (any of them, or none) and recording (on or off), plus `Starta live` (preselected) and `Avsluta`. Every choice is saved at once to the user settings file below and is the next start's default; a choice that cannot be saved is still used for the session. A saved device that is no longer there is marked `(saknas)`, and the menu shows the speaker warning when the output is the built-in speakers. `Starta live` runs live mode as `--live` does, recording when recording is on; `q` or `Esc` lets the chord ring out (at most 1 s) and returns to the menu, and Ctrl+C quits the app once the audio and the recording are closed (with the exit code of live mode, 1 if the recording could not be saved). In the menu itself Ctrl+C quits at once, as everything is already saved. The menu needs an interactive terminal.
 
@@ -141,6 +141,8 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `Mode` | `Ionian` | The key's mode: `Ionian`, `Dorian`, `Phrygian`, `Lydian`, `Mixolydian`, `Aeolian` or `Locrian`; ignored with `auto` |
 | `MinNoteForChangeMs` | `120` | While singing, a new note must last this long before it may change the chord (above 0) |
 | `MinChordDurationMs` | `250` | While singing, the shortest time between two chord changes (above 0) |
+| `ChordChangesPerBar` | `2` | While singing, the most chord changes per bar, each on an allowed beat of the `Bpm` and `TimeSignature` grid: `1` (beat 1), `2` (beats 1 and 3), `Beat` (every beat) or `Off` (as soon as the hold times allow); the first chord after silence still comes at once. The menu's Ackordbyten choice |
+| `ChordChangeSensitivity` | `Medium` | How easily a new note changes the chord: `Low`, `Medium` or `High` multiply `MinNoteForChangeMs` and `MinChordDurationMs` by 2, 1 or 0.5. The menu's Ackordbyten choice |
 | `PhraseResetMs` | `2000` | After a silence this long, the previous chord is forgotten (above 0) |
 | `KeyChangeSeconds` | `4` | With `auto`, a modulation is followed within this many seconds (above 0) |
 | `KeyFirstSeconds` | `2` | With `auto`, no key (and no chord) until at least this many seconds of notes have been heard (above 0) |
@@ -148,7 +150,7 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `GateOn` | `true` | Level feature: notes count, and the chord sounds, only while the noise gate is open; off, the chord keeps sounding through silence until `PhraseResetMs` |
 | `DynamicsOn` | `true` | Level feature: the chord's strength follows the input level |
 | `ChordCharacterOn` | `true` | Level feature: soft singing gives a sparse chord (root and fifth), loud singing a full one (with the root an octave down) |
-| `OnsetsOn` | `true` | Level feature: an articulated note changes the chord at once, without the hold times, and strikes it anew |
+| `OnsetsOn` | `true` | Level feature: an articulated note is ready without the hold times (it changes the chord at once with `ChordChangesPerBar` `Off`, otherwise on the next allowed beat) and strikes the chord anew |
 | `DynamicsQuietDbfs` | `-42` | Dynamics: at this level and below the chord plays 24 dB below full strength (−90 to 0, below `DynamicsLoudDbfs`) |
 | `DynamicsLoudDbfs` | `-12` | Dynamics: at this level and above the chord plays at full strength (−90 to 0) |
 | `CharacterSparseBelowDbfs` | `-30` | Chord character: below this level the chord is sparse (−90 to 0, at least 6 dB below `CharacterFullAboveDbfs`) |

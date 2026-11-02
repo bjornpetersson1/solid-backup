@@ -65,11 +65,22 @@ public class LiveChainTests
     }
 
     [Theory]
-    [MemberData(nameof(Patterns))]
-    public void BothSides_AllocateNothingPerCallback(string pattern)
+    [InlineData("Held", "2", "Medium")]
+    [InlineData("Arpeggio", "2", "Medium")]
+    [InlineData("Strum", "2", "Medium")]
+    [InlineData("Held", "Beat", "High")]
+    [InlineData("Arpeggio", "1", "Low")]
+    [InlineData("Strum", "Off", "High")]
+    public void BothSides_AllocateNothingPerCallback(string pattern, string chordChangesPerBar, string sensitivity)
     {
         float[] voice = Singing.Samples[..(2 * Singing.SampleRate)];
-        AppSettings settings = TestSettings.Default with { SampleRate = Singing.SampleRate, RhythmPattern = pattern };
+        AppSettings settings = TestSettings.Default with
+        {
+            SampleRate = Singing.SampleRate,
+            RhythmPattern = pattern,
+            ChordChangesPerBar = chordChangesPerBar,
+            ChordChangeSensitivity = sensitivity,
+        };
         using SessionRecorder recorder = new(new KeptStream(), settings.SampleRate, settings.BufferSize);
         LiveChain chain = new(new Accompanist(settings), recorder);
         float[] output = new float[settings.BufferSize];

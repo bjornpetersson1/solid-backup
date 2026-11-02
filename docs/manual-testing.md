@@ -58,3 +58,9 @@ This is where the whole experiment is judged; the demo in `Constitution/Requirem
 4. **Dashboard (E6-3):** in a terminal 120 characters wide (and once at 80), the note and cents, level meter, chord, key, features on, latency and dropouts are readable, redrawn in place a few times per second without scrolling or flicker; with recording on, its length counts up.
 5. **The demo:** headphones, microphone, key `auto`, sound pad, pattern arpeggio, dynamics, gate and onsets on, recording on. Sing a simple melody: the key and chords follow you, louder and softer change loudness and character, silence plays nothing, and the recording plays back afterwards.
 6. **How it sounds:** the final judgement — do the chords sound right, and does it feel like playing an instrument?
+
+## E7 Playtest
+
+The owner's feedback from the E6 playtest, checked live in headphones from the menu.
+
+1. **Chord change rate (E7-1):** in the menu, Ackordbyten, try 1, 2 and Varje slag with each sensitivity, and sing a melody with Held and with Arpeggio. With 2 (the default) the chords no longer feel restless: they change on beats 1 and 3 at most; with 1 only on the downbeat; with Låg a short passing note does not move the chord, with Hög it does. The first chord after a pause still comes at once. The dashboard's Byten row shows the choice.

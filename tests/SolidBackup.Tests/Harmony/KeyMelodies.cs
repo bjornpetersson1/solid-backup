@@ -31,6 +31,29 @@ internal static class KeyMelodies
         return [.. estimates];
     }
 
+    /// <summary>
+    /// The estimates of a melody sung legato: each note lasts until the next starts, so its notes change while singing.
+    /// With <paramref name="speed"/> 2 it is sung twice as fast.
+    /// </summary>
+    public static PitchEstimate[] Legato(CorpusClip clip, double speed = 1)
+    {
+        ReferenceSegment[] notes = [.. clip.Reference.Segments.Where(segment => segment.HasPitch)];
+        PitchEstimate[] estimates = new PitchEstimate[(int)Math.Ceiling(clip.Reference.DurationMs / speed / StepMs)];
+        int next = 0;
+        for (int i = 0; i < estimates.Length; i++)
+        {
+            double time = i * StepMs;
+            while (next < notes.Length && notes[next].StartMs <= time * speed)
+            {
+                next++;
+            }
+
+            estimates[i] = next == 0 ? PitchEstimate.NoNote(time, 0) : new PitchEstimate(time, true, notes[next - 1].MedianPitch, 1);
+        }
+
+        return estimates;
+    }
+
     /// <summary>Every key the estimator reports, with the time of the estimate that changed it.</summary>
     public static List<(double TimeMs, Key Key)> KeyChanges(PitchEstimate[] estimates, double keyChangeSeconds = 4)
     {

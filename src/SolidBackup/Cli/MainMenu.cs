@@ -34,6 +34,7 @@ public sealed class MainMenu(
     private const string StyleChoice = "Stil";
     private const string SoundChoice = "Ljud";
     private const string RhythmChoice = "Rytm";
+    private const string ChordChangesChoice = "Ackordbyten";
     private const string FeaturesChoice = "Nivåfunktioner";
     private const string RecordingChoice = "Inspelning";
     private const string SystemDefault = "Systemets standard";
@@ -43,7 +44,7 @@ public sealed class MainMenu(
 
     /// <summary>The menu's items, in the order shown; the first is preselected.</summary>
     public static IReadOnlyList<string> Choices { get; } =
-        [StartChoice, InputChoice, OutputChoice, KeyChoice, StyleChoice, SoundChoice, RhythmChoice, FeaturesChoice, RecordingChoice, QuitChoice];
+        [StartChoice, InputChoice, OutputChoice, KeyChoice, StyleChoice, SoundChoice, RhythmChoice, ChordChangesChoice, FeaturesChoice, RecordingChoice, QuitChoice];
 
     public static string BpmRangeMessage => $"Ange ett tempo mellan {RhythmSettings.MinBpm} och {RhythmSettings.MaxBpm} BPM.";
 
@@ -173,6 +174,7 @@ public sealed class MainMenu(
         table.AddRow(StyleChoice, Markup.Escape(SettingTexts.Style(settings)));
         table.AddRow(SoundChoice, Markup.Escape(settings.Sound));
         table.AddRow(RhythmChoice, Markup.Escape(SettingTexts.Rhythm(settings)));
+        table.AddRow(ChordChangesChoice, Markup.Escape(SettingTexts.ChordChanges(settings)));
         table.AddRow(FeaturesChoice, Markup.Escape(SettingTexts.Features(settings)));
         table.AddRow(RecordingChoice, SettingTexts.OnOff(settings.RecordOn));
         console.Write(table);
@@ -199,6 +201,7 @@ public sealed class MainMenu(
             StyleChoice => settings with { HarmonyStyle = AskName<HarmonyStyle>("Vilken stil?", settings.HarmonyStyle, HarmonyNames.Style) },
             SoundChoice => settings with { Sound = AskName<Sound>("Vilket ljud?", settings.Sound) },
             RhythmChoice => AskRhythm(settings),
+            ChordChangesChoice => AskChordChanges(settings),
             FeaturesChoice => AskFeatures(settings),
             RecordingChoice => settings with { RecordOn = AskRecording(settings.RecordOn) },
             _ => settings,
@@ -252,6 +255,17 @@ public sealed class MainMenu(
             .AddChoices(RhythmSettings.AllTimeSignatures)
             .DefaultValue(settings.TimeSignature));
         return settings with { RhythmPattern = pattern, Bpm = bpm, TimeSignature = timeSignature };
+    }
+
+    private AppSettings AskChordChanges(AppSettings settings)
+    {
+        string perBar = console.Prompt(new SelectionPrompt<string>()
+            .Title("Hur många ackordbyten per takt?")
+            .AddChoices(ChordChangeSettings.AllPerBar)
+            .DefaultValue(settings.ChordChangesPerBar)
+            .UseConverter(value => ChordChangeSettings.TryParsePerBar(value, out ChordChangesPerBar parsed) ? SettingTexts.ChangesPerBar(parsed) : value));
+        string sensitivity = AskName<ChordChangeSensitivity>("Hur känsligt för nya toner?", settings.ChordChangeSensitivity, SettingTexts.Sensitivity);
+        return settings with { ChordChangesPerBar = perBar, ChordChangeSensitivity = sensitivity };
     }
 
     private AppSettings AskFeatures(AppSettings settings)

@@ -4,7 +4,7 @@
 - **Labels:** `E7 Playtest`
 - **Phase:** 7. Playtest
 - **Depends on:** none open (builds on E4-2 (#12), E5-5 (#18), E6-2 (#20), E6-3 (#21))
-- **Status:** Approved
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 1048 tests passed); feeling the chords live is a manual check for the owner
 
 ## Summary
 Two new settings make how often the chord changes a choice: a maximum number of chord changes per bar, with changes placed on beats of the tempo grid, and a sensitivity that scales the hold times. The owner found the chords too restless in the E6 playtest.
@@ -80,12 +80,12 @@ Church, C Ionian, 120 BPM in 4/4 (one beat = 500 ms, one bar = 2000 ms), times i
 6. **Manual check (owner):** the chords no longer feel restless when singing live. Added to `docs/manual-testing.md`.
 
 ## Tasks
-- [ ] `ChordChangesPerBar` and `ChordChangeSensitivity` in `AppSettings`, `appsettings.json`, validation (Swedish errors) and the README settings table.
-- [ ] The harmonizer applies the sensitivity factor and places melody-caused changes on the allowed beats of the grid; onsets and the first chord after silence as in the rules; Jazz's timed changes untouched.
-- [ ] Live mode, `harmonize` and other harmonizer users build it from the settings and the grid.
-- [ ] Menu item, settings table row and Swedish texts; the dashboard shows both values.
-- [ ] Update `docs/harmony.md` (rules, settings, example intro, C1–C9) and `docs/manual-testing.md`.
-- [ ] Tests: C1–C9, the corpus-wide grid test, the sensitivity test, defaults, validation, menu, dashboard, allocation.
+- [x] `ChordChangesPerBar` and `ChordChangeSensitivity` in `AppSettings`, `appsettings.json`, validation (Swedish errors) and the README settings table.
+- [x] The harmonizer applies the sensitivity factor and places melody-caused changes on the allowed beats of the grid; onsets and the first chord after silence as in the rules; Jazz's timed changes untouched.
+- [x] Live mode, `harmonize` and other harmonizer users build it from the settings and the grid.
+- [x] Menu item, settings table row and Swedish texts; the dashboard shows both values.
+- [x] Update `docs/harmony.md` (rules, settings, example intro, C1–C9) and `docs/manual-testing.md`.
+- [x] Tests: C1–C9, the corpus-wide grid test, the sensitivity test, defaults, validation, menu, dashboard, allocation.
 
 ## Decisions
 - **First chord after silence at once** (owner's choice): keeps the latency target with Held; only changes while singing wait for the beat. It is not counted against the maximum, so the AC's "every change on a beat" applies to changes while singing.
@@ -98,6 +98,24 @@ Church, C Ionian, 120 BPM in 4/4 (one beat = 500 ms, one bar = 2000 ms), times i
 - **Grid origin** (default): the start of live mode, the same grid as the patterns and Jazz; in tests, time 0.
 - **One menu item asking two things** (default), like the rhythm item (pattern, tempo, time signature).
 - **Setting names and values** (default): `ChordChangesPerBar` (`Off`, `1`, `2`, `Beat`) and `ChordChangeSensitivity` (`Low`, `Medium`, `High`), in the style of the existing settings.
+
+- **Where the rules live** (implementation): `ChordChangeSettings` parses `ChordChangesPerBar` (values `Off`, `1`, `2`, `Beat` as the enum `ChordChangesPerBar`) and maps the sensitivity to its factor; `ChangeBeats` gives the next allowed beat on the grid; `HarmonyTiming.FromSettings` scales the hold times and carries the beats (null for `Off`); the `Harmonizer` marks a note ready and changes on the beat.
+- **Jazz's loop and a note waiting for its beat** (implementation): the loop already waits for a new note still in its hold times (E5-6), since that note may stop it. A note that is ready and only waits for its beat no longer holds the loop back, so the loop keeps its own beats; with `Off` nothing changes, as a ready note is evaluated at once.
+- **The corpus-wide test leaves Jazz out** (implementation): its loop and II – V – I are exempt by the rules, and the loop's existing wait for a note in its hold times (E5-6) can put a loop change just after a beat, so its changes cannot be told from the melody's by their times. Jazz's melody-caused changes go through the same harmonizer path as the other seven styles, which are checked; C9 checks the loop.
+- **Corpus melodies sung legato** (implementation): the generated melodies have 50 ms gaps between notes, so every note would be a first note after silence. The grid test runs each melody both as generated and legato (each note held until the next), and the sensitivity test uses the C major melody legato at double speed (notes of 225 ms and 112 ms), where High (60 ms) lets the short notes through, Medium (120 ms) does not, and Low (500 ms chord) holds back more.
+- **The earlier examples and the level-feature tests run with `Off`** (implementation): `TestSettings.Examples` is the defaults with `Off`; the harmony examples and the chain helper for the level features use it, as "The rules" say.
+- **Dashboard row `Byten`** (implementation): one row, e.g. "2 per takt, känslighet medel"; the menu's table row Ackordbyten shows the same text.
+
+- **Clean code:** one Swedish mapping of the per-bar values (`SettingTexts.ChangesPerBar` on the enum) for the menu and the dashboard; the harmonizer's "ready" state is a nullable beat time; `ChangeBeats` works on the `TempoGrid`; the tests reuse `Melody.Changes` and `KeyMelodies` (legato melodies built once, with a forward walk), and the allowed beats are the theory's data.
+- **Code review fixes:**
+  - The beat is weighed against the chain's buffer, not the estimate's time, which lags its buffer by about half the detector's window: the `Accompanist` passes the time of the buffer's last sample, so the change is in effect for the buffer whose samples hold the beat, where Strum and Arpeggio strike it (a test with estimates 12 ms behind their buffers).
+  - The next allowed beat is found on the grid's samples (`TempoGrid.FirstStepAtOrAfter`, `StepSample`), with the time rounded to the nearest sample, so a time on a beat is never pushed to the next one by floating point (tests at 41, 43, 46 and 90 BPM).
+  - With the onsets on and a grid, the strike waits for the beat on which the harmony chooses the note (`AccompanimentFrame.ChangeAwaitsBeat` from `Harmonizer.AwaitsBeat`), so the new chord is the one struck; if the note ends or changes first nothing is struck. Without a grid the strike comes as before (a chain test).
+  - Jazz's loop, when it changes while a ready note waits for its beat, voices the note being sung (`_notePitchClass`), so V7 does not take the 11th of a tonic that no longer sounds (a test). With `Off` this is the same note as before.
+  - `Harmonizer.FromSettings` builds one `TempoGrid` for the rules and the timing (`HarmonyTiming.FromSettings(settings, grid)`).
+  - The dashboard's widest-values test uses `Beat`, the longest Byten text; `docs/harmony.md` names the menu item Ackordbyten as it is.
+
+- **PR review fixes:** the README's `--harmonize` line says the grid serves Jazz and `ChordChangesPerBar`, and the README and `AppSettings` describe the onsets as making a note ready, changing the chord at once with `Off` or on the next allowed beat.
 
 ## Open Questions
 - None.

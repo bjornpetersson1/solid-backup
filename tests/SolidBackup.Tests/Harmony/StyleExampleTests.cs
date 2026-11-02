@@ -119,7 +119,7 @@ public sealed class StyleExampleTests
     [Fact]
     public void FreeWithAuto_ChoosesFromTheFirstNote()
     {
-        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Default with { HarmonyStyle = "Free" });
+        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Examples with { HarmonyStyle = "Free" });
 
         List<(double TimeMs, Chord Chord)> changes = Melody.Changes(harmonizer, Melody.Legato("C", "A", "F#"));
 
@@ -200,7 +200,7 @@ public sealed class StyleExampleTests
 
     private static List<(double TimeMs, Chord Chord)> FreeChanges(PitchEstimate[] estimates, string key)
     {
-        return Melody.Changes(Harmonizer.FromSettings(TestSettings.Default with { HarmonyStyle = "Free", Key = key }), estimates);
+        return Melody.Changes(Harmonizer.FromSettings(TestSettings.Examples with { HarmonyStyle = "Free", Key = key }), estimates);
     }
 
     private static IChordRules Rules(HarmonyStyle style)

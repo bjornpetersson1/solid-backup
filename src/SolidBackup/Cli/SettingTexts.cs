@@ -26,6 +26,42 @@ public static class SettingTexts
         return $"{settings.RhythmPattern}, {settings.Bpm} BPM, {settings.TimeSignature}";
     }
 
+    /// <summary>How often the chord may change, e.g. "2 per takt, känslighet medel".</summary>
+    public static string ChordChanges(AppSettings settings)
+    {
+        string perBar = ChordChangeSettings.TryParsePerBar(settings.ChordChangesPerBar, out ChordChangesPerBar parsed)
+            ? parsed is ChordChangesPerBar.One or ChordChangesPerBar.Two ? $"{ChangesPerBar(parsed)} per takt" : ChangesPerBar(parsed).ToLowerInvariant()
+            : settings.ChordChangesPerBar;
+        string sensitivity = SettingNames.TryParse(settings.ChordChangeSensitivity, out ChordChangeSensitivity value)
+            ? Sensitivity(value).ToLowerInvariant()
+            : settings.ChordChangeSensitivity;
+        return $"{perBar}, känslighet {sensitivity}";
+    }
+
+    /// <summary>The menu's name for a value of <c>ChordChangesPerBar</c>: Av, 1, 2 or Varje slag.</summary>
+    public static string ChangesPerBar(ChordChangesPerBar perBar)
+    {
+        return perBar switch
+        {
+            ChordChangesPerBar.Off => "Av",
+            ChordChangesPerBar.One => "1",
+            ChordChangesPerBar.Two => "2",
+            ChordChangesPerBar.Beat => "Varje slag",
+            _ => perBar.ToString(),
+        };
+    }
+
+    public static string Sensitivity(ChordChangeSensitivity sensitivity)
+    {
+        return sensitivity switch
+        {
+            ChordChangeSensitivity.Low => "Låg",
+            ChordChangeSensitivity.Medium => "Medel",
+            ChordChangeSensitivity.High => "Hög",
+            _ => sensitivity.ToString(),
+        };
+    }
+
     /// <summary>The level features that are on, by their Swedish names, or "inga".</summary>
     public static string Features(AppSettings settings)
     {

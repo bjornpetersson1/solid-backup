@@ -184,6 +184,16 @@ public static class SettingsValidator
             return new(nameof(AppSettings.MinChordDurationMs), $"{settings.MinChordDurationMs} ms måste vara större än 0");
         }
 
+        if (!ChordChangeSettings.TryParsePerBar(settings.ChordChangesPerBar, out _))
+        {
+            return new(nameof(AppSettings.ChordChangesPerBar), $"\"{settings.ChordChangesPerBar}\" är inget giltigt antal ackordbyten per takt; välj {string.Join(", ", ChordChangeSettings.AllPerBar)}");
+        }
+
+        if (!SettingNames.TryParse<ChordChangeSensitivity>(settings.ChordChangeSensitivity, out _))
+        {
+            return new(nameof(AppSettings.ChordChangeSensitivity), $"\"{settings.ChordChangeSensitivity}\" är ingen känd känslighet; välj {string.Join(", ", Enum.GetNames<ChordChangeSensitivity>())}");
+        }
+
         if (NotPositive(settings.PhraseResetMs))
         {
             return new(nameof(AppSettings.PhraseResetMs), $"{settings.PhraseResetMs} ms måste vara större än 0");

@@ -14,7 +14,8 @@ internal static class Chain
     /// <summary>Default settings in a fixed key (C Ionian, Church), with only the named features on.</summary>
     public static AppSettings Settings(params string[] features)
     {
-        AppSettings settings = TestSettings.Default with { Key = "C", Mode = "Ionian", HarmonyStyle = "Church" };
+        // Without a change-rate grid, so a chord changes once its hold times have passed (docs/harmony.md's examples).
+        AppSettings settings = TestSettings.Examples with { Key = "C", Mode = "Ionian", HarmonyStyle = "Church" };
         Assert.True(LevelFeatures.TrySwitchOnly(settings, features, LevelFeatures.All, out AppSettings switched));
         return switched;
     }

@@ -99,8 +99,12 @@ public sealed class Accompanist : IAudioProcessor
             feature.BeforeHarmony(analysis, ref harmonyInput);
         }
 
-        Harmonizer.Process(harmonyInput.Estimate, harmonyInput.Immediate);
-        AccompanimentFrame frame = AccompanimentFrame.Neutral(Harmonizer.Chord, Harmonizer.Chord is not null && Harmonizer.InPhrase);
+        // A change on a beat is in effect for the buffer whose samples hold the beat, where the pattern plays it.
+        Harmonizer.Process(harmonyInput.Estimate, harmonyInput.Immediate, AnalysisFrame.TimeMsAt(analysis.EndSample - 1, _sampleRate));
+        AccompanimentFrame frame = AccompanimentFrame.Neutral(Harmonizer.Chord, Harmonizer.Chord is not null && Harmonizer.InPhrase) with
+        {
+            ChangeAwaitsBeat = Harmonizer.AwaitsBeat,
+        };
         foreach (ILevelFeature feature in _features)
         {
             feature.AfterHarmony(analysis, ref frame);

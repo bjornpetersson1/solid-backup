@@ -9,7 +9,7 @@ public sealed class HarmonizerAutoKeyTests
     [Fact]
     public void NoChordUntilTheKeyIsKnown_ThenAChordAtOnce()
     {
-        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Default);
+        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Examples);
         foreach (PitchEstimate estimate in KeyMelodies.Estimates(KeyMelodies.Clip("generated-melody-a-minor")))
         {
             harmonizer.Process(estimate);
@@ -31,7 +31,7 @@ public sealed class HarmonizerAutoKeyTests
     [Fact]
     public void Modulation_ChangesTheKeyTheChordsAreChosenIn()
     {
-        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Default);
+        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Examples);
         List<Key> keys = [];
         foreach (PitchEstimate estimate in KeyMelodies.Estimates(KeyMelodies.Clip("generated-melody-c-to-g-major")))
         {
@@ -50,9 +50,9 @@ public sealed class HarmonizerAutoKeyTests
     public void PerEstimateCallWithAuto_AllocatesNothing()
     {
         PitchEstimate[] estimates = KeyMelodies.Estimates(KeyMelodies.Clip("generated-melody-c-to-g-major"));
-        Melody.Run(Harmonizer.FromSettings(TestSettings.Default), estimates);
+        Melody.Run(Harmonizer.FromSettings(TestSettings.Examples), estimates);
 
-        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Default);
+        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Examples);
         long before = GC.GetAllocatedBytesForCurrentThread();
         int changes = Melody.Run(harmonizer, estimates);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
@@ -65,7 +65,7 @@ public sealed class HarmonizerAutoKeyTests
     [Fact]
     public void FixedKey_IsUsedFromTheFirstNote()
     {
-        AppSettings settings = TestSettings.Default with { Key = "D", Mode = "Dorian" };
+        AppSettings settings = TestSettings.Examples with { Key = "D", Mode = "Dorian" };
 
         Harmonizer harmonizer = Harmonizer.FromSettings(settings);
 
