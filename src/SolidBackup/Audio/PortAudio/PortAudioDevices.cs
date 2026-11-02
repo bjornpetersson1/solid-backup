@@ -34,6 +34,8 @@ public sealed class PortAudioDevices : IAudioDevices
         _output.HandOverOverruns,
         _output.DriftCorrections);
 
+    public ReportedLatency Latency => new(_input.LatencyMs, _output.LatencyMs);
+
     /// <summary>Opens PortAudio and chooses the devices named in the settings (empty means the system default).</summary>
     public static PortAudioDevices Open(AppSettings settings)
     {

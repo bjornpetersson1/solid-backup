@@ -2,6 +2,7 @@ using System.CommandLine;
 
 using SolidBackup.Cli;
 using SolidBackup.Configuration;
+using SolidBackup.Tests.Audio.Devices;
 
 using Spectre.Console.Testing;
 
@@ -36,8 +37,8 @@ public class AppCommandTests
     }
 
     [Theory]
-    [InlineData("--input", "USB Audio", "--input gäller bara tillsammans med --passthrough eller --devices.")]
-    [InlineData("--output", "Externa hörlurar", "--output gäller bara tillsammans med --passthrough, --devices eller --play.")]
+    [InlineData("--input", "USB Audio", "--input gäller bara tillsammans med --passthrough, --live eller --devices.")]
+    [InlineData("--output", "Externa hörlurar", "--output gäller bara tillsammans med --passthrough, --live, --devices eller --play.")]
     public void DeviceOptionWithoutPassThroughOrDevices_FailsWithSwedishMessage(string option, string name, string message)
     {
         (int exitCode, string output, string error) = Invoke(option, name);
@@ -70,6 +71,16 @@ public class AppCommandTests
     }
 
     [Fact]
+    public void Help_ListsLiveWithSwedishDescription()
+    {
+        (int exitCode, string output, _) = Invoke("--help");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--live", output);
+        Assert.Contains("Spela live: mikrofonen genom analys, harmoni och synt till utgången, tills q eller Esc.", output);
+    }
+
+    [Fact]
     public void Help_ListsHarmonizeOptionsWithSwedishDescriptions()
     {
         (int exitCode, string output, _) = Invoke("--help");
@@ -91,7 +102,7 @@ public class AppCommandTests
         (int exitCode, string output, string error) = Invoke(option, value);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal($"{option} gäller bara tillsammans med --harmonize eller --accompany. {AppCommand.HelpHint}", error.Trim());
+        Assert.Equal($"{option} gäller bara tillsammans med --live, --harmonize eller --accompany. {AppCommand.HelpHint}", error.Trim());
         Assert.Empty(output);
     }
 
@@ -119,10 +130,19 @@ public class AppCommandTests
     [Fact]
     public void NoArguments_RunsMenu()
     {
+        // Avsluta is the last item; Starta live is preselected.
         TestConsole console = new TestConsole().Interactive();
+        foreach (int _ in Enumerable.Range(0, MainMenu.Choices.Count - 1))
+        {
+            console.Input.PushKey(ConsoleKey.DownArrow);
+        }
+
         console.Input.PushKey(ConsoleKey.Enter);
 
-        int exitCode = AppCommand.Run([], () => console);
+        SettingsStore store = new(SettingsStore.BundledDefaultsPath, Path.Combine(Path.GetTempPath(), $"solid-backup-{Guid.NewGuid():N}.json"));
+        MainMenu menu = new(console, store, () => new FakeCatalog(), TestPreflight.Create(), _ => throw new InvalidOperationException("Live mode is not started."));
+
+        int exitCode = AppCommand.Run([], () => console, createMenu: _ => menu);
 
         Assert.Equal(0, exitCode);
         Assert.Contains(MainMenu.Title, console.Output);
@@ -187,6 +207,8 @@ public class AppCommandTests
     [InlineData("--harmonize", "--play", "--play", "--harmonize", "x.wav")]
     [InlineData("--accompany", "--play", "--accompany", "x.wav", "--render", "y.wav", "--play")]
     [InlineData("--passthrough", "--devices", "--passthrough", "--devices")]
+    [InlineData("--passthrough", "--live", "--live", "--passthrough")]
+    [InlineData("--live", "--harmonize", "--live", "--harmonize", "x.wav")]
     public void TwoModes_FailWithSwedishMessage(string first, string second, params string[] args)
     {
         (int exitCode, _, string error) = Invoke(args);
@@ -219,7 +241,7 @@ public class AppCommandTests
         (int exitCode, _, string error) = Invoke("--record");
 
         Assert.Equal(1, exitCode);
-        Assert.Equal($"{AppCommand.OptionAloneMessage("--record", ["--passthrough"])} {AppCommand.HelpHint}", error.Trim());
+        Assert.Equal($"{AppCommand.OptionAloneMessage("--record", ["--passthrough", "--live"])} {AppCommand.HelpHint}", error.Trim());
     }
 
     [Fact]
@@ -228,7 +250,7 @@ public class AppCommandTests
         (_, string output, _) = Invoke("--help");
 
         Assert.Contains("--record", output);
-        Assert.Contains("Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough).", output);
+        Assert.Contains("Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough eller --live).", output);
     }
 
     [Fact]
@@ -243,9 +265,9 @@ public class AppCommandTests
     }
 
     [Theory]
-    [InlineData("--pattern", "Strum", new[] { "--accompany", "--render", "--play" })]
-    [InlineData("--bpm", "120", new[] { "--harmonize", "--accompany", "--render", "--play" })]
-    [InlineData("--time-signature", "3/4", new[] { "--harmonize", "--accompany", "--render", "--play" })]
+    [InlineData("--pattern", "Strum", new[] { "--live", "--accompany", "--render", "--play" })]
+    [InlineData("--bpm", "120", new[] { "--live", "--harmonize", "--accompany", "--render", "--play" })]
+    [InlineData("--time-signature", "3/4", new[] { "--live", "--harmonize", "--accompany", "--render", "--play" })]
     public void RhythmOptionWithoutAMode_FailsWithSwedishMessage(string option, string value, string[] modes)
     {
         (int exitCode, _, string error) = Invoke(option, value);
@@ -264,15 +286,15 @@ public class AppCommandTests
     }
 
     [Theory]
-    [InlineData("--features", "gate")]
-    [InlineData("--no-voice")]
-    public void AccompanyOptionWithoutAccompany_FailsWithSwedishMessage(params string[] args)
+    [InlineData(new[] { "--live", "--accompany" }, "--features", "gate")]
+    [InlineData(new[] { "--accompany" }, "--no-voice")]
+    public void AccompanyOptionWithoutAccompany_FailsWithSwedishMessage(string[] modes, params string[] args)
     {
         (int alone, _, string aloneError) = Invoke(args);
         (int withRender, _, string renderError) = Invoke([.. args, "--render", "x.wav"]);
 
         Assert.Equal(1, alone);
-        Assert.Equal($"{AppCommand.OptionAloneMessage(args[0], ["--accompany"])} {AppCommand.HelpHint}", aloneError.Trim());
+        Assert.Equal($"{AppCommand.OptionAloneMessage(args[0], modes)} {AppCommand.HelpHint}", aloneError.Trim());
         Assert.Equal(1, withRender);
         Assert.Equal($"{AppCommand.CombinedMessage(args[0], "--render")} {AppCommand.HelpHint}", renderError.Trim());
     }

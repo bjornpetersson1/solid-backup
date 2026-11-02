@@ -97,4 +97,7 @@ public sealed record AppSettings
 
     /// <summary>Where recordings go: a folder relative to the current directory, or an absolute path.</summary>
     public required string RecordingFolder { get; init; }
+
+    /// <summary>Whether live mode started from the menu records the session.</summary>
+    public required bool RecordOn { get; init; }
 }

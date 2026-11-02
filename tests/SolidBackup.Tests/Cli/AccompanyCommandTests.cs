@@ -32,7 +32,7 @@ public sealed class AccompanyCommandTests : IDisposable
         TestConsole console = TestConsoles.Wide();
         string output = Path.Combine(_folder, "out.wav");
 
-        int exitCode = Command(console).Run(_input, output, new AccompanyOptions(Key: "C"));
+        int exitCode = Command(console).Run(_input, output, new AccompanyOptions(new SettingOverrides(Key: "C")));
 
         Assert.Equal(0, exitCode);
         float[] mixed = WavReader.Read(output).Samples;
@@ -46,7 +46,7 @@ public sealed class AccompanyCommandTests : IDisposable
     {
         string output = Path.Combine(_folder, "out.wav");
 
-        Command(TestConsoles.Wide()).Run(_input, output, new AccompanyOptions(Key: "C", NoVoice: true));
+        Command(TestConsoles.Wide()).Run(_input, output, new AccompanyOptions(new SettingOverrides(Key: "C"), NoVoice: true));
 
         float[] accompaniment = WavReader.Read(output).Samples;
         Assert.All(accompaniment[..(TestSignal.SampleRate / 10)], sample => Assert.Equal(0, sample));
@@ -60,7 +60,7 @@ public sealed class AccompanyCommandTests : IDisposable
     {
         TestConsole console = TestConsoles.Wide();
 
-        Command(console).Run(_input, Path.Combine(_folder, "out.wav"), new AccompanyOptions(Key: "C", Features: features));
+        Command(console).Run(_input, Path.Combine(_folder, "out.wav"), new AccompanyOptions(new SettingOverrides(Key: "C", Features: features)));
 
         Assert.Contains(shown, console.Output);
     }
@@ -73,10 +73,10 @@ public sealed class AccompanyCommandTests : IDisposable
     {
         TestConsole console = TestConsoles.Wide();
 
-        int exitCode = Command(console).Run(_input, Path.Combine(_folder, "out.wav"), new AccompanyOptions(Features: features));
+        int exitCode = Command(console).Run(_input, Path.Combine(_folder, "out.wav"), new AccompanyOptions(new SettingOverrides(Features: features)));
 
         Assert.Equal(1, exitCode);
-        Assert.Contains(AccompanyCommand.UnknownFeatureMessage(features), console.Output);
+        Assert.Contains(SettingOverrides.UnknownFeatureMessage(features), console.Output);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class AccompanyCommandTests : IDisposable
         File.WriteAllBytes(loud, TestWav.Float32(TestSignal.SampleRate, 1, TestSignal.Sine(57, 0.95, 1)));
         string output = Path.Combine(_folder, "out.wav");
 
-        Command(TestConsoles.Wide()).Run(loud, output, new AccompanyOptions(Key: "C"));
+        Command(TestConsoles.Wide()).Run(loud, output, new AccompanyOptions(new SettingOverrides(Key: "C")));
 
         float[] mixed = WavReader.Read(output).Samples;
         Assert.True(mixed.Max(Math.Abs) <= 1);
@@ -98,7 +98,7 @@ public sealed class AccompanyCommandTests : IDisposable
     {
         TestConsole console = TestConsoles.Wide();
 
-        Command(console).Run(_input, Path.Combine(_folder, "out.wav"), new AccompanyOptions(Style: "Free", Key: "G"));
+        Command(console).Run(_input, Path.Combine(_folder, "out.wav"), new AccompanyOptions(new SettingOverrides(Style: "Free", Key: "G")));
 
         Assert.Contains(HarmonySetup.KeyIgnoredMessage, console.Output);
     }
@@ -109,8 +109,8 @@ public sealed class AccompanyCommandTests : IDisposable
         string held = Path.Combine(_folder, "held.wav");
         string strum = Path.Combine(_folder, "strum.wav");
 
-        Command(TestConsoles.Wide()).Run(_input, held, new AccompanyOptions(Key: "C", NoVoice: true));
-        Command(TestConsoles.Wide()).Run(_input, strum, new AccompanyOptions(Key: "C", NoVoice: true, Rhythm: new RhythmOverrides("Strum", 120)));
+        Command(TestConsoles.Wide()).Run(_input, held, new AccompanyOptions(new SettingOverrides(Key: "C"), NoVoice: true));
+        Command(TestConsoles.Wide()).Run(_input, strum, new AccompanyOptions(new SettingOverrides(Key: "C", Rhythm: new RhythmOverrides("Strum", 120)), NoVoice: true));
 
         Assert.NotEqual(WavReader.Read(held).Samples, WavReader.Read(strum).Samples);
     }
@@ -120,7 +120,7 @@ public sealed class AccompanyCommandTests : IDisposable
     {
         string output = Path.Combine(_folder, "jazz.wav");
 
-        int exitCode = Command(TestConsoles.Wide()).Run(_input, output, new AccompanyOptions(Style: "Jazz", Key: "A", NoVoice: true));
+        int exitCode = Command(TestConsoles.Wide()).Run(_input, output, new AccompanyOptions(new SettingOverrides(Style: "Jazz", Key: "A"), NoVoice: true));
 
         Assert.Equal(0, exitCode);
         Assert.Contains(WavReader.Read(output).Samples, sample => Math.Abs(sample) > 0.01);
@@ -132,7 +132,7 @@ public sealed class AccompanyCommandTests : IDisposable
         TestConsole console = TestConsoles.Wide();
         string missing = Path.Combine(_folder, "saknas.wav");
 
-        int exitCode = Command(console).Run(missing, Path.Combine(_folder, "out.wav"), new AccompanyOptions());
+        int exitCode = Command(console).Run(missing, Path.Combine(_folder, "out.wav"), new AccompanyOptions(new SettingOverrides()));
 
         Assert.Equal(1, exitCode);
         Assert.Contains(RecordingFiles.MissingFileMessage(missing), console.Output);

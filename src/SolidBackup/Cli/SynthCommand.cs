@@ -13,7 +13,7 @@ namespace SolidBackup.Cli;
 
 /// <summary>
 /// Renders chords with the synthesizer to a WAV file (<c>--render</c>) or plays them on the output device
-/// (<c>--play</c>), so the sounds can be heard before live mode exists. <c>--sound</c> overrides the setting
+/// (<c>--play</c>), so a sound can be heard on its own, without singing. <c>--sound</c> overrides the setting
 /// for this run only.
 /// </summary>
 public sealed class SynthCommand(
@@ -73,7 +73,7 @@ public sealed class SynthCommand(
 
             playback.Start(prepared.Samples);
             console.WriteLine(PlayingMessage);
-            bool finished = StopKeys.WaitForStop(console, () => playback.IsFinished, cancellation);
+            bool finished = StopKeys.WaitForStop(console, () => playback.IsFinished, cancellation) == StopReason.Finished;
             playback.Stop();
             console.WriteLine(PlayedSummary(finished, playback.Underflows));
             return 0;

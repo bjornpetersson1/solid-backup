@@ -23,11 +23,13 @@ public static class AppCommand
     /// Parses and runs the command line. Parse errors and unexpected exceptions get a Swedish
     /// message and exit code 1, instead of System.CommandLine's English text or a stack trace.
     /// </summary>
-    public static int Run(string[] args, Func<IAnsiConsole> createConsole, InvocationConfiguration? configuration = null)
+    /// <param name="createMenu">Builds the menu shown without arguments; the real devices and settings when null.</param>
+    public static int Run(
+        string[] args, Func<IAnsiConsole> createConsole, InvocationConfiguration? configuration = null, Func<IAnsiConsole, MainMenu>? createMenu = null)
     {
         configuration ??= new InvocationConfiguration();
         configuration.EnableDefaultExceptionHandler = false;
-        ParseResult parseResult = Create(createConsole).Parse(args);
+        ParseResult parseResult = Create(createConsole, createMenu).Parse(args);
         if (parseResult.Errors.Count > 0)
         {
             configuration.Error.WriteLine($"{ParseErrorMessage(parseResult)} {HelpHint}");
@@ -45,8 +47,9 @@ public static class AppCommand
         }
     }
 
-    public static RootCommand Create(Func<IAnsiConsole> createConsole)
+    public static RootCommand Create(Func<IAnsiConsole> createConsole, Func<IAnsiConsole, MainMenu>? createMenu = null)
     {
+        createMenu ??= CreateMenu;
         RootCommand root = new(Description);
         root.Options.OfType<HelpOption>().Single().Description = "Visa hjälp och användning.";
         VersionOption versionOption = root.Options.OfType<VersionOption>().Single();
@@ -55,6 +58,10 @@ public static class AppCommand
         Option<bool> passThroughOption = new("--passthrough")
         {
             Description = "Spela upp mikrofonen direkt i utgången (för att kontrollera ljudet).",
+        };
+        Option<bool> liveOption = new("--live")
+        {
+            Description = "Spela live: mikrofonen genom analys, harmoni och synt till utgången, tills q eller Esc.",
         };
         Option<bool> devicesOption = new("--devices")
         {
@@ -125,7 +132,7 @@ public static class AppCommand
         };
         Option<bool> recordOption = new("--record")
         {
-            Description = "Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough).",
+            Description = "Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough eller --live).",
         };
         Option<bool> noVoiceOption = new("--no-voice")
         {
@@ -133,9 +140,10 @@ public static class AppCommand
         };
         Option<string> featuresOption = new("--features")
         {
-            Description = $"Nivåfunktioner att använda den här gången, med kommatecken emellan: {string.Join(", ", LevelFeatures.All.Select(entry => entry.Name))}, eller {AccompanyCommand.NoFeatures}.",
+            Description = $"Nivåfunktioner att använda den här gången, med kommatecken emellan: {string.Join(", ", LevelFeatures.All.Select(entry => entry.Name))}, eller {SettingOverrides.NoFeatures}.",
         };
         root.Options.Add(passThroughOption);
+        root.Options.Add(liveOption);
         root.Options.Add(devicesOption);
         root.Options.Add(inputOption);
         root.Options.Add(outputOption);
@@ -159,6 +167,7 @@ public static class AppCommand
         RunMode[] modes =
         [
             new(passThroughOption, [inputOption, outputOption, recordOption]),
+            new(liveOption, [inputOption, outputOption, styleOption, keyOption, modeOption, soundOption, featuresOption, patternOption, bpmOption, timeSignatureOption, recordOption]),
             new(devicesOption, [inputOption, outputOption]),
             new(harmonizeOption, [styleOption, keyOption, modeOption, bpmOption, timeSignatureOption]),
             new(accompanyOption, [renderOption, styleOption, keyOption, modeOption, soundOption, featuresOption, noVoiceOption, patternOption, bpmOption, timeSignatureOption]),
@@ -178,9 +187,10 @@ public static class AppCommand
             string? mode = parseResult.GetValue(modeOption);
             string? sound = parseResult.GetValue(soundOption);
             RhythmOverrides rhythm = new(parseResult.GetValue(patternOption), parseResult.GetValue(bpmOption), parseResult.GetValue(timeSignatureOption));
+            SettingOverrides overrides = new(style, key, mode, sound, parseResult.GetValue(featuresOption), rhythm);
             if (parseResult.GetValue(accompanyOption) is { } recording && parseResult.GetValue(renderOption) is { } accompanied)
             {
-                AccompanyOptions options = new(style, key, mode, sound, parseResult.GetValue(featuresOption), parseResult.GetValue(noVoiceOption), rhythm);
+                AccompanyOptions options = new(overrides, parseResult.GetValue(noVoiceOption));
                 return new AccompanyCommand(createConsole(), LoadSettings).Run(recording, accompanied, options);
             }
 
@@ -203,6 +213,12 @@ public static class AppCommand
                 return new HarmonizeCommand(createConsole(), LoadSettings).Run(harmonizePath, style, key, mode, rhythm);
             }
 
+            if (parseResult.GetValue(liveOption))
+            {
+                return new LiveCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight())
+                    .Run(overrides, record: parseResult.GetValue(recordOption));
+            }
+
             if (parseResult.GetValue(devicesOption))
             {
                 return new DeviceListCommand(createConsole(), loadSettings, PortAudioSession.Open, CreatePreflight()).Run();
@@ -210,7 +226,7 @@ public static class AppCommand
 
             return parseResult.GetValue(passThroughOption)
                 ? new PassThroughCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight()).Run(record: parseResult.GetValue(recordOption))
-                : new MainMenu(createConsole()).Run();
+                : createMenu(createConsole()).Run();
         });
         return root;
     }
@@ -272,9 +288,21 @@ public static class AppCommand
         return loaded with { Settings = settings };
     }
 
+    private static MainMenu CreateMenu(IAnsiConsole console)
+    {
+        AudioPreflight preflight = CreatePreflight();
+        LiveCommand live = new(console, LoadSettings, PortAudioDevices.Open, preflight, returnsToMenu: true);
+        return new MainMenu(console, CreateStore(), PortAudioSession.Open, preflight, settings => live.Play(settings, settings.RecordOn));
+    }
+
     private static SettingsLoadResult LoadSettings()
     {
-        return new SettingsStore(SettingsStore.BundledDefaultsPath, SettingsStore.DefaultUserSettingsPath).Load();
+        return CreateStore().Load();
+    }
+
+    private static SettingsStore CreateStore()
+    {
+        return new SettingsStore(SettingsStore.BundledDefaultsPath, SettingsStore.DefaultUserSettingsPath);
     }
 
     private static AudioPreflight CreatePreflight()

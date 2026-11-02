@@ -182,7 +182,7 @@ public sealed class AudioPipelineTests : IDisposable
             Calls.Add("input stop");
         }
 
-        public void Start()
+        public void Start(IAudioRenderer? renderer = null)
         {
             Calls.Add("output start");
         }

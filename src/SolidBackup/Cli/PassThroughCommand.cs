@@ -23,8 +23,7 @@ public sealed class PassThroughCommand(
     public const string RunningMessage = "Medhörning pågår: mikrofonen spelas upp i utgången. Tryck q eller Esc för att sluta.";
     public const string NotInteractiveMessage = "Medhörningen kräver en interaktiv terminal.";
 
-    private readonly Func<AppSettings, (string Path, Stream Stream)> _createRecording =
-        createRecording ?? (settings => RecordingFile.Create(settings.RecordingFolder, DateTime.Now));
+    private readonly AudioSession _session = new(console, openDevices, preflight, createRecording);
 
     /// <summary>Runs until a stop key, Ctrl+C or <paramref name="cancellation"/>; with <paramref name="record"/>, records the input and the output to WAV.</summary>
     public int Run(CancellationToken cancellation = default, bool record = false)
@@ -36,74 +35,7 @@ public sealed class PassThroughCommand(
 
         SettingsLoadResult loaded = loadSettings();
         ConsoleMessages.SettingsMessage(console, loaded);
-
-        MicrophoneCheck microphone = preflight.CheckMicrophone();
-        if (microphone is { Blocked: true, Message: { } problem })
-        {
-            return ConsoleMessages.Error(console, problem);
-        }
-
-        if (microphone.Message is { } notice)
-        {
-            ConsoleMessages.Warning(console, notice);
-        }
-
-        try
-        {
-            using IAudioDevices devices = openDevices(loaded.Settings);
-            if (preflight.SpeakerProblem(devices.OutputDeviceName) is { } warning)
-            {
-                ConsoleMessages.Warning(console, warning);
-            }
-
-            RecordingSession? recording = null;
-            if (record)
-            {
-                recording = RecordingSession.Open(
-                    console, devices.Input, loaded.Settings.RecordingFolder, () => _createRecording(loaded.Settings));
-                if (recording is null)
-                {
-                    return 1;
-                }
-            }
-
-            AudioPipeline pipeline = new(devices.Input, devices.Output, new PassThroughProcessor(), recording?.Recorder);
-            try
-            {
-                pipeline.Start();
-            }
-            catch
-            {
-                recording?.Discard();
-                throw;
-            }
-
-            bool recorded = true;
-            try
-            {
-                console.WriteLine(RunningMessage);
-                StopKeys.WaitForStop(console, () => false, cancellation);
-            }
-            finally
-            {
-                // The audio stops before the file is finished, and the file is finished even if stopping fails.
-                try
-                {
-                    pipeline.Stop();
-                }
-                finally
-                {
-                    recorded = recording?.Finish(console) ?? true;
-                }
-            }
-
-            console.WriteLine(Summary(devices.Counters));
-            return recorded ? 0 : 1;
-        }
-        catch (AudioDeviceException exception)
-        {
-            return ConsoleMessages.AudioError(console, exception);
-        }
+        return _session.Run(loaded.Settings, record, () => new PassThrough(), cancellation);
     }
 
     public static string Summary(AudioCounters counters)
@@ -113,5 +45,34 @@ public sealed class PassThroughCommand(
             + $"tomma överlämningar: {counters.HandOverUnderruns}, "
             + $"tappade överlämningar: {counters.HandOverOverruns}, "
             + $"driftkorrigeringar: {counters.DriftCorrections}.";
+    }
+
+    private sealed class PassThrough : IAudioActivity
+    {
+        private AudioPipeline? _pipeline;
+        private IAudioDevices? _devices;
+
+        public void Start(AudioStart start)
+        {
+            _devices = start.Devices;
+            _pipeline = new AudioPipeline(start.Devices.Input, start.Devices.Output, new PassThroughProcessor(), start.Recorder);
+            _pipeline.Start();
+        }
+
+        public void WaitForStop(IAnsiConsole console, CancellationToken cancellation)
+        {
+            console.WriteLine(RunningMessage);
+            StopKeys.WaitForStop(console, () => false, cancellation);
+        }
+
+        public void Stop()
+        {
+            _pipeline?.Stop();
+        }
+
+        public string Summary()
+        {
+            return PassThroughCommand.Summary(_devices?.Counters ?? default);
+        }
     }
 }

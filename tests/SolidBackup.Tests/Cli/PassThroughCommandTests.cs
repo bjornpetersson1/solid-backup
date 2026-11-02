@@ -13,7 +13,7 @@ public class PassThroughCommandTests
 {
     private static readonly AppSettings Settings = TestSettings.Default;
 
-    private static readonly AudioCounters Counters = new(1, 2, 3, 4, 5);
+    private static readonly AudioCounters Counters = FakeDevices.Counters;
 
     [Theory]
     [InlineData(ConsoleKey.Q, 'q')]
@@ -281,93 +281,6 @@ public class PassThroughCommandTests
         TestConsole console, Func<AppSettings, IAudioDevices> openDevices, AudioPreflight? preflight = null)
     {
         return new PassThroughCommand(console, () => new(Settings, null), openDevices, preflight ?? TestPreflight.Create());
-    }
-
-    private sealed class FakeDevices(bool failOnStart = false, bool failOnStop = false) : IAudioDevices
-    {
-        public FakeInput Input { get; } = new(failOnStart, failOnStop);
-
-        public FakeOutput Output { get; } = new();
-
-        public bool Disposed { get; private set; }
-
-        IAudioInput IAudioDevices.Input => Input;
-
-        IAudioOutput IAudioDevices.Output => Output;
-
-        public string OutputDeviceName => "Externa hörlurar";
-
-        public AudioCounters Counters => PassThroughCommandTests.Counters;
-
-        public void Dispose()
-        {
-            Disposed = true;
-        }
-    }
-
-    private sealed class FakeInput(bool failOnStart, bool failOnStop) : IAudioInput
-    {
-        public int SampleRate => Settings.SampleRate;
-
-        public int BufferSize => Settings.BufferSize;
-
-        public bool Started { get; private set; }
-
-        public bool Stopped { get; private set; }
-
-        public void Start(IAudioInputHandler handler)
-        {
-            if (failOnStart)
-            {
-                throw new AudioDeviceException("Ljudingången kunde inte öppnas.");
-            }
-
-            Started = true;
-            handler.OnBuffer(new float[BufferSize]);
-        }
-
-        public void Stop()
-        {
-            if (failOnStop)
-            {
-                throw new AudioDeviceException("Ljudingången kunde inte stängas.");
-            }
-
-            Stopped = true;
-        }
-
-        public void Dispose()
-        {
-        }
-    }
-
-    private sealed class FakeOutput : IAudioOutput
-    {
-        public int SampleRate => Settings.SampleRate;
-
-        public int BufferSize => Settings.BufferSize;
-
-        public bool Started { get; private set; }
-
-        public bool Stopped { get; private set; }
-
-        public void Start()
-        {
-            Started = true;
-        }
-
-        public void Write(ReadOnlySpan<float> samples)
-        {
-        }
-
-        public void Stop()
-        {
-            Stopped = true;
-        }
-
-        public void Dispose()
-        {
-        }
     }
 
     // A real file that refuses the header, as a full disk would.
