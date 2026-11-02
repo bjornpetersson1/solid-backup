@@ -56,6 +56,10 @@ public static class AppCommand
         {
             Description = "Spela upp mikrofonen direkt i utgången (för att kontrollera ljudet).",
         };
+        Option<bool> liveOption = new("--live")
+        {
+            Description = "Spela live: mikrofonen genom analys, harmoni och synt till utgången, tills q eller Esc.",
+        };
         Option<bool> devicesOption = new("--devices")
         {
             Description = "Lista ljudenheterna och visa vilka som är valda.",
@@ -125,7 +129,7 @@ public static class AppCommand
         };
         Option<bool> recordOption = new("--record")
         {
-            Description = "Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough).",
+            Description = "Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough eller --live).",
         };
         Option<bool> noVoiceOption = new("--no-voice")
         {
@@ -136,6 +140,7 @@ public static class AppCommand
             Description = $"Nivåfunktioner att använda den här gången, med kommatecken emellan: {string.Join(", ", LevelFeatures.All.Select(entry => entry.Name))}, eller {AccompanyCommand.NoFeatures}.",
         };
         root.Options.Add(passThroughOption);
+        root.Options.Add(liveOption);
         root.Options.Add(devicesOption);
         root.Options.Add(inputOption);
         root.Options.Add(outputOption);
@@ -159,6 +164,7 @@ public static class AppCommand
         RunMode[] modes =
         [
             new(passThroughOption, [inputOption, outputOption, recordOption]),
+            new(liveOption, [inputOption, outputOption, styleOption, keyOption, modeOption, soundOption, featuresOption, patternOption, bpmOption, timeSignatureOption, recordOption]),
             new(devicesOption, [inputOption, outputOption]),
             new(harmonizeOption, [styleOption, keyOption, modeOption, bpmOption, timeSignatureOption]),
             new(accompanyOption, [renderOption, styleOption, keyOption, modeOption, soundOption, featuresOption, noVoiceOption, patternOption, bpmOption, timeSignatureOption]),
@@ -178,9 +184,10 @@ public static class AppCommand
             string? mode = parseResult.GetValue(modeOption);
             string? sound = parseResult.GetValue(soundOption);
             RhythmOverrides rhythm = new(parseResult.GetValue(patternOption), parseResult.GetValue(bpmOption), parseResult.GetValue(timeSignatureOption));
+            SettingOverrides overrides = new(style, key, mode, sound, parseResult.GetValue(featuresOption), rhythm);
             if (parseResult.GetValue(accompanyOption) is { } recording && parseResult.GetValue(renderOption) is { } accompanied)
             {
-                AccompanyOptions options = new(style, key, mode, sound, parseResult.GetValue(featuresOption), parseResult.GetValue(noVoiceOption), rhythm);
+                AccompanyOptions options = new(overrides, parseResult.GetValue(noVoiceOption));
                 return new AccompanyCommand(createConsole(), LoadSettings).Run(recording, accompanied, options);
             }
 
@@ -201,6 +208,12 @@ public static class AppCommand
             if (parseResult.GetValue(harmonizeOption) is { } harmonizePath)
             {
                 return new HarmonizeCommand(createConsole(), LoadSettings).Run(harmonizePath, style, key, mode, rhythm);
+            }
+
+            if (parseResult.GetValue(liveOption))
+            {
+                return new LiveCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight())
+                    .Run(overrides, record: parseResult.GetValue(recordOption));
             }
 
             if (parseResult.GetValue(devicesOption))

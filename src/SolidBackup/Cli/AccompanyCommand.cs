@@ -27,20 +27,12 @@ public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResu
             return 1;
         }
 
-        AppSettings settings = (options.Rhythm?.Apply(loaded.Settings) ?? loaded.Settings) with
+        if (!options.Overrides.TryApply(loaded.Settings with { SampleRate = audio.SampleRate }, out AppSettings settings, out string? error))
         {
-            SampleRate = audio.SampleRate,
-            HarmonyStyle = options.Style ?? loaded.Settings.HarmonyStyle,
-            Key = options.Key ?? loaded.Settings.Key,
-            Mode = options.Mode ?? loaded.Settings.Mode,
-            Sound = options.Sound ?? loaded.Settings.Sound,
-        };
-        if (options.Features is { } features && !TrySwitch(settings, features, out settings))
-        {
-            return ConsoleMessages.Error(console, UnknownFeatureMessage(features));
+            return ConsoleMessages.Error(console, error);
         }
 
-        if (HarmonySetup.Prepare(console, settings, options.Key is not null, options.Mode is not null) is null)
+        if (HarmonySetup.Prepare(console, settings, options.Overrides.Key is not null, options.Overrides.Mode is not null) is null)
         {
             return 1;
         }
@@ -98,21 +90,12 @@ public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResu
 
     public static string WrittenMessage(string path, double seconds, AppSettings settings)
     {
-        string on = string.Join(", ", LevelFeatures.All.Where(entry => entry.IsOn(settings)).Select(entry => entry.Name));
+        string on = string.Join(", ", LevelFeatures.NamesOn(settings));
         return string.Create(
             CultureInfo.InvariantCulture,
             $"Skrev {path} ({seconds:0.0} s, ljudet {settings.Sound}, nivåfunktioner: {(on.Length == 0 ? NoFeatures : on)}).");
     }
-
-    private static bool TrySwitch(AppSettings settings, string features, out AppSettings switched)
-    {
-        string[] names = features == NoFeatures
-            ? []
-            : features.Split(',', StringSplitOptions.TrimEntries);
-        return LevelFeatures.TrySwitchOnly(settings, names, LevelFeatures.All, out switched);
-    }
 }
 
-/// <summary>The per-run overrides of <c>--accompany</c>; null keeps the setting.</summary>
-public sealed record AccompanyOptions(
-    string? Style = null, string? Key = null, string? Mode = null, string? Sound = null, string? Features = null, bool NoVoice = false, RhythmOverrides? Rhythm = null);
+/// <summary>The per-run options of <c>--accompany</c>: the overrides it shares with <c>--live</c>, and whether to leave the voice out.</summary>
+public sealed record AccompanyOptions(SettingOverrides Overrides, bool NoVoice = false);

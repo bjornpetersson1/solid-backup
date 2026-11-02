@@ -11,6 +11,8 @@ namespace SolidBackup.Accompaniment;
 /// harmony, the rhythm pattern (<see cref="RhythmPatterns"/>) and the synthesizer. Without the gate, the chord keeps sounding through
 /// silence until <c>PhraseResetMs</c> has passed (<c>docs/rhythm.md</c>). Everything is built in the constructor,
 /// so a buffer allocates nothing; the chain is deterministic, so a recording always gives the same output.
+/// Live, <see cref="Analyze"/> and <see cref="Decide"/> run on the input's thread and <see cref="Perform"/> on the
+/// output's: the two halves share no state.
 /// </summary>
 public sealed class Accompanist : IAudioProcessor
 {
@@ -42,6 +44,8 @@ public sealed class Accompanist : IAudioProcessor
         _pattern = RhythmPatterns.Create(settings);
         Synthesizer = Synthesizer.FromSettings(settings);
     }
+
+    public int SampleRate => _sampleRate;
 
     public Harmonizer Harmonizer { get; }
 
@@ -82,6 +86,13 @@ public sealed class Accompanist : IAudioProcessor
     /// </summary>
     public void Play(in AnalysisFrame analysis, Span<float> output)
     {
+        AccompanimentFrame frame = Decide(analysis);
+        Perform(analysis, frame, output);
+    }
+
+    /// <summary>What to play for one analysed buffer: the features before the harmony, the harmony and the features after it.</summary>
+    public AccompanimentFrame Decide(in AnalysisFrame analysis)
+    {
         HarmonyInput harmonyInput = new(analysis.Estimate, Immediate: false);
         foreach (ILevelFeature feature in _features)
         {
@@ -95,8 +106,17 @@ public sealed class Accompanist : IAudioProcessor
             feature.AfterHarmony(analysis, ref frame);
         }
 
-        _pattern.Play(analysis, frame, Synthesizer);
-        Synthesizer.Render(output);
         Frame = frame;
+        return frame;
+    }
+
+    /// <summary>
+    /// Plays a decided frame through the rhythm pattern and renders the synthesizer into <paramref name="output"/>; the
+    /// pattern takes its place on the grid from <paramref name="timing"/>.
+    /// </summary>
+    public void Perform(in AnalysisFrame timing, in AccompanimentFrame frame, Span<float> output)
+    {
+        _pattern.Play(timing, frame, Synthesizer);
+        Synthesizer.Render(output);
     }
 }

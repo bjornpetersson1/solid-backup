@@ -4,7 +4,7 @@
 - **Labels:** `E6 Live mode`
 - **Phase:** 6. Live mode
 - **Depends on:** E5-2 (#15), E5-3 (#16), E5-5 (#18), E4-3 (#13)
-- **Status:** Approved
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 940 tests passed three runs in a row); the latency target on a low-latency microphone and an hour without dropouts are manual checks for the owner
 
 ## Summary
 Live mode: the microphone's input runs through analysis, the level features and the harmony on the input stream's thread, and the rhythm pattern and the synthesizer play the chords on the output stream's thread, in real time. The two sides and the dashboard meet only through lock-free hand-overs, and the app measures its own latency and dropouts. `--live` runs it until the menu (E6-2) and the dashboard (E6-3) exist.
@@ -34,7 +34,7 @@ Live mode: the microphone's input runs through analysis, the level features and 
    - Latency = the input stream's reported input latency + the chain delay + one buffer for the hand-over + the output stream's reported output latency. The device latencies are read from the opened PortAudio streams.
    - The chain delay is measured when live mode starts: a generated tone (A3 sine at −20 dBFS after 500 ms of silence) runs offline through a fresh copy of the chain with the chosen settings, but with the Held pattern (the step wait of Arpeggio and Strum is not latency, `docs/rhythm.md`). It is the time from the tone's first sample to the first output sample above −60 dBFS, i.e. when the chord's envelope has started; the attack is the sound's character, not delay. The run allocates its buffers before live audio starts and takes under 100 ms.
    - If the tone never produces a chord (e.g. a gate threshold above −20 dBFS), live mode still starts and the chain delay is shown as unknown (`?`), in Swedish.
-   - Tests: the chain delay is deterministic for given settings, is the same for Pad, Organ and Pluck (their envelopes all start at once), and with the defaults lies between half the pitch window and 50 ms.
+   - Tests: the chain delay is deterministic for given settings, starts on the same sample for Pad, Organ and Pluck, with the Pad's slow attack reaching −60 dBFS at most `SoundPreset.MinEdgeMs` (5 ms) after the others, and with the defaults lies between half the pitch window and 50 ms.
    - The parts and the total are in the snapshot (criterion 4), are printed on the status line and at the end, and the total is marked as over target when it is ≥ `LatencyTargetMs`.
    - Meeting < 50 ms on the owner's Mac with Held and a low-latency microphone is a manual check for the owner; with the built-in microphone the target is expected to be missed (it reports ~45 ms alone, README "Audio on macOS").
 3. **An hour of play gives no dropouts.**
@@ -56,16 +56,16 @@ Live mode: the microphone's input runs through analysis, the level features and 
    - The README lists `--live` and its options, and `docs/manual-testing.md` E6 step 2 and 3 say how to run them with `--live` until the menu exists.
 
 ## Tasks
-- [ ] Split `Accompanist` into an input side (analysis, features, harmony) and an output side (pattern, synthesizer), keeping `--accompany` and its tests unchanged in behaviour.
-- [ ] A lock-free single-writer hand-over of the latest accompaniment result from the input to the output side, latching strikes until played.
-- [ ] A pull model for the output: the output callback asks a renderer for its buffer (PortAudio and in-memory outputs), beside the existing write model used by `--passthrough`.
-- [ ] Read the reported input and output latencies from the opened PortAudio streams.
-- [ ] The chain-delay measurement on a generated tone.
-- [ ] The live snapshot and its lock-free hand-over.
-- [ ] Recording from two threads (input ring and output ring) into the same stereo file.
-- [ ] `--live` with its one-run options, status line and summary; shared start-up with `--passthrough`.
-- [ ] Tests: equivalence with `--accompany`, strike latching, allocation, snapshot consistency, chain delay, CLI options and errors.
-- [ ] README and `docs/manual-testing.md`.
+- [x] Split `Accompanist` into an input side (analysis, features, harmony) and an output side (pattern, synthesizer), keeping `--accompany` and its tests unchanged in behaviour.
+- [x] A lock-free single-writer hand-over of the latest accompaniment result from the input to the output side, latching strikes until played.
+- [x] A pull model for the output: the output callback asks a renderer for its buffer (PortAudio and in-memory outputs), beside the existing write model used by `--passthrough`.
+- [x] Read the reported input and output latencies from the opened PortAudio streams.
+- [x] The chain-delay measurement on a generated tone.
+- [x] The live snapshot and its lock-free hand-over.
+- [x] Recording from two threads (input ring and output ring) into the same stereo file.
+- [x] `--live` with its one-run options, status line and summary; shared start-up with `--passthrough`.
+- [x] Tests: equivalence with `--accompany`, strike latching, allocation, snapshot consistency, chain delay, CLI options and errors.
+- [x] README and `docs/manual-testing.md`.
 - [ ] Mark E6-1 done in `Constitution/Requirements-and-goal.md`'s E6 list only after the owner's manual checks — leave it unchecked here.
 
 ## Decisions
@@ -77,5 +77,18 @@ Live mode: the microphone's input runs through analysis, the level features and 
 - **Dropouts as in Measurement** (default): PortAudio's input overflows and output underflows. The sample hand-over's counters do not exist in live mode; recording overruns are counted and shown, but are not dropouts in the sound.
 - **Snapshot published per input buffer** (default): the input side owns most of the state; the reader polls it a few times a second. A sequence counter (seqlock) on a preallocated struct, so neither side allocates or blocks.
 - **Recording from two threads** (default, follows from the split): input and output each get a ring; the writer thread interleaves them. Both start on the first buffer of their stream.
+
+- **Measured with a fixed key under `auto`** (implementation): with the key `auto`, no chord sounds until the estimate has `KeyFirstSeconds` (2 s) of notes, so the tone would never be heard within the measurement. That wait happens once at the start of a session and is not latency; the delay is therefore measured in C Ionian when the key is `auto`.
+- **The Pad is heard a little later** (owner's choice while implementing): the spec first said the delay is the same for every sound, but at −60 dBFS the Pad's 200 ms attack is heard ~3 ms after Organ and Pluck (34.0 ms against 30.7–30.8 ms with the defaults). The owner kept −60 dBFS; the test asserts the Pad is at most `SoundPreset.MinEdgeMs` (5 ms) behind, and criterion 2 says so.
+- **Callback times** (measured on the owner's Mac, Intel Core i5-8257U, Release, defaults, the singing recording, 24 000 buffers per pattern): the input side (analysis, features, harmony) **111 µs** on average, at most 315–373 µs; the output side (pattern, synthesizer) **1.4–2.7 µs** on average, at most 59–505 µs. A buffer lasts 1 333 µs, so both together stay well under it.
+- **Smoke test on real devices** (implementation, 3 s, built-in microphone and speakers): input 44.5 ms + chain 34.0 ms + hand-over 1.3 ms + output 10.0 ms = **89.9 ms**, 0 dropouts. With the built-in microphone the target is missed, as expected; since the chain alone takes 34 ms, meeting 50 ms with headphones (~5 ms) needs a microphone that reports under ~10 ms.
+- **Shared start-up** (implementation, E2-3's deferred finding): `Cli.AudioSession` does the microphone check, opening the devices, the speaker warning, the recording and the ordered shut-down for both `--passthrough` and `--live`; each brings an `IAudioActivity`. The one-run options are `Cli.SettingOverrides`, shared by `--accompany` and `--live`.
+- **Structure** (implementation): `Live.LiveChain` is the split chain (`IAudioInputHandler` and the new `IAudioRenderer`), `Live.LiveMode` runs it on opened devices and gives `Live.LiveSnapshot`s, `Audio.SnapshotSlot<T>` is the seqlock used for both decisions and state. `Accompanist.Play` is now `Decide` (input side) plus `Perform` (output side). `IAudioOutput.Start(IAudioRenderer?)` is the pull model, and `HandOverBuffer` is the renderer when none is given, so the output's callback has one path; `IAudioDevices.Latency` reads the reported latencies through `Pa_GetStreamInfo`, as the E2-1 spike did.
+- **Status line in place** (implementation): it rewrites one terminal line with `\r` and an erase-to-end code through Spectre's `WriteAnsi`, since Spectre would wrap or escape the control characters in plain text.
+- **Clean code:** the chain's delay is measured before the devices and the recording open; the key on the status line uses the Swedish `HarmonyNames.Key`; the tone's frequency comes from `Pitch.Frequency`; `LevelFeatures.NamesOn` replaces three copies of the same filter; `AccompanyOptions` holds a `SettingOverrides` instead of repeating its fields; the recorder owes dropped silence through one counter and interleaves in pieces of 8 192 frames instead of a buffer the size of both rings. Kept as they are: the snapshot's features and pattern (criterion 4 asks for them, E6-3 shows them); reading the latencies through `Pa_GetStreamInfo` (the figures E2-1 measured and the README reports; the callback's time info would give a different, per-buffer measure); measuring in C Ionian under `auto` rather than warming the chain up past the key estimate (that would take several seconds of analysis, far over the 100 ms budget).
+
+- **Code review fixes:** the output's recording starts with the first output buffer after the input's first, so the channels start together although the output stream opens first; dropped recording buffers become silence written by the audio side in their place (not where the writer happens to be); the writer drops the lead of a side on a faster clock once it has stayed more than a buffer ahead for 0.5 s, so an hour's recording does not drift apart; recording overruns count a pair dropped together once (`--passthrough --record` keeps its old count); the status line is cut to the terminal's width so it can always be rewritten in place; the latency read tolerates a binding without the private stream field (it reports 0 instead of failing the stream); the chain's delay is measured after the microphone check and gives up after 150 ms of tone, within the 100 ms budget also when no chord comes; `AudioStreams` holds the start and stop order shared by `AudioPipeline` and live mode; `HandOverBuffer` implements `IAudioRenderer.Render` explicitly, so `Read` stays its one public read; the latency target is printed with its decimals.
+
+- **Verification figures** (implementation): `ChainDelay.MeasureMs` takes 22.5 ms in Release with the defaults and 37.3 ms when no chord comes (gate threshold −6 dBFS). Its timing test runs in a collection of its own, since live mode measures before its audio starts, with nothing else competing for the CPU; under the parallel test run it measured the other classes' load (up to 209 ms). The recording equivalence tests use 3 s of the singing recording, so the suite's own timing tests are not starved.
 
 ## Open Questions

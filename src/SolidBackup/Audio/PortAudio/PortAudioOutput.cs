@@ -9,7 +9,8 @@ namespace SolidBackup.Audio.PortAudio;
 /// <summary>
 /// An output-only stream on one device, stereo (or mono on a one-channel device). Buffers
 /// written from the input's thread pass through a <see cref="HandOverBuffer"/> to this
-/// stream's callback, which plays the mono signal on every channel.
+/// stream's callback, or a renderer fills each buffer in the callback; the mono signal is
+/// played on every channel.
 /// </summary>
 public sealed class PortAudioOutput(AudioDeviceInfo device, int sampleRate, int bufferSize) : IAudioOutput
 {
@@ -20,6 +21,7 @@ public sealed class PortAudioOutput(AudioDeviceInfo device, int sampleRate, int 
     private readonly HandOverBuffer _handOver = new(sampleRate, bufferSize);
     private readonly float[] _mono = new float[bufferSize];
     private PaStream? _stream;
+    private IAudioRenderer? _renderer;
     private long _underflows;
 
     public int SampleRate => sampleRate;
@@ -34,16 +36,22 @@ public sealed class PortAudioOutput(AudioDeviceInfo device, int sampleRate, int 
 
     public long DriftCorrections => _handOver.DriftCorrections;
 
-    public void Start()
+    /// <summary>The output latency PortAudio reports for the open stream, in milliseconds; zero before it starts.</summary>
+    public double LatencyMs { get; private set; }
+
+    /// <param name="renderer">Fills each buffer; without one, the buffers written through the hand-over are played.</param>
+    public void Start(IAudioRenderer? renderer = null)
     {
         if (_stream is not null)
         {
             throw new InvalidOperationException("The output is already started.");
         }
 
+        _renderer = renderer ?? _handOver;
         _handOver.Reset();
         _stream = PortAudioStreams.Open(
             null, PortAudioStreams.Parameters(device, AudioDirection.Output, _channels), sampleRate, bufferSize, OnAudio, DeviceName);
+        LatencyMs = PortAudioStreamInfo.Latency(_stream).OutputMs;
     }
 
     public void Write(ReadOnlySpan<float> samples)
@@ -72,7 +80,7 @@ public sealed class PortAudioOutput(AudioDeviceInfo device, int sampleRate, int 
         // PortAudio asks for bufferSize frames, as the stream was opened with; anything beyond that is silence.
         Span<float> interleaved = new((void*)output, (int)frameCount * _channels);
         Span<float> mono = _mono.AsSpan(0, Math.Min((int)frameCount, _mono.Length));
-        _handOver.Read(mono);
+        _renderer?.Render(mono);
         PortAudioStreams.FanOut(mono, interleaved, _channels);
 
         return StreamCallbackResult.Continue;

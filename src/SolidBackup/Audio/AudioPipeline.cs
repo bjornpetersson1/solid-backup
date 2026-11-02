@@ -32,29 +32,12 @@ public sealed class AudioPipeline : IAudioInputHandler
 
     public void Start()
     {
-        _output.Start();
-        try
-        {
-            _input.Start(this);
-        }
-        catch
-        {
-            _output.Stop();
-            throw;
-        }
+        AudioStreams.Start(_input, this, _output);
     }
 
-    // The output stops first, so it never plays the gap left by an input that has already stopped.
     public void Stop()
     {
-        try
-        {
-            _output.Stop();
-        }
-        finally
-        {
-            _input.Stop();
-        }
+        AudioStreams.Stop(_input, _output);
     }
 
     public void OnBuffer(ReadOnlySpan<float> samples)

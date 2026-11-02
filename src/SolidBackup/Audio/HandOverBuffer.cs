@@ -6,7 +6,7 @@ namespace SolidBackup.Audio;
 /// Lock-free hand-over from the input stream's thread (the only writer) to the output stream's
 /// thread (the only reader). Neither side allocates, locks or waits.
 /// </summary>
-public sealed class HandOverBuffer
+public sealed class HandOverBuffer : IAudioRenderer
 {
     // E2-1: the input arrives in bursts and the two device clocks drift, so only a backlog that
     // stays above one buffer for this long is dropped; dropping on every burst starves the output.
@@ -68,6 +68,11 @@ public sealed class HandOverBuffer
         samples[..first].CopyTo(_ring.AsSpan(start));
         samples[first..].CopyTo(_ring);
         Volatile.Write(ref _written, writeAt + samples.Length);
+    }
+
+    void IAudioRenderer.Render(Span<float> output)
+    {
+        Read(output);
     }
 
     public void Read(Span<float> destination)
