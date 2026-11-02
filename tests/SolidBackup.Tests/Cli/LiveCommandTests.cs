@@ -108,7 +108,7 @@ public class LiveCommandTests
         int exitCode = Command(console, devices).Run(new SettingOverrides(Features: "eko"));
 
         Assert.Equal(1, exitCode);
-        Assert.Contains(AccompanyCommand.UnknownFeatureMessage("eko"), console.Output);
+        Assert.Contains(SettingOverrides.UnknownFeatureMessage("eko"), console.Output);
         Assert.False(devices.Input.Started);
     }
 

@@ -10,14 +10,12 @@ namespace SolidBackup.Cli;
 
 /// <summary>
 /// Runs a recording through the whole chain (analysis, level features, harmony, synthesizer) and writes the voice
-/// mixed with the accompaniment, or the accompaniment alone, to a WAV file, so the level features can be heard
-/// before live mode exists. <c>--style</c>, <c>--key</c>, <c>--mode</c>, <c>--sound</c> and <c>--features</c>
-/// override the settings for this run only; the recording's own sample rate is used.
+/// mixed with the accompaniment, or the accompaniment alone, to a WAV file, as live mode would play it. The one-run
+/// options (<see cref="SettingOverrides"/>) override the settings for this run only; the recording's own sample rate
+/// is used.
 /// </summary>
 public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResult> loadSettings)
 {
-    public const string NoFeatures = "none";
-
     public int Run(string inputPath, string outputPath, AccompanyOptions options)
     {
         SettingsLoadResult loaded = loadSettings();
@@ -82,18 +80,12 @@ public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResu
         return output;
     }
 
-    public static string UnknownFeatureMessage(string features)
-    {
-        string names = string.Join(", ", LevelFeatures.All.Select(entry => entry.Name));
-        return $"--features \"{features}\" går inte; ange några av {names} med kommatecken emellan, eller {NoFeatures}.";
-    }
-
     public static string WrittenMessage(string path, double seconds, AppSettings settings)
     {
         string on = string.Join(", ", LevelFeatures.NamesOn(settings));
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"Skrev {path} ({seconds:0.0} s, ljudet {settings.Sound}, nivåfunktioner: {(on.Length == 0 ? NoFeatures : on)}).");
+            $"Skrev {path} ({seconds:0.0} s, ljudet {settings.Sound}, nivåfunktioner: {(on.Length == 0 ? SettingOverrides.NoFeatures : on)}).");
     }
 }
 

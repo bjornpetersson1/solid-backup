@@ -137,7 +137,7 @@ public static class AppCommand
         };
         Option<string> featuresOption = new("--features")
         {
-            Description = $"Nivåfunktioner att använda den här gången, med kommatecken emellan: {string.Join(", ", LevelFeatures.All.Select(entry => entry.Name))}, eller {AccompanyCommand.NoFeatures}.",
+            Description = $"Nivåfunktioner att använda den här gången, med kommatecken emellan: {string.Join(", ", LevelFeatures.All.Select(entry => entry.Name))}, eller {SettingOverrides.NoFeatures}.",
         };
         root.Options.Add(passThroughOption);
         root.Options.Add(liveOption);

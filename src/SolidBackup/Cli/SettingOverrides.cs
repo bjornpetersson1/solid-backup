@@ -13,6 +13,15 @@ namespace SolidBackup.Cli;
 public sealed record SettingOverrides(
     string? Style = null, string? Key = null, string? Mode = null, string? Sound = null, string? Features = null, RhythmOverrides? Rhythm = null)
 {
+    /// <summary>What <c>--features</c> takes to switch every level feature off.</summary>
+    public const string NoFeatures = "none";
+
+    public static string UnknownFeatureMessage(string features)
+    {
+        string names = string.Join(", ", LevelFeatures.All.Select(entry => entry.Name));
+        return $"--features \"{features}\" går inte; ange några av {names} med kommatecken emellan, eller {NoFeatures}.";
+    }
+
     /// <summary>The settings with the options applied, or false and the Swedish message when <c>--features</c> names a feature that does not exist.</summary>
     public bool TryApply(AppSettings settings, out AppSettings applied, [NotNullWhen(false)] out string? error)
     {
@@ -29,13 +38,13 @@ public sealed record SettingOverrides(
             return true;
         }
 
-        string[] names = features == AccompanyCommand.NoFeatures ? [] : features.Split(',', StringSplitOptions.TrimEntries);
+        string[] names = features == NoFeatures ? [] : features.Split(',', StringSplitOptions.TrimEntries);
         if (LevelFeatures.TrySwitchOnly(applied, names, LevelFeatures.All, out applied))
         {
             return true;
         }
 
-        error = AccompanyCommand.UnknownFeatureMessage(features);
+        error = UnknownFeatureMessage(features);
         return false;
     }
 }

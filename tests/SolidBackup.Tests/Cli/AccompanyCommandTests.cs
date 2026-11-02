@@ -76,7 +76,7 @@ public sealed class AccompanyCommandTests : IDisposable
         int exitCode = Command(console).Run(_input, Path.Combine(_folder, "out.wav"), new AccompanyOptions(new SettingOverrides(Features: features)));
 
         Assert.Equal(1, exitCode);
-        Assert.Contains(AccompanyCommand.UnknownFeatureMessage(features), console.Output);
+        Assert.Contains(SettingOverrides.UnknownFeatureMessage(features), console.Output);
     }
 
     [Fact]

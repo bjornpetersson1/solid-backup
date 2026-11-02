@@ -5,7 +5,7 @@ using Spectre.Console;
 
 namespace SolidBackup.Cli;
 
-/// <summary>Builds a run's harmony from its settings for the commands that analyse a recording (<c>--harmonize</c>, <c>--accompany</c>).</summary>
+/// <summary>Builds a run's harmony from its settings for the commands that run the harmony (<c>--harmonize</c>, <c>--accompany</c>, <c>--live</c>).</summary>
 public static class HarmonySetup
 {
     public const string ModeIgnoredMessage = "--mode gäller inte med tonarten auto, som bara skattar dur eller moll.";

@@ -70,6 +70,16 @@ public class AppCommandTests
     }
 
     [Fact]
+    public void Help_ListsLiveWithSwedishDescription()
+    {
+        (int exitCode, string output, _) = Invoke("--help");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--live", output);
+        Assert.Contains("Spela live: mikrofonen genom analys, harmoni och synt till utgången, tills q eller Esc.", output);
+    }
+
+    [Fact]
     public void Help_ListsHarmonizeOptionsWithSwedishDescriptions()
     {
         (int exitCode, string output, _) = Invoke("--help");

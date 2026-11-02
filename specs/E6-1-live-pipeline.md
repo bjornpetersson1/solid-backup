@@ -4,7 +4,7 @@
 - **Labels:** `E6 Live mode`
 - **Phase:** 6. Live mode
 - **Depends on:** E5-2 (#15), E5-3 (#16), E5-5 (#18), E4-3 (#13)
-- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 940 tests passed three runs in a row); the latency target on a low-latency microphone and an hour without dropouts are manual checks for the owner
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 941 tests passed); the latency target on a low-latency microphone and an hour without dropouts are manual checks for the owner
 
 ## Summary
 Live mode: the microphone's input runs through analysis, the level features and the harmony on the input stream's thread, and the rhythm pattern and the synthesizer play the chords on the output stream's thread, in real time. The two sides and the dashboard meet only through lock-free hand-overs, and the app measures its own latency and dropouts. `--live` runs it until the menu (E6-2) and the dashboard (E6-3) exist.
@@ -90,5 +90,7 @@ Live mode: the microphone's input runs through analysis, the level features and 
 - **Code review fixes:** the output's recording starts with the first output buffer after the input's first, so the channels start together although the output stream opens first; dropped recording buffers become silence written by the audio side in their place (not where the writer happens to be); the writer drops the lead of a side on a faster clock once it has stayed more than a buffer ahead for 0.5 s, so an hour's recording does not drift apart; recording overruns count a pair dropped together once (`--passthrough --record` keeps its old count); the status line is cut to the terminal's width so it can always be rewritten in place; the latency read tolerates a binding without the private stream field (it reports 0 instead of failing the stream); the chain's delay is measured after the microphone check and gives up after 150 ms of tone, within the 100 ms budget also when no chord comes; `AudioStreams` holds the start and stop order shared by `AudioPipeline` and live mode; `HandOverBuffer` implements `IAudioRenderer.Render` explicitly, so `Read` stays its one public read; the latency target is printed with its decimals.
 
 - **Verification figures** (implementation): `ChainDelay.MeasureMs` takes 22.5 ms in Release with the defaults and 37.3 ms when no chord comes (gate threshold −6 dBFS). Its timing test runs in a collection of its own, since live mode measures before its audio starts, with nothing else competing for the CPU; under the parallel test run it measured the other classes' load (up to 209 ms). The recording equivalence tests use 3 s of the singing recording, so the suite's own timing tests are not starved.
+
+- **PR review fixes:** `NoFeatures` and `UnknownFeatureMessage` moved from `AccompanyCommand` to `SettingOverrides`, which both commands share; a help test for `--live`; the summaries of `HarmonySetup` and `AccompanyCommand` no longer speak of live mode as still to come.
 
 ## Open Questions

@@ -40,7 +40,7 @@ public class SettingOverridesTests
     [Fact]
     public void NoFeatures_SwitchesThemAllOff()
     {
-        Assert.True(new SettingOverrides(Features: AccompanyCommand.NoFeatures).TryApply(TestSettings.Default, out AppSettings applied, out _));
+        Assert.True(new SettingOverrides(Features: SettingOverrides.NoFeatures).TryApply(TestSettings.Default, out AppSettings applied, out _));
         Assert.False(applied.GateOn || applied.DynamicsOn || applied.ChordCharacterOn || applied.OnsetsOn);
     }
 
@@ -48,6 +48,6 @@ public class SettingOverridesTests
     public void AnUnknownFeature_GivesTheSwedishMessage()
     {
         Assert.False(new SettingOverrides(Features: "eko").TryApply(TestSettings.Default, out _, out string? error));
-        Assert.Equal(AccompanyCommand.UnknownFeatureMessage("eko"), error);
+        Assert.Equal(SettingOverrides.UnknownFeatureMessage("eko"), error);
     }
 }
