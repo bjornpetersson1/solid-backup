@@ -11,4 +11,7 @@ public interface IAudioDevices : IDisposable
     string OutputDeviceName { get; }
 
     AudioCounters Counters { get; }
+
+    /// <summary>The streams' reported latencies; known once both have started, zero before.</summary>
+    ReportedLatency Latency { get; }
 }

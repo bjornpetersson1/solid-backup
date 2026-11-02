@@ -2,7 +2,7 @@
 
 An experimental .NET console app for macOS. It listens to a single melody line from a microphone, detects its pitch and level, and plays chords in response through its own synthesizer. The requirements are in `Constitution/Requirements-and-goal.md`.
 
-So far the app has its command line, an empty menu and its settings (E1); the audio layer, with pass-through and device listing (E2); and the analysis, measured on a test corpus (E3): pitch detection, level, a noise gate and onsets, which are not yet wired into live play. Harmony, sound and live mode (E4–E6) are still to come.
+So far the app has its command line, an empty menu and its settings (E1); the audio layer, with pass-through and device listing (E2); the analysis, measured on a test corpus (E3); the harmony (E4); the synthesizer, level features, recording and rhythm patterns (E5); and live mode with `--live` (E6-1). The menu (E6-2) and the dashboard (E6-3) are still to come.
 
 ## Requirements
 
@@ -25,6 +25,8 @@ Tests need no audio hardware and no network.
 dotnet run --project src/SolidBackup              # the menu (choose "Avsluta" to quit)
 dotnet run --project src/SolidBackup -- --help    # help
 dotnet run --project src/SolidBackup -- --version # version
+dotnet run --project src/SolidBackup -- --live        # live mode: chords to what you sing
+dotnet run --project src/SolidBackup -- --live --style Pop --sound Organ --pattern Held --record
 dotnet run --project src/SolidBackup -- --passthrough # play the microphone in the output
 dotnet run --project src/SolidBackup -- --devices     # list the audio devices
 dotnet run --project src/SolidBackup -- --passthrough --input "USB Audio" --output "Externa hörlurar"
@@ -38,7 +40,11 @@ dotnet run --project src/SolidBackup -- --accompany corpus/recordings/singing.wa
 
 `--passthrough` plays the chosen input in the chosen output until you press `q`, `Esc` or Ctrl+C, then prints the dropout counts. Use headphones: there is no echo cancellation, and the app warns when the output is the built-in speakers. If the terminal app has no microphone access, it stops with instructions instead of starting (System Settings → Privacy & Security → Microphone). On first use macOS asks for access; answer the dialog, and run again if the audio does not start.
 
-`--record` (with `--passthrough`) records the session to a stereo 16-bit WAV file in `RecordingFolder` (default `recordings/`, git-ignored), named after the start time, e.g. `recordings/2026-10-31_14-05-12.wav`: the input on the left channel and the output on the right, in sync. The file is written from a background thread, so recording never holds up the audio; if the disk falls more than 2 s behind, recorded buffers are dropped and counted instead. The app prints the path when it starts and the path, length and dropped buffers when it stops.
+`--live` is live mode: the input runs through pitch, level, gate and onsets, the level features that are on and the harmony on the input stream's thread, and the rhythm pattern and the synthesizer play the chords on the output stream's thread, until `q`, `Esc` or Ctrl+C. Only the latest decision crosses from one stream to the other, so input jitter and clock drift can delay a chord by a buffer but never cut the sound, and the pattern's grid counts the output's samples. It runs the same microphone and speaker checks as `--passthrough`. `--input`, `--output`, `--style`, `--key`, `--mode`, `--sound`, `--features`, `--pattern`, `--bpm`, `--time-signature` and `--record` work as with `--passthrough` and `--accompany`, for that run only. While it plays, one status line shows the note, the chord, the key, the latency and the dropouts, about twice a second; at the end it prints the dropouts and the latency parts.
+
+The **latency** is the input stream's reported latency + the chain's delay + one buffer for the hand-over + the output stream's reported latency. The chain's delay is measured when live mode starts: an A3 tone at −20 dBFS after 500 ms of silence runs offline through a fresh chain with the chosen settings, with the Held pattern (the step wait of Arpeggio and Strum is musical timing) and, with the key `auto`, in C major (the key estimate's first wait happens once per session), and the delay is the time until the chord's first sample above −60 dBFS. With the defaults it is 34 ms with Pad and about 31 ms with Organ and Pluck, whose faster attacks are heard sooner. If the tone never gives a chord (e.g. a gate threshold above −20 dBFS), the delay is shown as `?`. **Dropouts** are the input overflows and output underflows PortAudio reports, as in Measurement.
+
+`--record` (with `--passthrough` or `--live`) records the session to a stereo 16-bit WAV file in `RecordingFolder` (default `recordings/`, git-ignored), named after the start time, e.g. `recordings/2026-10-31_14-05-12.wav`: the input on the left channel and the output on the right, in sync. In live mode the input is recorded from the input's thread and the output from the output's, each through its own ring, and the output's recording starts with its first buffer after the input's first. A side whose buffers were dropped gets silence in their place, so the two stay in step, and since two devices run on two clocks, a side that stays more than a buffer ahead for half a second has its lead dropped from the recording. The file is written from a background thread, so recording never holds up the audio; if the disk falls more than 2 s behind, recorded buffers are dropped and counted instead. The app prints the path when it starts and the path, length and dropped buffers when it stops.
 
 `--devices` lists the inputs and outputs and marks the system defaults, the chosen devices and the built-in speakers. `--input` and `--output` choose a device by its exact name (case does not matter) for that run only; they are not saved.
 
@@ -52,7 +58,7 @@ The menu needs an interactive terminal.
 
 `--render`, `--play` and `--accompany` play the chords with the rhythm pattern in `RhythmPattern` (`Held`, `Arpeggio` or `Strum`) at `Bpm` in `TimeSignature`, as [`docs/rhythm.md`](docs/rhythm.md) describes; `--pattern`, `--bpm` and `--time-signature` override them for that run. The grid starts at the first sample, Arpeggio plays one chord tone per eighth note and Strum strikes the chord on every beat, 10 ms between tones, both with beat 1 a little stronger; with a tempo, a new chord is heard from the pattern's next step.
 
-Each way of running (`--passthrough`, `--devices`, `--harmonize`, `--accompany`, `--render`, `--play`) excludes the others, and an option that does not belong to the chosen one gives a Swedish error.
+Each way of running (`--live`, `--passthrough`, `--devices`, `--harmonize`, `--accompany`, `--render`, `--play`) excludes the others, and an option that does not belong to the chosen one gives a Swedish error.
 
 ## Audio on macOS (E2-1 findings)
 

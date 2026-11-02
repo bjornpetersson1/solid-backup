@@ -37,6 +37,89 @@ public class SessionRecorderTests
     }
 
     [Fact]
+    public void InputAndOutputFromTwoThreads_StayInStep()
+    {
+        KeptStream stream = new();
+        SessionRecorder recorder = new(stream, SampleRate, BufferSize);
+        const int Buffers = 2000;
+
+        // The two threads keep pace buffer by buffer, as two audio callbacks on clocks that agree.
+        using Barrier pace = new(2);
+        Thread inputThread = new(() => Feed(recorder.OnInput, Buffers, Numbered, pace));
+        Thread outputThread = new(() => Feed(recorder.OnOutput, Buffers, Numbered, pace));
+        inputThread.Start();
+        outputThread.Start();
+        inputThread.Join();
+        outputThread.Join();
+        recorder.Stop();
+
+        byte[] file = stream.Contents;
+        Assert.Equal(Buffers * BufferSize * 4, (int)BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(40)));
+        for (int buffer = 0; buffer < Buffers; buffer += 7)
+        {
+            Assert.Equal(Numbered(buffer)[0], TestWav.Pcm16Sample(file, buffer * BufferSize, 0, channels: 2), precision: 4);
+            Assert.Equal(Numbered(buffer)[0], TestWav.Pcm16Sample(file, buffer * BufferSize, 1, channels: 2), precision: 4);
+        }
+    }
+
+    [Fact]
+    public void BuffersDroppedWhileTheDiskStalls_BecomeSilenceInTheirPlace()
+    {
+        KeptStream stream = new();
+        SessionRecorder recorder = new(stream, SampleRate, BufferSize);
+        int ringBuffers = (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)(SampleRate * SessionRecorder.RingSeconds)) / BufferSize;
+
+        // Faster than the writer's first pass: both rings fill and the last 50 pairs are dropped.
+        Feed(recorder.OnBuffer, ringBuffers + 50, Numbered);
+        double ringSeconds = ringBuffers * BufferSize / (double)SampleRate;
+        Assert.True(SpinWait.SpinUntil(() => recorder.Seconds >= ringSeconds - 1e-9, TimeSpan.FromSeconds(5)));
+        Feed(recorder.OnBuffer, 10, buffer => Numbered(ringBuffers + 50 + buffer));
+        recorder.Stop();
+
+        byte[] file = stream.Contents;
+        Assert.Equal(50, recorder.Overruns);
+        Assert.Equal((ringBuffers + 60) * BufferSize * 4, (int)BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(40)));
+        for (int channel = 0; channel < 2; channel++)
+        {
+            Assert.Equal(Numbered(ringBuffers - 1)[0], TestWav.Pcm16Sample(file, (ringBuffers * BufferSize) - 1, channel, channels: 2), precision: 4);
+            Assert.Equal(0, TestWav.Pcm16Sample(file, ringBuffers * BufferSize, channel, channels: 2), precision: 4);
+            Assert.Equal(0, TestWav.Pcm16Sample(file, ((ringBuffers + 50) * BufferSize) - 1, channel, channels: 2), precision: 4);
+            Assert.Equal(Numbered(ringBuffers + 50)[0], TestWav.Pcm16Sample(file, (ringBuffers + 50) * BufferSize, channel, channels: 2), precision: 4);
+        }
+    }
+
+    [Fact]
+    public void ASideOnAFasterClock_IsKeptWithinAFewBuffersOfTheOther()
+    {
+        KeptStream stream = new();
+        SessionRecorder recorder = new(stream, SampleRate, BufferSize);
+
+        // The input delivers 1 % more than the output, in real-time pieces the writer keeps up with.
+        int input = 0;
+        int output = 0;
+        for (int round = 0; round < 40; round++)
+        {
+            int inputFrom = input;
+            int outputFrom = output;
+            Feed(recorder.OnInput, 101, buffer => Numbered(inputFrom + buffer));
+            Feed(recorder.OnOutput, 100, buffer => Numbered(outputFrom + buffer));
+            input += 101;
+            output += 100;
+            Thread.Sleep(60);
+        }
+
+        recorder.Stop();
+
+        // The last output buffer is paired with one of the last input buffers (a window or two of lead may remain), not
+        // with the input buffer of its own number, 40 buffers back.
+        byte[] file = stream.Contents;
+        int lastFrame = ((int)BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(40)) / 4) - 1;
+        double paired = TestWav.Pcm16Sample(file, lastFrame, 0, channels: 2);
+        Assert.Equal(Numbered(output - 1)[0], TestWav.Pcm16Sample(file, lastFrame, 1, channels: 2), precision: 4);
+        Assert.Contains(Enumerable.Range(input - 12, 12), buffer => Math.Abs(Numbered(buffer)[0] - paired) < 1e-3);
+    }
+
+    [Fact]
     public void AudioSide_AllocatesNothing()
     {
         SessionRecorder recorder = new(new KeptStream(), SampleRate, BufferSize);
@@ -121,10 +204,38 @@ public class SessionRecorderTests
         recorder.Stop();
     }
 
+    private static void Feed(SpanAction write, int buffers, Func<int, float[]> buffer, Barrier? pace = null)
+    {
+        for (int i = 0; i < buffers; i++)
+        {
+            pace?.SignalAndWait();
+            write(buffer(i));
+        }
+    }
+
+    private static void Feed(PairAction write, int buffers, Func<int, float[]> buffer)
+    {
+        for (int i = 0; i < buffers; i++)
+        {
+            float[] samples = buffer(i);
+            write(samples, samples);
+        }
+    }
+
+    // A buffer whose every sample tells which buffer it is: steps of 1/400, well above 16-bit rounding, never 0.
+    private static float[] Numbered(int buffer)
+    {
+        return [.. Enumerable.Repeat(((buffer % 200) + 1) / 400f, BufferSize)];
+    }
+
     private static float[] Ramp(float step)
     {
         return [.. Enumerable.Range(0, BufferSize).Select(i => i * step)];
     }
+
+    private delegate void SpanAction(ReadOnlySpan<float> samples);
+
+    private delegate void PairAction(ReadOnlySpan<float> input, ReadOnlySpan<float> output);
 
     // Takes the header, then blocks every write until released, as a disk that has stopped.
     private sealed class BlockingStream : MemoryStream

@@ -31,6 +31,12 @@ public static class LevelFeatures
             settings => new DynamicsFeature(settings.DynamicsQuietDbfs, settings.DynamicsLoudDbfs)),
     ];
 
+    /// <summary>The names of the features that are on, in their order.</summary>
+    public static IReadOnlyList<string> NamesOn(AppSettings settings)
+    {
+        return [.. All.Where(entry => entry.IsOn(settings)).Select(entry => entry.Name)];
+    }
+
     /// <summary>The settings with exactly the named features on; false when a name is unknown.</summary>
     public static bool TrySwitchOnly(AppSettings settings, IReadOnlyCollection<string> names, IReadOnlyList<LevelFeatureEntry> registry, out AppSettings switched)
     {

@@ -1,0 +1,63 @@
+using SolidBackup.Accompaniment;
+using SolidBackup.Audio;
+using SolidBackup.Configuration;
+using SolidBackup.Recording;
+
+namespace SolidBackup.Live;
+
+/// <summary>
+/// Live mode on opened devices: the <see cref="LiveChain"/> between the input and the output, its latency and the
+/// snapshots for the dashboard.
+/// </summary>
+public sealed class LiveMode
+{
+    private readonly IAudioDevices _devices;
+    private readonly LiveChain _chain;
+    private readonly double? _chainDelayMs;
+    private readonly double _bufferMs;
+    private readonly IReadOnlyList<string> _featuresOn;
+    private readonly string _rhythmPattern;
+    private LiveState _lastState;
+
+    /// <param name="chainDelayMs">The chain's delay from <see cref="ChainDelay.MeasureMs"/>, measured before the devices open.</param>
+    public LiveMode(IAudioDevices devices, AppSettings settings, double? chainDelayMs, SessionRecorder? recorder = null)
+    {
+        _devices = devices;
+        _chain = new LiveChain(new Accompanist(settings), recorder);
+        _chainDelayMs = chainDelayMs;
+        _bufferMs = settings.BufferSize * 1000.0 / settings.SampleRate;
+        _featuresOn = LevelFeatures.NamesOn(settings);
+        _rhythmPattern = settings.RhythmPattern;
+    }
+
+    /// <summary>The latency parts; the device latencies are known once <see cref="Start"/> has opened the streams.</summary>
+    public LiveLatency Latency
+    {
+        get
+        {
+            ReportedLatency reported = _devices.Latency;
+            return new LiveLatency(reported.InputMs, _chainDelayMs, _bufferMs, reported.OutputMs);
+        }
+    }
+
+    public void Start()
+    {
+        AudioStreams.Start(_devices.Input, _chain, _devices.Output, _chain);
+    }
+
+    public void Stop()
+    {
+        AudioStreams.Stop(_devices.Input, _devices.Output);
+    }
+
+    /// <summary>The latest state, or the one before it while the input is writing; called off the audio threads.</summary>
+    public LiveSnapshot Snapshot()
+    {
+        if (_chain.TryReadState(out LiveState state))
+        {
+            _lastState = state;
+        }
+
+        return new LiveSnapshot(_lastState, _featuresOn, _rhythmPattern, Latency, _devices.Counters);
+    }
+}

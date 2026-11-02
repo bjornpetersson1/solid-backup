@@ -6,4 +6,8 @@ public readonly record struct AudioCounters(
     long OutputUnderflows,
     long HandOverUnderruns,
     long HandOverOverruns,
-    long DriftCorrections);
+    long DriftCorrections)
+{
+    /// <summary>The dropouts as Measurement counts them: the overflows and underflows the audio system reports.</summary>
+    public long Dropouts => InputOverflows + OutputUnderflows;
+}

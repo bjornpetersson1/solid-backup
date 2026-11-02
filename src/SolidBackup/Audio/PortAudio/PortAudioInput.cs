@@ -21,6 +21,9 @@ public sealed class PortAudioInput(AudioDeviceInfo device, int sampleRate, int b
 
     public long InputOverflows => Interlocked.Read(ref _overflows);
 
+    /// <summary>The input latency PortAudio reports for the open stream, in milliseconds; zero before it starts.</summary>
+    public double LatencyMs { get; private set; }
+
     public void Start(IAudioInputHandler handler)
     {
         if (_stream is not null)
@@ -31,6 +34,7 @@ public sealed class PortAudioInput(AudioDeviceInfo device, int sampleRate, int b
         _handler = handler;
         _stream = PortAudioStreams.Open(
             PortAudioStreams.Parameters(device, AudioDirection.Input, 1), null, sampleRate, bufferSize, OnAudio, DeviceName);
+        LatencyMs = PortAudioStreamInfo.Latency(_stream).InputMs;
     }
 
     public void Stop()
