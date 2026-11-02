@@ -87,13 +87,13 @@ public sealed class LiveCommand(
     private sealed class LiveActivity(AppSettings settings, double? chainDelayMs, bool returnsToMenu) : IAudioActivity
     {
         private LiveMode? _mode;
-        private string? _speakerWarning;
+        private bool _onSpeakers;
 
         public bool Interrupted { get; private set; }
 
         public void Start(AudioStart start)
         {
-            _speakerWarning = start.SpeakerWarning;
+            _onSpeakers = start.SpeakerWarning is not null;
             _mode = new LiveMode(start.Devices, settings, chainDelayMs, start.Recorder);
             _mode.Start();
         }
@@ -142,7 +142,7 @@ public sealed class LiveCommand(
 
         private IRenderable Dashboard(IAnsiConsole console)
         {
-            return LiveDashboard.Render(Snapshot(), new DashboardContext(returnsToMenu, _speakerWarning), console.Profile.Width);
+            return LiveDashboard.Render(Snapshot(), new DashboardContext(returnsToMenu, _onSpeakers), console.Profile.Width);
         }
 
         private LiveSnapshot Snapshot()

@@ -4,7 +4,7 @@
 - **Labels:** `E6 Live mode`
 - **Phase:** 6. Live mode
 - **Depends on:** E6-1 (#19)
-- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 979 tests passed twice in a row); readability on the owner's terminal and an hour with the dashboard on are manual checks for the owner
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 979 tests passed); readability on the owner's terminal and an hour with the dashboard on are manual checks for the owner
 
 ## Summary
 The live view while playing: one Swedish panel, redrawn about five times a second from E6-1's lock-free snapshot, showing the note and cents, a level meter, the chord, the key, the style, sound and rhythm, the level features that are on, the measured latency and a dropout counter. It replaces E6-1's status line in live mode, from `--live` and from the menu (E6-2).
@@ -66,5 +66,7 @@ The live view while playing: one Swedish panel, redrawn about five times a secon
 
 - **Code review fixes:** the panel shows the speaker warning as a short row (`ljudet går till de inbyggda högtalarna – använd hörlurar`), since the full sentence (128 characters) cannot fit; the latency row drops the target's unit so two-digit device latencies and a three-digit total still fit 80 columns (tested with 45 + 34 + 10.7 + 33.3 = 123.0 ms); a level below the meter's floor reads `<-60 dBFS`, so the level text never grows past the room kept for it; a gate threshold below the floor is not marked rather than drawn at −60; the dBFS figure has its own format rather than the latency helper's; the speaker check runs once, in `AudioSession`, and reaches live mode through `AudioStart`; the allocation test waits for the dashboard's first draw before it measures.
 - **`LevelFeatures.NamesOn` stays** (code review finding declined): `AccompanyCommand.WrittenMessage` still uses it.
+
+- **PR review fix:** `DashboardContext` says only whether the output is the built-in speakers (`OnSpeakers`), since the panel always shows its own short warning row.
 
 ## Open Questions

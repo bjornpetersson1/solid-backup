@@ -147,7 +147,7 @@ public class LiveChainTests
             {
                 chain.TryReadState(out LiveState state);
                 LiveSnapshot snapshot = TestSnapshots.Of(state, settings);
-                console.Write(LiveDashboard.Render(snapshot, new DashboardContext(false, null), 120));
+                console.Write(LiveDashboard.Render(snapshot, new DashboardContext(false, OnSpeakers: false), 120));
                 drawn++;
                 firstDrawn.Set();
             }

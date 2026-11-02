@@ -9,8 +9,8 @@ using Spectre.Console.Rendering;
 
 namespace SolidBackup.Cli;
 
-/// <summary>What the dashboard shows besides the snapshot: where q and Esc lead, and the speaker warning if any.</summary>
-public sealed record DashboardContext(bool ReturnsToMenu, string? SpeakerWarning);
+/// <summary>What the dashboard shows besides the snapshot: where q and Esc lead, and whether the output is the built-in speakers.</summary>
+public sealed record DashboardContext(bool ReturnsToMenu, bool OnSpeakers);
 
 /// <summary>
 /// The live dashboard: one panel of labelled rows built from a <see cref="LiveSnapshot"/>, in Swedish, with how to
@@ -50,7 +50,7 @@ public static class LiveDashboard
         AddRow(rows, "Funktioner", Markup.Escape(Features(snapshot)));
         AddRow(rows, "Latens", Latency(snapshot));
         AddRow(rows, "Avbrott", Dropouts(snapshot));
-        if (context.SpeakerWarning is not null)
+        if (context.OnSpeakers)
         {
             AddRow(rows, "Varning", $"[yellow]{SpeakerRow}[/]");
         }

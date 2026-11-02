@@ -15,7 +15,7 @@ public class LiveDashboardTests
     // Eight rows between the panel's top and bottom border, and the footer.
     private const int Lines = 8 + 2 + 1;
 
-    private static readonly DashboardContext FromLive = new(ReturnsToMenu: false, SpeakerWarning: null);
+    private static readonly DashboardContext FromLive = new(ReturnsToMenu: false, OnSpeakers: false);
 
     private static readonly LiveSnapshot Playing = TestSnapshots.Playing;
 
@@ -95,7 +95,7 @@ public class LiveDashboardTests
     [Fact]
     public void TheSpeakerWarningAndTheMenuFooter_AreShown()
     {
-        string[] lines = Rendered(Playing, new DashboardContext(ReturnsToMenu: true, AudioPreflight.SpeakerWarning), 80);
+        string[] lines = Rendered(Playing, new DashboardContext(ReturnsToMenu: true, OnSpeakers: true), 80);
 
         Assert.Equal(Lines + 1, lines.Length);
         Assert.All(lines, line => Assert.InRange(line.Length, 0, 80));
@@ -118,7 +118,7 @@ public class LiveDashboardTests
             new AudioCounters(9_999_999, 0, 0, 0, 0),
             new RecordingStatus(5999, 9_999_999));
 
-        string[] lines = Rendered(widest, new DashboardContext(ReturnsToMenu: true, AudioPreflight.SpeakerWarning), 120);
+        string[] lines = Rendered(widest, new DashboardContext(ReturnsToMenu: true, OnSpeakers: true), 120);
 
         Assert.Equal(Lines + 1, lines.Length);
         Assert.All(lines, line => Assert.InRange(line.Length, 0, 120));

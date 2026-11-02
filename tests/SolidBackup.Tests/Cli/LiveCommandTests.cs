@@ -29,7 +29,7 @@ public class LiveCommandTests
         int exitCode = Command(console, devices).Run(new SettingOverrides());
 
         Assert.Equal(0, exitCode);
-        Assert.Contains(LiveDashboard.Footer(new DashboardContext(ReturnsToMenu: false, null)), console.Output);
+        Assert.Contains(LiveDashboard.Footer(new DashboardContext(ReturnsToMenu: false, OnSpeakers: false)), console.Output);
         Assert.Contains("Live-läget stoppat. Avbrott: 3 (överflöden i ingången: 1, underflöden i utgången: 2).", console.Output);
         Assert.Contains("ingång 6.0 + kedja 34.0 + överlämning 1.3 + utgång 5.0 ms", console.Output);
         Assert.True(devices.Input.Started && devices.Input.Stopped);
