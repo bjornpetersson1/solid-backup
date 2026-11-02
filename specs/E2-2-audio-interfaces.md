@@ -87,5 +87,7 @@
 - **`PortAudioOutput` keeps its hand-over private and forwards its three counters** (code review finding declined): the clean-code pass made it private on purpose, so each stream reports its own part of `AudioCounters`.
 - **PR review fixes:** an audio error while running or stopping now reads "Ljudfel: …" (the message says whether opening or closing failed) instead of "Ljudet kunde inte startas", with a test for a failing stop; a test stops the pipeline twice and disposes both ends, as evidence for the idempotent stop in criterion 1.
 
+- **Settled in E6-1:** live mode hands decisions, not samples, from the input's thread to the output's (`specs/E6-1-live-pipeline.md`), so the hand-over's cushion no longer matters for the chords; `--passthrough` keeps the sample hand-over as described here. `IAudioOutput.Start` now takes an optional renderer (the pull model), and `HandOverBuffer` is the renderer when none is given.
+
 ## Open Questions
 - None

@@ -93,4 +93,7 @@ Live mode: the microphone's input runs through analysis, the level features and 
 
 - **PR review fixes:** `NoFeatures` and `UnknownFeatureMessage` moved from `AccompanyCommand` to `SettingOverrides`, which both commands share; a help test for `--live`; the summaries of `HarmonySetup` and `AccompanyCommand` no longer speak of live mode as still to come.
 
+- **Superseded by E6-2:** `LiveCommand.Play` returns a `LiveExit` (exit code, interrupted by Ctrl+C); q and Esc let the chord ring out before the audio stops; `--live` also records when `RecordOn` is on; `AudioSession` handles Ctrl+C once a recording is open (`specs/E6-2-menu.md`).
+- **Superseded by E6-3:** the status line (criterion 5 and the "Status line in place" decision) is replaced by the dashboard, redrawn in place every 200 ms; `LiveSnapshot` carries the run's settings and the recording's status instead of the feature names and the pattern; activities start from an `AudioStart` with the speaker warning (`specs/E6-3-live-dashboard.md`).
+
 ## Open Questions

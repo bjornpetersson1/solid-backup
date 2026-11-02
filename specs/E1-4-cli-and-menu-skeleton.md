@@ -57,5 +57,7 @@ The app's entry point: `System.CommandLine` handles `--help` and `--version`, an
 - **Interactive check is explicit** (code review): Spectre treats every macOS session as interactive, so `Program` turns interaction off when input is redirected.
 - **Ctrl+C restores the cursor** (code review): the prompt hides the cursor and SIGINT skips its cleanup, so a `CancelKeyPress` handler shows it again. Confirming this in a real terminal stays a manual check for the owner.
 
+- **Superseded by E6-2:** the menu is no longer empty; it shows the current choices, one item per choice, `Starta live` (preselected) and `Avsluta` (`specs/E6-2-menu.md`).
+
 ## Open Questions
 - None
