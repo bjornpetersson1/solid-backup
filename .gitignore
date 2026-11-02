@@ -492,3 +492,8 @@ $RECYCLE.BIN/
 
 # User settings written by the menu (normally outside the repo)
 usersettings.json
+
+
+# Recordings made with --record (RecordingFolder), wherever the app runs; the corpus's own recordings are tracked
+recordings/
+!/corpus/recordings/

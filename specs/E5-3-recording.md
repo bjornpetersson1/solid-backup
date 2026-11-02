@@ -4,7 +4,7 @@
 - **Labels:** `E5 Sound`
 - **Phase:** 5. Sound
 - **Depends on:** E2-2 (#6)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 815 tests passed); playing a recording in QuickTime and a few minutes of `--passthrough --record` without dropouts are manual checks for the owner; CI on Ubuntu is checked on the PR
 
 ## Summary
 Record a session's input (the voice) and output (the chords) to one stereo WAV file, written off the audio thread through a lock-free hand-over, so recording can never cause a dropout. `--passthrough --record` lets the owner try it before live mode exists.
@@ -43,12 +43,12 @@ Record a session's input (the voice) and output (the chords) to one stereo WAV f
 5. **The canonical check passes.** `dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test` exits 0 from the repo root, on macOS and in CI on Ubuntu.
 
 ## Tasks
-- [ ] A streaming stereo 16-bit WAV writer with a header finished on close.
-- [ ] The recorder: a ring buffer fed from the audio thread, a writer thread, the overrun counter, start and stop.
-- [ ] Attach it to the pass-through pipeline (input and output buffers) behind `--record`.
-- [ ] `RecordingFolder`, file naming, `.gitignore`.
-- [ ] README: `--record`, the setting, where the files go.
-- [ ] Tests: file format and round trip, header after a stop, allocation, a slow writer, naming, folder errors, command line.
+- [x] A streaming stereo 16-bit WAV writer with a header finished on close.
+- [x] The recorder: a ring buffer fed from the audio thread, a writer thread, the overrun counter, start and stop.
+- [x] Attach it to the pass-through pipeline (input and output buffers) behind `--record`.
+- [x] `RecordingFolder`, file naming, `.gitignore`.
+- [x] README: `--record`, the setting, where the files go.
+- [x] Tests: file format and round trip, header after a stop, allocation, a slow writer, naming, folder errors, command line.
 
 ## Decisions
 - **One stereo file, voice left and chords right** (owner's choice): one file to keep track of, always in sync.
@@ -58,5 +58,20 @@ Record a session's input (the voice) and output (the chords) to one stereo WAV f
 - **Drop recorded buffers rather than wait** (default): the audio must never wait for the disk; a lost recording buffer is counted, a dropout in the sound is never risked.
 - **The extension of the existing `WavWriter`** (default): it writes whole mono files in one go; a streaming stereo writer is added beside it rather than changing it.
 - **Builds on E2-2:** the pipeline's input and output buffers, the hand-over pattern and the counters.
+- **The recorder taps the pipeline** (implementation): `AudioPipeline` takes an optional `IAudioTap` that sees each input buffer and what went to the output; `SessionRecorder` is one. E6-1 attaches it the same way. Named `SessionRecorder`, as Spectre.Console has a `Recorder`.
+- **Placeholder sizes are 0xFFFFFFFF** (implementation): the streaming convention for "to the end of the file", which the app's `WavReader` (E2-2) and common players accept, so a file is readable while it grows; closing writes the real sizes.
+- **`recordings/` is ignored wherever the app runs, except the corpus** (code review): `RecordingFolder` is relative to the current directory, so `.gitignore` ignores any `recordings/` folder and re-includes `corpus/recordings/`, whose clips are tracked. The file keeps its CRLF line endings.
+- **The recording is created once the devices are open** (implementation): before the audio starts, as the criterion asks, but after a device error could stop the run, so a failed start leaves no empty file.
+- **A write failure is reported at the stop** (implementation): the writer thread keeps the error; stopping finishes what it can and the command reports "Inspelningen kunde inte skrivas." with exit code 1.
+- **Ring of 2 s** (implementation): the ring is rounded up to a power of two (2^18 floats, about 2.7 s of stereo at 48 kHz).
+- **Clean code:** the writer drains the ring straight from its one or two pieces and sleeps 50 ms in between (the audio thread never signals it, since that could make a system call); both WAV writers share one header and PCM conversion (`Pcm16Wav`); a write failure is a `RecordingFailedException`; the open/finish flow and its messages are `Cli.RecordingSession`, which E6-1's live command reuses; the recorder takes its rate and buffer size from the opened input, the same source as the pipeline.
 
 ## Open Questions
+- **Code review fixes:**
+  - a session whose audio fails to start throws its recording away (the file is deleted and nothing claims it was saved);
+  - the pipeline is stopped in a `finally`, and the file is finished even when stopping the audio fails;
+  - a recording that cannot write its header closes and deletes the file, and says nothing about recording;
+  - any exception from the destination is a failed recording, reported at the stop, never a crash on the writer thread; `Dispose` never throws, so it cannot hide another exception;
+  - a recording stops writing at the WAV format's 4 GB limit (about 6 hours of 48 kHz stereo) and says so, instead of wrapping its sizes;
+  - an idle writer makes no empty writes; the shared WAV helper is `Pcm16Wav` (the reader already has a `WavFormat`); the writer thread is named in English.
+- **Ctrl+C while the audio is starting** (code review finding declined): Ctrl+C becomes a clean stop only once the audio runs, so that it can still end the process while macOS's permission dialog blocks the start (E2-2). A recording ended there has no samples and keeps its "to the end of the file" sizes, which is still a valid, empty WAV that readers accept, so nothing is lost.

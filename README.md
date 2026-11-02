@@ -28,6 +28,7 @@ dotnet run --project src/SolidBackup -- --version # version
 dotnet run --project src/SolidBackup -- --passthrough # play the microphone in the output
 dotnet run --project src/SolidBackup -- --devices     # list the audio devices
 dotnet run --project src/SolidBackup -- --passthrough --input "USB Audio" --output "Externa hörlurar"
+dotnet run --project src/SolidBackup -- --passthrough --record  # and record it to recordings/
 dotnet run --project src/SolidBackup -- --harmonize corpus/recordings/singing.wav --style Campfire --key G
 dotnet run --project src/SolidBackup -- --render chords.wav --sound Organ --chords "C Am F G7" --chord-ms 800
 dotnet run --project src/SolidBackup -- --play --sound Pluck --output "Externa hörlurar"
@@ -35,6 +36,8 @@ dotnet run --project src/SolidBackup -- --accompany corpus/recordings/singing.wa
 ```
 
 `--passthrough` plays the chosen input in the chosen output until you press `q`, `Esc` or Ctrl+C, then prints the dropout counts. Use headphones: there is no echo cancellation, and the app warns when the output is the built-in speakers. If the terminal app has no microphone access, it stops with instructions instead of starting (System Settings → Privacy & Security → Microphone). On first use macOS asks for access; answer the dialog, and run again if the audio does not start.
+
+`--record` (with `--passthrough`) records the session to a stereo 16-bit WAV file in `RecordingFolder` (default `recordings/`, git-ignored), named after the start time, e.g. `recordings/2026-10-31_14-05-12.wav`: the input on the left channel and the output on the right, in sync. The file is written from a background thread, so recording never holds up the audio; if the disk falls more than 2 s behind, recorded buffers are dropped and counted instead. The app prints the path when it starts and the path, length and dropped buffers when it stops.
 
 `--devices` lists the inputs and outputs and marks the system defaults, the chosen devices and the built-in speakers. `--input` and `--output` choose a device by its exact name (case does not matter) for that run only; they are not saved.
 
@@ -141,5 +144,6 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `DynamicsLoudDbfs` | `-12` | Dynamics: at this level and above the chord plays at full strength (−90 to 0) |
 | `CharacterSparseBelowDbfs` | `-30` | Chord character: below this level the chord is sparse (−90 to 0, at least 6 dB below `CharacterFullAboveDbfs`) |
 | `CharacterFullAboveDbfs` | `-18` | Chord character: above this level the chord is full (−90 to 0); a level must pass a boundary by 3 dB to change the character |
+| `RecordingFolder` | `recordings` | Where `--record` puts its WAV files: a folder relative to the current directory, or an absolute path; created if missing |
 
 The menu's choices are saved to `~/Library/Application Support/solid-backup/usersettings.json`, which only holds the settings that differ from the defaults. A missing or invalid user settings file is ignored with a message, and the defaults are used.

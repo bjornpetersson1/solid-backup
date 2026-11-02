@@ -85,4 +85,7 @@ public sealed record AppSettings
 
     /// <summary>Chord character: above this level the chord is full.</summary>
     public required double CharacterFullAboveDbfs { get; init; }
+
+    /// <summary>Where recordings go: a folder relative to the current directory, or an absolute path.</summary>
+    public required string RecordingFolder { get; init; }
 }
