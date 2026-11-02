@@ -42,7 +42,7 @@ dotnet run --project src/SolidBackup -- --accompany corpus/recordings/singing.wa
 
 `--devices` lists the inputs and outputs and marks the system defaults, the chosen devices and the built-in speakers. `--input` and `--output` choose a device by its exact name (case does not matter) for that run only; they are not saved.
 
-`--harmonize <wav>` runs the pitch detection and the harmony (see [`docs/harmony.md`](docs/harmony.md)) over a WAV file and prints the time, the note and the chord at every chord change. `--style`, `--key` and `--mode` override `HarmonyStyle`, `Key` and `Mode` for that run only. It also prints the key when `auto` first finds it and whenever the key changes, by `auto` or by Blues moving it. The file's own sample rate is used (44100 or 48000 Hz). `--harmonize` cannot be combined with `--passthrough` or `--devices`.
+`--harmonize <wav>` (with `--bpm` and `--time-signature` for Jazz's grid) runs the pitch detection and the harmony (see [`docs/harmony.md`](docs/harmony.md)) over a WAV file and prints the time, the note and the chord at every chord change. `--style`, `--key` and `--mode` override `HarmonyStyle`, `Key` and `Mode` for that run only. It also prints the key when `auto` first finds it and whenever the key changes, by `auto` or by Blues or Jazz moving it. The file's own sample rate is used (44100 or 48000 Hz). It cannot be combined with another way of running.
 
 The menu needs an interactive terminal.
 
@@ -130,7 +130,7 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `OnsetThresholdDb` | `15` | A rise in level of at least this many dB within 20 ms is an onset (above 0, at most 60) |
 | `OnsetMinIntervalMs` | `100` | Shortest time between two onsets (above 0, at most 2000 ms) |
 | `LatencyTargetMs` | `50` | Latency target in milliseconds |
-| `HarmonyStyle` | `Church` | Harmony style: `Church`, `Campfire`, `Drone`, `Pop`, `Modal`, `Blues` or `Free` (see [`docs/harmony.md`](docs/harmony.md)); `Jazz` is accepted but not built yet (E5-6) |
+| `HarmonyStyle` | `Church` | Harmony style: `Church`, `Campfire`, `Drone`, `Pop`, `Modal`, `Blues`, `Jazz` or `Free` (see [`docs/harmony.md`](docs/harmony.md)); Jazz keeps time on the `Bpm` and `TimeSignature` grid |
 | `Key` | `auto` | The key's tonic (`C`, `F#`, `Bb`, …), or `auto` to estimate the tonic and major or minor from the notes |
 | `Mode` | `Ionian` | The key's mode: `Ionian`, `Dorian`, `Phrygian`, `Lydian`, `Mixolydian`, `Aeolian` or `Locrian`; ignored with `auto` |
 | `MinNoteForChangeMs` | `120` | While singing, a new note must last this long before it may change the chord (above 0) |

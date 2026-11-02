@@ -1,6 +1,7 @@
 using SolidBackup.Analysis;
 using SolidBackup.Configuration;
 using SolidBackup.Harmony;
+using SolidBackup.Rhythm;
 
 namespace SolidBackup.Tests.Harmony;
 
@@ -174,12 +175,6 @@ public sealed class StyleExampleTests
         Assert.Equal(chords.Split(' ').Order(), actual.Order());
     }
 
-    [Fact]
-    public void IsBuilt_AgreesWithTryCreate()
-    {
-        Assert.All(Enum.GetValues<HarmonyStyle>(), style => Assert.Equal(ChordRules.TryCreate(style, out _), ChordRules.IsBuilt(style)));
-    }
-
     [Theory]
     [InlineData(HarmonyStyle.Church, 4)]
     [InlineData(HarmonyStyle.Campfire, 3)]
@@ -210,8 +205,7 @@ public sealed class StyleExampleTests
 
     private static IChordRules Rules(HarmonyStyle style)
     {
-        Assert.True(ChordRules.TryCreate(style, out IChordRules? rules));
-        return rules;
+        return ChordRules.Create(style, new TempoGrid(48_000, 90, 4));
     }
 
     private static void AssertExample(string example, IChordRules rules, string tonic, Mode mode, string notes, string chords)

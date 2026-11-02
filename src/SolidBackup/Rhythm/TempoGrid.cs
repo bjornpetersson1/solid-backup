@@ -24,6 +24,9 @@ public sealed class TempoGrid(int sampleRate, int bpm, int beatsPerBar)
 
     public double SamplesPerBeat { get; } = sampleRate * 60.0 / bpm;
 
+    /// <summary>A beat's length in ms; beat <i>n</i> starts at <i>n</i> × this.</summary>
+    public double BeatMs { get; } = 60_000.0 / bpm;
+
     /// <summary>The sample step <paramref name="step"/> starts on, with <paramref name="stepsPerBeat"/> steps per beat.</summary>
     public long StepSample(long step, int stepsPerBeat)
     {

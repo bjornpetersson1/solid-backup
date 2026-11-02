@@ -14,9 +14,6 @@ public sealed class BluesRules : IChordRules
     private const int DiminishedFifth = 6;
     private const int MinorSeventh = 10;
 
-    // One step round the circle of fifths: a fourth up is the flat side, tried first, and a fifth up the sharp side.
-    private static readonly int[] FifthsSteps = [5, 7];
-
     private readonly ScaleRules _chords = new DominantSevenths();
 
     private Key _keyInEffect;
@@ -36,9 +33,9 @@ public sealed class BluesRules : IChordRules
             return current ?? new Chord(_bluesKey.Tonic, ChordQuality.Dominant7);
         }
 
-        if (!DominantSevenths.Contain(_bluesKey, pitchClass))
+        if (!_chords.ContainsNote(_bluesKey, pitchClass))
         {
-            _bluesKey = NearestKeyWith(pitchClass);
+            _bluesKey = CircleOfFifths.NearestKeyWith(new CircleOfFifths.InChords(_chords), _bluesKey, pitchClass);
             _moved = true;
         }
 
@@ -58,34 +55,9 @@ public sealed class BluesRules : IChordRules
         _moved = false;
     }
 
-    private Key NearestKeyWith(int pitchClass)
-    {
-        for (int steps = 1; steps <= 6; steps++)
-        {
-            foreach (int interval in FifthsSteps)
-            {
-                Key candidate = _bluesKey with { Tonic = (_bluesKey.Tonic + (interval * steps)) % 12 };
-                if (DominantSevenths.Contain(candidate, pitchClass))
-                {
-                    return candidate;
-                }
-            }
-        }
-
-        throw new InvalidOperationException("Every pitch class is in some key's I7.");
-    }
-
     /// <summary>I7, IV7 and V7 with priority 1, 4, 5, and the common successors, in any mode.</summary>
     private sealed class DominantSevenths() : ScaleRules([1, 4, 5], SeventhOn)
     {
-        // Bit n set when the pitch class n semitones above the tonic is in I7 (0 4 7 10), IV7 (5 9 0 3) or V7 (7 11 2 5).
-        private const int Tones = (1 << 0) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 7) | (1 << 9) | (1 << 10) | (1 << 11);
-
-        public static bool Contain(Key key, int pitchClass)
-        {
-            return (Tones & (1 << PitchClass.Interval(key.Tonic, pitchClass))) != 0;
-        }
-
         private static Chord? SeventhOn(Key key, int degree)
         {
             int? root = degree switch

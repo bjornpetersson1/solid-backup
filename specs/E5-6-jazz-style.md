@@ -4,7 +4,7 @@
 - **Labels:** `E5 Sound`
 - **Phase:** 5. Sound
 - **Depends on:** E4-2 (#12), E5-4 (#17); builds on E4-5 (#43) and E5-5 (#18)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 892 tests passed); hearing Jazz with `--accompany` is a manual check for the owner; CI on Ubuntu is checked on the PR
 
 ## Summary
 The Jazz harmony style: diatonic seventh chords, secondary dominants, II–V–I into a new key on the second foreign note, and a tonic loop I–VI–II–V, two beats per chord on the tempo grid, that never stands still. The detailed rules and examples J1–J10 are added to `docs/harmony.md` with this spec.
@@ -30,11 +30,11 @@ The Jazz harmony style: diatonic seventh chords, secondary dominants, II–V–I
 6. **The canonical check passes.** `dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test` exits 0 from the repo root, on macOS and in CI on Ubuntu.
 
 ## Tasks
-- [ ] The rules and examples in `docs/harmony.md` and the Jazz paragraph in `docs/rhythm.md` (written with this spec).
-- [ ] A time input to the harmony for styles that need it, from the tempo grid.
-- [ ] The Jazz rule set: chord sets, choice, secondary dominants, modulation with II–V–I, the tonic loop, the key's return.
-- [ ] `--style Jazz` in `--harmonize` and `--accompany`; README.
-- [ ] Tests: J1–J10, the rules in criterion 3, allocation.
+- [x] The rules and examples in `docs/harmony.md` and the Jazz paragraph in `docs/rhythm.md` (written with this spec).
+- [x] A time input to the harmony for styles that need it, from the tempo grid.
+- [x] The Jazz rule set: chord sets, choice, secondary dominants, modulation with II–V–I, the tonic loop, the key's return.
+- [x] `--style Jazz` in `--harmonize` and `--accompany`; README.
+- [x] Tests: J1–J10, the rules in criterion 3, allocation.
 
 ## Decisions
 - **Two beats per loop chord, on every other beat of the grid** (owner's choice); the second chord on the first such beat at least one beat after the tonic chord.
@@ -49,3 +49,20 @@ The Jazz harmony style: diatonic seventh chords, secondary dominants, II–V–I
 - **Builds on E4-5** (a style that moves the current key and returns on a phrase reset) **and E5-5** (the tempo grid).
 
 ## Open Questions
+- **Self-timed changes in the harmony** (implementation): `IChordRules` gained `Advance(nowMs, soundingPitchClass)`, called on every estimate after `Choose`, whose chord the harmonizer takes without the hold times, and `KeepsPlaying`, which keeps `Harmonizer.InPhrase` true while Jazz's loop runs (so the pattern does not stop, as `docs/rhythm.md` says). Both do nothing by default, and the existing styles give the same chords: the whole harmony suite passes unchanged. Jazz plans the loop and the cadence from the time `Advance` gets, in the same estimate as the chord that starts them.
+- **Clean code:** Blues and Jazz share the move to the nearest key (`CircleOfFifths.NearestKeyWith`) and the "is the note in the style's chords" check (`ScaleRules.ContainsNote`, built from the chords, which replaces Blues' hand-written mask); `ScaleRules.DegreeOf` tells Jazz whether a secondary dominant is already diatonic; silence is `PitchClass.None`.
+- **Time is the estimates' time** (implementation): Jazz keeps the beat in the harmony's own clock (each estimate's time, as the hold times do), with beat *n* at *n* × 60000 / `Bpm` ms on the same grid as the patterns (`TempoGrid.BeatMs`). Live, the estimate lags the output by about half the pitch window, so a loop change can sound up to about 20 ms after the pattern's beat; the tests use estimates on the beat.
+- **"In the key" means in one of the key's chords** (implementation): so in minor the raised seventh, which the harmonic-minor V7 contains, is not foreign.
+- **A phrase reset returns the key but keeps the loop** (implementation): the harmonizer resets the rules after `PhraseResetMs` of silence, and the loop must go on through silence (J4); a new key in effect (auto) stops it.
+- **A tonic while the loop runs keeps the loop** (implementation, refined in code review): the loop "never stops by itself", so the tonic sung again does not restart it; the chord stays the loop's own (with V7's 11th), so the order I – VI – II – V holds.
+- **A foreign note no secondary dominant contains modulates** (implementation): the docs only cover the first and the second foreign note; when the first has no secondary dominant (possible in minor), it moves the key at once.
+- **Every style is built** (implementation): the "not built yet" path (`ChordRules.IsBuilt`, `Harmonizer.HasBuiltStyle`, `HarmonizeCommand.NotBuiltMessage`) and its tests are gone; `ChordRules.Create` builds any style, Jazz on the settings' grid.
+- **`--harmonize` takes `--bpm` and `--time-signature`** (implementation), and prints a change the style makes in silence with "–" for the note.
+- **Code review fixes:**
+  - after the loop's V7(11), the common rules see the plain V7, so the successor rule works (A after it gives Am7) and the 11th is dropped once the loop has stopped;
+  - the loop decides V7's 11th from the stable note (the last one chosen for), so a passing note shorter than the hold time does not take it away;
+  - a loop change waits while a different note is waiting out its hold time, so no loop chord slips in under a note that is about to stop the loop; a passing note therefore delays the change by its length (`APassingNote_DoesNotTakeTheEleventhAway`: 3030 instead of 3000);
+  - a phrase reset brings a loop in a moved key home to the returned key and drops a cadence still under way, so the key shown and the chords agree;
+  - the nearest key for a modulation is found by its scale (natural minor in minor), as `docs/harmony.md` says, so C# in A minor moves to B minor; "foreign" still means "in none of the key's chords";
+  - `Harmonizer.InPhrase` and the `--harmonize` key line mention Jazz.
+- **A note in the same estimate that a cadence ends** (implementation): the harmony chooses for a new note before the style's own change in that estimate, so such a note still counts as during the cadence and is played through; a note a moment later is chosen as usual.
