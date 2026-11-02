@@ -1,3 +1,4 @@
+using SolidBackup.Configuration;
 using SolidBackup.Harmony;
 
 namespace SolidBackup.Synthesis;
@@ -41,6 +42,21 @@ public sealed class Synthesizer
         {
             _voices[i] = new Voice(Preset, sampleRate, VoiceGain);
         }
+    }
+
+    /// <summary>A synthesizer with validated settings' sound and sample rate.</summary>
+    public static Synthesizer FromSettings(AppSettings settings)
+    {
+        return new Synthesizer(SoundIn(settings), settings.SampleRate);
+    }
+
+    /// <summary>The validated settings' sound.</summary>
+    /// <exception cref="ArgumentException">The sound is not valid; validate the settings first.</exception>
+    public static Sound SoundIn(AppSettings settings)
+    {
+        return SettingNames.TryParse(settings.Sound, out Sound sound)
+            ? sound
+            : throw new ArgumentException("The sound is not valid; validate the settings first.", nameof(settings));
     }
 
     private enum ToneEventKind

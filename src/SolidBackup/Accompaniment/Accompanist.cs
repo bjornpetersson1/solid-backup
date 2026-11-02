@@ -40,7 +40,7 @@ public sealed class Accompanist : IAudioProcessor
         _features = [.. (registry ?? LevelFeatures.All).Where(entry => entry.IsOn(settings)).Select(entry => entry.Create(settings))];
         Harmonizer = Harmonizer.FromSettings(settings);
         _pattern = RhythmPatterns.Create(settings);
-        Synthesizer = new Synthesizer(Enum.Parse<Sound>(settings.Sound), settings.SampleRate);
+        Synthesizer = Synthesizer.FromSettings(settings);
     }
 
     public Harmonizer Harmonizer { get; }

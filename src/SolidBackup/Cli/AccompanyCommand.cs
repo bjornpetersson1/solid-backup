@@ -40,7 +40,7 @@ public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResu
             return ConsoleMessages.Error(console, UnknownFeatureMessage(features));
         }
 
-        if (HarmonizeCommand.PrepareHarmony(console, settings, options.Key is not null, options.Mode is not null) is null)
+        if (HarmonySetup.Prepare(console, settings, options.Key is not null, options.Mode is not null) is null)
         {
             return 1;
         }

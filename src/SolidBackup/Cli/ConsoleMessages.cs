@@ -28,6 +28,18 @@ internal static class ConsoleMessages
         }
     }
 
+    /// <summary>Shows the first invalid value and returns true, or returns false when the settings are valid.</summary>
+    public static bool InvalidSettings(IAnsiConsole console, AppSettings settings)
+    {
+        if (SettingsValidator.Validate(settings) is not { } error)
+        {
+            return false;
+        }
+
+        Error(console, $"Ogiltigt värde för {error.Setting}: {error.Problem}.");
+        return true;
+    }
+
     public static int AudioError(IAnsiConsole console, AudioDeviceException exception)
     {
         return Error(console, $"Ljudfel: {exception.Message}");

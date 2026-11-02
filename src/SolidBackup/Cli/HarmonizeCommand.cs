@@ -18,8 +18,6 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
 {
     public const string NoNotesMessage = "Inga toner hittades.";
     public const string NoKeyMessage = "Ingen tonart hittades: inspelningen är för kort eller för tvetydig för tonarten auto. Ange en fast tonart med --key.";
-    public const string ModeIgnoredMessage = "--mode gäller inte med tonarten auto, som bara skattar dur eller moll.";
-    public const string KeyIgnoredMessage = "--key och --mode gäller inte med harmonistilen Fri, som inte har någon tonart.";
 
     public int Run(string path, string? style = null, string? key = null, string? mode = null, RhythmOverrides? rhythm = null)
     {
@@ -37,7 +35,7 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
             Key = key ?? loaded.Settings.Key,
             Mode = mode ?? loaded.Settings.Mode,
         };
-        if (PrepareHarmony(console, settings, key is not null, mode is not null) is not { } harmonizer)
+        if (HarmonySetup.Prepare(console, settings, key is not null, mode is not null) is not { } harmonizer)
         {
             return 1;
         }
@@ -65,36 +63,6 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
         }
 
         return 0;
-    }
-
-    /// <summary>
-    /// Validates a run's settings and builds its harmony, warning when a given <c>--key</c> or <c>--mode</c> is
-    /// ignored; null after an error has been shown. Shared by <c>--harmonize</c> and <c>--accompany</c>.
-    /// </summary>
-    internal static Harmonizer? PrepareHarmony(IAnsiConsole console, AppSettings settings, bool keyGiven, bool modeGiven)
-    {
-        if (SettingsValidator.Validate(settings) is { } error)
-        {
-            ConsoleMessages.Error(console, $"Ogiltigt värde för {error.Setting}: {error.Problem}.");
-            return null;
-        }
-
-        Harmonizer harmonizer = Harmonizer.FromSettings(settings);
-        if ((keyGiven || modeGiven) && !harmonizer.UsesKey)
-        {
-            ConsoleMessages.Warning(console, KeyIgnoredMessage);
-        }
-        else if (modeGiven && harmonizer.Key is null)
-        {
-            ConsoleMessages.Warning(console, ModeIgnoredMessage);
-        }
-
-        return harmonizer;
-    }
-
-    public static string MissingFileMessage(string path)
-    {
-        return $"Filen {path} finns inte.";
     }
 
     /// <summary>A chord change as printed, e.g. "1.25 s  A4   Am".</summary>

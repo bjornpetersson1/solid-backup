@@ -5,14 +5,19 @@ using Spectre.Console;
 namespace SolidBackup.Cli;
 
 /// <summary>Reads and writes the commands' WAV files, showing a Swedish error instead of throwing.</summary>
-internal static class RecordingFiles
+public static class RecordingFiles
 {
+    public static string MissingFileMessage(string path)
+    {
+        return $"Filen {path} finns inte.";
+    }
+
     /// <summary>The recording, or null after an error has been shown.</summary>
     public static WavAudio? Read(IAnsiConsole console, string path)
     {
         if (!File.Exists(path))
         {
-            ConsoleMessages.Error(console, HarmonizeCommand.MissingFileMessage(path));
+            ConsoleMessages.Error(console, MissingFileMessage(path));
             return null;
         }
 
