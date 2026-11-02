@@ -10,8 +10,10 @@ public sealed class AudioPipeline : IAudioInputHandler
     private readonly IAudioOutput _output;
     private readonly IAudioProcessor _processor;
     private readonly float[] _processed;
+    private readonly IAudioTap? _tap;
 
-    public AudioPipeline(IAudioInput input, IAudioOutput output, IAudioProcessor processor)
+    /// <param name="tap">Sees each input buffer and what went to the output, e.g. a recorder.</param>
+    public AudioPipeline(IAudioInput input, IAudioOutput output, IAudioProcessor processor, IAudioTap? tap = null)
     {
         if (input.SampleRate != output.SampleRate || input.BufferSize != output.BufferSize)
         {
@@ -24,6 +26,7 @@ public sealed class AudioPipeline : IAudioInputHandler
         _input = input;
         _output = output;
         _processor = processor;
+        _tap = tap;
         _processed = new float[input.BufferSize];
     }
 
@@ -59,5 +62,6 @@ public sealed class AudioPipeline : IAudioInputHandler
         Span<float> processed = _processed.AsSpan(0, Math.Min(samples.Length, _processed.Length));
         _processor.Process(samples[..processed.Length], processed);
         _output.Write(processed);
+        _tap?.OnBuffer(samples[..processed.Length], processed);
     }
 }

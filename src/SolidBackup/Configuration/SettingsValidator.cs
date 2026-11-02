@@ -90,6 +90,11 @@ public static class SettingsValidator
             return new(nameof(AppSettings.LatencyTargetMs), $"{settings.LatencyTargetMs} ms måste vara större än 0");
         }
 
+        if (string.IsNullOrWhiteSpace(settings.RecordingFolder))
+        {
+            return new(nameof(AppSettings.RecordingFolder), "en mapp krävs, t.ex. \"recordings\"");
+        }
+
         return ValidateHarmony(settings) ?? ValidateSound(settings) ?? ValidateLevelFeatures(settings);
     }
 

@@ -214,6 +214,24 @@ public class AppCommandTests
     }
 
     [Fact]
+    public void RecordWithoutPassThrough_FailsWithSwedishMessage()
+    {
+        (int exitCode, _, string error) = Invoke("--record");
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.OptionAloneMessage("--record", ["--passthrough"])} {AppCommand.HelpHint}", error.Trim());
+    }
+
+    [Fact]
+    public void Help_ListsRecordWithSwedishDescription()
+    {
+        (_, string output, _) = Invoke("--help");
+
+        Assert.Contains("--record", output);
+        Assert.Contains("Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough).", output);
+    }
+
+    [Fact]
     public void AccompanyWithoutRender_FailsWithSwedishMessage()
     {
         (int exitCode, _, string error) = Invoke("--accompany", "x.wav");

@@ -111,6 +111,10 @@ public static class AppCommand
             Description = "Kör en WAV-fil genom analys, nivåfunktioner, harmoni och synt och skriv resultatet med --render.",
             HelpName = "wav",
         };
+        Option<bool> recordOption = new("--record")
+        {
+            Description = "Spela in ingången och utgången till en WAV-fil i inspelningsmappen (med --passthrough).",
+        };
         Option<bool> noVoiceOption = new("--no-voice")
         {
             Description = "Skriv bara ackompanjemanget, utan rösten (med --accompany).",
@@ -134,11 +138,12 @@ public static class AppCommand
         root.Options.Add(chordMsOption);
         root.Options.Add(accompanyOption);
         root.Options.Add(noVoiceOption);
+        root.Options.Add(recordOption);
         root.Options.Add(featuresOption);
         // Each way of running and the options that go with it; an option belongs to the modes that list it.
         RunMode[] modes =
         [
-            new(passThroughOption, [inputOption, outputOption]),
+            new(passThroughOption, [inputOption, outputOption, recordOption]),
             new(devicesOption, [inputOption, outputOption]),
             new(harmonizeOption, [styleOption, keyOption, modeOption]),
             new(accompanyOption, [renderOption, styleOption, keyOption, modeOption, soundOption, featuresOption, noVoiceOption]),
@@ -188,7 +193,7 @@ public static class AppCommand
             }
 
             return parseResult.GetValue(passThroughOption)
-                ? new PassThroughCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight()).Run()
+                ? new PassThroughCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight()).Run(record: parseResult.GetValue(recordOption))
                 : new MainMenu(createConsole()).Run();
         });
         return root;

@@ -119,6 +119,8 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "CharacterFullAboveDbfs": -26 }""", "CharacterSparseBelowDbfs och CharacterFullAboveDbfs")]
     [InlineData("""{ "CharacterFullAboveDbfs": 0.5 }""", "CharacterFullAboveDbfs")]
     [InlineData("""{ "GateOn": "ja" }""", "GateOn")]
+    [InlineData("""{ "RecordingFolder": "" }""", "RecordingFolder")]
+    [InlineData("""{ "RecordingFolder": null }""", "RecordingFolder")]
     public void Load_InvalidValue_IgnoresWholeFileAndNamesSetting(string content, string setting)
     {
         WriteUserFile(content);
@@ -177,6 +179,7 @@ public sealed class SettingsStoreTests : IDisposable
             DynamicsLoudDbfs = -10,
             CharacterSparseBelowDbfs = -35,
             CharacterFullAboveDbfs = -15,
+            RecordingFolder = "/tmp/inspelningar",
         };
 
         CreateStore().Save(saved);

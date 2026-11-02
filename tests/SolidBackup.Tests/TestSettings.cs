@@ -37,5 +37,6 @@ internal static class TestSettings
         DynamicsLoudDbfs = -12,
         CharacterSparseBelowDbfs = -30,
         CharacterFullAboveDbfs = -18,
+        RecordingFolder = "recordings",
     };
 }
