@@ -28,5 +28,6 @@ internal static class TestSettings
         PhraseResetMs = 2000,
         KeyChangeSeconds = 4,
         KeyFirstSeconds = 2,
+        Sound = "Pad",
     };
 }

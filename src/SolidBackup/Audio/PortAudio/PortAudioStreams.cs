@@ -62,4 +62,24 @@ internal static class PortAudioStreams
             closing.Dispose();
         }
     }
+
+    /// <summary>Stereo, or mono on a one-channel device: the mono signal goes to every channel.</summary>
+    public static int OutputChannels(AudioDeviceInfo device)
+    {
+        return Math.Min(2, device.OutputChannels);
+    }
+
+    /// <summary>Copies a mono buffer to every channel of an interleaved one and clears the frames beyond it.</summary>
+    public static void FanOut(ReadOnlySpan<float> mono, Span<float> interleaved, int channels)
+    {
+        for (int frame = 0; frame < mono.Length; frame++)
+        {
+            for (int channel = 0; channel < channels; channel++)
+            {
+                interleaved[(frame * channels) + channel] = mono[frame];
+            }
+        }
+
+        interleaved[(mono.Length * channels)..].Clear();
+    }
 }

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 
+using SolidBackup.Configuration;
 using SolidBackup.Harmony;
 
 namespace SolidBackup.Measurement;
@@ -131,7 +132,7 @@ public static class ReferenceFile
             throw Invalid(source, lineNumber, $"tonarten vid {start} ms kommer inte efter den förra");
         }
 
-        if (!PitchClass.TryParse(fields[2], out int tonic) || !HarmonySettings.TryParseName(fields[3], out Mode mode))
+        if (!PitchClass.TryParse(fields[2], out int tonic) || !SettingNames.TryParse(fields[3], out Mode mode))
         {
             throw Invalid(source, lineNumber, $"okänd tonart '{fields[2]} {fields[3]}'");
         }

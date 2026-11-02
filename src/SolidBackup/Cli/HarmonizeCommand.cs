@@ -120,7 +120,7 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
 
     private static string StyleName(string style)
     {
-        return HarmonySettings.TryParseName(style, out HarmonyStyle harmonyStyle) ? HarmonyNames.Style(harmonyStyle) : style;
+        return SettingNames.TryParse(style, out HarmonyStyle harmonyStyle) ? HarmonyNames.Style(harmonyStyle) : style;
     }
 
     // Runs offline over a file, so it may collect the lines as it goes.

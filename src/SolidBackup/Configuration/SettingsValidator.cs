@@ -1,5 +1,6 @@
 using SolidBackup.Analysis;
 using SolidBackup.Harmony;
+using SolidBackup.Synthesis;
 
 namespace SolidBackup.Configuration;
 
@@ -86,12 +87,19 @@ public static class SettingsValidator
             return new(nameof(AppSettings.LatencyTargetMs), $"{settings.LatencyTargetMs} ms måste vara större än 0");
         }
 
-        return ValidateHarmony(settings);
+        return ValidateHarmony(settings) ?? ValidateSound(settings);
+    }
+
+    private static SettingsError? ValidateSound(AppSettings settings)
+    {
+        return SettingNames.TryParse<Sound>(settings.Sound, out _)
+            ? null
+            : new(nameof(AppSettings.Sound), $"\"{settings.Sound}\" är inget känt ljud; välj {string.Join(", ", Enum.GetNames<Sound>())}");
     }
 
     private static SettingsError? ValidateHarmony(AppSettings settings)
     {
-        if (!HarmonySettings.TryParseName<HarmonyStyle>(settings.HarmonyStyle, out _))
+        if (!SettingNames.TryParse<HarmonyStyle>(settings.HarmonyStyle, out _))
         {
             return new(nameof(AppSettings.HarmonyStyle), $"\"{settings.HarmonyStyle}\" är ingen känd harmonistil; välj {string.Join(", ", Enum.GetNames<HarmonyStyle>())}");
         }
@@ -101,7 +109,7 @@ public static class SettingsValidator
             return new(nameof(AppSettings.Key), $"\"{settings.Key}\" är ingen giltig tonart; ange en grundton som C, F# eller Bb, eller {HarmonySettings.AutoKey}");
         }
 
-        if (!HarmonySettings.TryParseName<Mode>(settings.Mode, out _))
+        if (!SettingNames.TryParse<Mode>(settings.Mode, out _))
         {
             return new(nameof(AppSettings.Mode), $"\"{settings.Mode}\" är ingen känd modus; välj {string.Join(", ", Enum.GetNames<Mode>())}");
         }

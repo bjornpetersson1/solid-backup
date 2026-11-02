@@ -58,4 +58,7 @@ public sealed record AppSettings
 
     /// <summary>With <c>auto</c>, how many seconds of notes are needed before the first key.</summary>
     public required double KeyFirstSeconds { get; init; }
+
+    /// <summary>The synthesizer's sound: <c>Pad</c>, <c>Organ</c> or <c>Pluck</c>.</summary>
+    public required string Sound { get; init; }
 }
