@@ -100,7 +100,7 @@ public sealed class AccompanyCommandTests : IDisposable
 
         Command(console).Run(_input, Path.Combine(_folder, "out.wav"), new AccompanyOptions(Style: "Free", Key: "G"));
 
-        Assert.Contains(HarmonizeCommand.KeyIgnoredMessage, console.Output);
+        Assert.Contains(HarmonySetup.KeyIgnoredMessage, console.Output);
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public sealed class AccompanyCommandTests : IDisposable
         int exitCode = Command(console).Run(missing, Path.Combine(_folder, "out.wav"), new AccompanyOptions());
 
         Assert.Equal(1, exitCode);
-        Assert.Contains(HarmonizeCommand.MissingFileMessage(missing), console.Output);
+        Assert.Contains(RecordingFiles.MissingFileMessage(missing), console.Output);
     }
 
     private static AccompanyCommand Command(TestConsole console)

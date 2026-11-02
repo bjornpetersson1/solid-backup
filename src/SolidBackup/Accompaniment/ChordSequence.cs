@@ -16,7 +16,7 @@ public static class ChordSequence
 
     public static float[] Render(AppSettings settings, IReadOnlyList<Chord> chords, int chordMs)
     {
-        Synthesizer synthesizer = new(Enum.Parse<Sound>(settings.Sound), settings.SampleRate);
+        Synthesizer synthesizer = Synthesizer.FromSettings(settings);
         IRhythmPattern pattern = RhythmPatterns.Create(settings);
         int chordSamples = (int)Duration.Samples(chordMs, settings.SampleRate);
         int end = checked(chords.Count * chordSamples);

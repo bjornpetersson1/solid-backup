@@ -110,9 +110,8 @@ public sealed class SynthCommand(
         ConsoleMessages.SettingsMessage(console, loaded);
         AppSettings withSound = loaded.Settings with { Sound = sound ?? loaded.Settings.Sound };
         AppSettings settings = rhythm?.Apply(withSound) ?? withSound;
-        if (SettingsValidator.Validate(settings) is { } error)
+        if (ConsoleMessages.InvalidSettings(console, settings))
         {
-            ConsoleMessages.Error(console, $"Ogiltigt värde för {error.Setting}: {error.Problem}.");
             return null;
         }
 
@@ -148,7 +147,7 @@ public sealed class SynthCommand(
             parsed.Add(chord);
         }
 
-        return new Prepared(settings, Enum.Parse<Sound>(settings.Sound), ChordSequence.Render(settings, parsed, duration));
+        return new Prepared(settings, Synthesizer.SoundIn(settings), ChordSequence.Render(settings, parsed, duration));
     }
 
     private sealed record Prepared(AppSettings Settings, Sound Sound, float[] Samples);

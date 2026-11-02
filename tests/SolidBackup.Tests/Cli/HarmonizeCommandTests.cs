@@ -97,7 +97,7 @@ public sealed class HarmonizeCommandTests : IDisposable
         (int exitCode, string[] lines) = Run(style: "Free", key: "D", mode: "Dorian");
 
         Assert.Equal(0, exitCode);
-        Assert.Equal(HarmonizeCommand.KeyIgnoredMessage, lines[0]);
+        Assert.Equal(HarmonySetup.KeyIgnoredMessage, lines[0]);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class HarmonizeCommandTests : IDisposable
         (int exitCode, string[] lines) = Run(key: HarmonySettings.AutoKey, mode: "Dorian");
 
         Assert.Equal(0, exitCode);
-        Assert.Equal(HarmonizeCommand.ModeIgnoredMessage, lines[0]);
+        Assert.Equal(HarmonySetup.ModeIgnoredMessage, lines[0]);
     }
 
     [Fact]
@@ -162,7 +162,7 @@ public sealed class HarmonizeCommandTests : IDisposable
         (int exitCode, string[] lines) = Run(path: missing);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal([HarmonizeCommand.MissingFileMessage(missing)], lines);
+        Assert.Equal([RecordingFiles.MissingFileMessage(missing)], lines);
     }
 
     [Fact]

@@ -40,13 +40,13 @@ dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test
 
 ## E5 Sound
 
-Most of E5 is heard live first in E6; before that, check what can be rendered or recorded.
+Live mode comes in E6; until then everything in E5 can be heard by rendering to a file, playing in the headphones, or running a recording through the whole chain. Open the files in QuickTime.
 
-1. **Synthesizer (E5-1):** listen to the rendered pad, organ and pluck (through the command or test output E5-1 provides): each sounds like its name, a chord sounds in tune, and there are no clicks when the chord changes.
-2. **Level features (E5-2):** with dynamics on, a louder input gives a louder chord; with chord character on, soft gives a sparser chord and loud a fuller one; with onsets on, a clear new attack changes the chord; with the gate on, silence is silent. Switch each one off and check that its effect goes away and nothing else changes.
-3. **Recording (E5-3):** make a recording and open the WAV files in another program (QuickTime, Audacity): both the input and the output play, in sync, without gaps.
-4. **Rhythm patterns (E5-5):** at 90 BPM in 4/4, Arpeggio plays even eighths and Strum one strike per beat, with beat 1 slightly stronger; 3/4 gives three beats per bar. Check the tempo against a metronome for a minute: it does not drift. A chord change in Arpeggio or Strum comes on the next step; with Held it comes at once.
-5. **Jazz (E5-6):** with `--harmonize` and `--style Jazz`, the chords loop I–VIm7–IIm7–V7 when you hold or rest, and a foreign note leads into a new key through IIm7–V7–Imaj7.
+1. **Synthesizer (E5-1):** `dotnet run --project src/SolidBackup -- --play --sound Pad`, then `--sound Organ` and `--sound Pluck` (or `--render chords.wav --sound Organ` to a file). Each sounds like its name, the chords are in tune, and there are no clicks when the chord changes. With `--chord-ms 150` the fast changes should still not click.
+2. **Level features (E5-2):** `-- --accompany corpus/recordings/singing.wav --render sung.wav`, then the same with `--features none`, `--features gate` and `--features dynamics,character`. With the gate the chords stop in the pauses; with dynamics they follow your loudness; with character soft notes give root and fifth and loud ones a bass note below; with onsets a clearly sung new note changes the chord at once. Record yourself (`--passthrough --record`) and try that file too.
+3. **Recording (E5-3):** `-- --passthrough --record` for a few minutes in headphones: every count in the summary is 0, and the file in `recordings/` plays with your voice on the left and the output on the right, in sync, without gaps.
+4. **Rhythm patterns (E5-5):** `-- --play --pattern Arpeggio --bpm 90` and `-- --play --pattern Strum --time-signature 3/4`. Arpeggio plays even eighths and Strum one strike per beat with the tones 10 ms apart, beat 1 a little stronger; 3/4 gives three beats per bar. Check against a metronome for a minute: no drift. A chord change comes on the pattern's next step.
+5. **Jazz (E5-6):** `-- --harmonize corpus/recordings/singing.wav --style Jazz --key C` prints the changes; `-- --accompany corpus/recordings/singing.wav --render jazz.wav --style Jazz --pattern Arpeggio` lets you hear them. On the tonic the chords loop Imaj7–VIm7–IIm7–V7, two beats each, also in the pauses; a foreign note gives a secondary dominant, and a second one moves the key through IIm7–V7–Imaj7.
 
 ## E6 Live mode
 
