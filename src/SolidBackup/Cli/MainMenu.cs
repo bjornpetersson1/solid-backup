@@ -13,7 +13,7 @@ namespace SolidBackup.Cli;
 /// <summary>
 /// The start menu: a table of the current choices, one item per choice, live mode and quit. Each choice is saved to
 /// the user settings file as soon as it is made, so it is the next start's default. Live mode runs through
-/// <paramref name="startLive"/> (<see cref="LiveCommand.Play"/>) and comes back to the menu after q or Esc; Ctrl+C
+/// <paramref name="startLive"/> (<see cref="LiveCommand.Play"/>, recording when <c>RecordOn</c> is on) and comes back to the menu after q or Esc; Ctrl+C
 /// quits the app, from live mode once its audio and recording have closed.
 /// </summary>
 public sealed class MainMenu(
@@ -21,7 +21,7 @@ public sealed class MainMenu(
     SettingsStore store,
     Func<IAudioDeviceCatalog> openCatalog,
     AudioPreflight preflight,
-    Func<AppSettings, bool, LiveExit> startLive)
+    Func<AppSettings, LiveExit> startLive)
 {
     public const string Title = "solid-backup";
     public const string StartChoice = "Starta live";
@@ -119,7 +119,7 @@ public sealed class MainMenu(
         Console.CancelKeyPress -= QuitOnCtrlC;
         try
         {
-            return startLive(settings, settings.RecordOn);
+            return startLive(settings);
         }
         finally
         {

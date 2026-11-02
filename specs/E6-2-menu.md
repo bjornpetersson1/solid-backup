@@ -4,7 +4,7 @@
 - **Labels:** `E6 Live mode`
 - **Phase:** 6. Live mode
 - **Depends on:** E1-3 (#3), E1-4 (#4), E2-3 (#7), E6-1 (#19)
-- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 960 tests passed); hearing every choice live and a real Ctrl+C in the menu and in live mode are manual checks for the owner
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 961 tests passed); hearing every choice live and a real Ctrl+C in the menu and in live mode are manual checks for the owner
 
 ## Summary
 The start menu: the app started without arguments shows the current choices and lets the owner change devices, key, harmony style, sound, rhythm (pattern, tempo, time signature), level features and recording, each saved at once as the next start's defaults, and start live mode (E6-1) from it. `Esc` or `q` fades the sound out and returns to the menu; `Ctrl+C` quits cleanly.
@@ -76,5 +76,7 @@ The start menu: the app started without arguments shows the current choices and 
 
 - **Code review fixes:** once a recording is open, `AudioSession` handles Ctrl+C itself: before the audio runs (the open can block on the permission dialog) it throws the file away and lets the process end, and from then on it asks the activity to stop, so the fade, the stop and the file's header are never cut off; Ctrl+C during the fade ends it at once. The menu keeps live mode's exit code after Ctrl+C (1 when the recording could not be saved). The speaker check is redone whenever the device list is read, so a default output that became the speakers during live mode is warned about. Saved device names are matched as `DeviceSelector` does (case and Unicode form), so the saved device's row is preselected. The fade's limit uses a `Stopwatch`. The level features are switched straight from the chosen entries. The no-arguments test gets its menu from the test (fake devices, a temporary settings file) instead of PortAudio and the owner's settings.
 - **The whole `CorpusMeasurementTests` class stays in the `Timing` collection** (code review finding declined): its measurement is computed once (`Lazy`) and shared by every test in the class, so whichever test runs first times the analysis. Moving only the real-time test would let an accuracy test compute it under the parallel load again.
+
+- **PR review fixes:** a test that a failed live run shows the menu again; the menu takes `Func<AppSettings, LiveExit>`, since whether to record is `RecordOn` in the settings it passes.
 
 ## Open Questions

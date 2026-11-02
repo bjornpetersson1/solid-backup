@@ -23,7 +23,7 @@ public sealed class MainMenuTests : IDisposable
     private static readonly int Quit = Item(MainMenu.QuitChoice);
 
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "solid-backup-tests", Guid.NewGuid().ToString("N"));
-    private readonly List<(AppSettings Settings, bool Record)> _started = [];
+    private readonly List<AppSettings> _started = [];
 
     public void Dispose()
     {
@@ -61,9 +61,7 @@ public sealed class MainMenuTests : IDisposable
         int exitCode = Menu(console).Run();
 
         Assert.Equal(0, exitCode);
-        (AppSettings settings, bool record) = Assert.Single(_started);
-        Assert.Equal(TestSettings.Default, settings);
-        Assert.False(record);
+        Assert.Equal(TestSettings.Default, Assert.Single(_started));
     }
 
     [Fact]
@@ -76,9 +74,9 @@ public sealed class MainMenuTests : IDisposable
 
         Menu(console).Run();
 
-        (AppSettings settings, bool record) = Assert.Single(_started);
+        AppSettings settings = Assert.Single(_started);
         Assert.Equal(Changed, settings);
-        Assert.True(record);
+        Assert.True(settings.RecordOn);
     }
 
     [Fact]
@@ -103,7 +101,7 @@ public sealed class MainMenuTests : IDisposable
         Assert.Contains("Organ", next.Output);
         Assert.Contains("Strum, 120 BPM, 3/4", next.Output);
         Assert.Contains("ansättningar, ackordkaraktär, dynamik", next.Output);
-        Assert.Equal(Changed, Assert.Single(_started).Settings);
+        Assert.Equal(Changed, Assert.Single(_started));
     }
 
     [Fact]
@@ -121,7 +119,7 @@ public sealed class MainMenuTests : IDisposable
         Menu(console).Run();
 
         Assert.Contains(MainMenu.BpmRangeMessage, console.Output);
-        Assert.Equal(100, Assert.Single(_started).Settings.Bpm);
+        Assert.Equal(100, Assert.Single(_started).Bpm);
     }
 
     [Fact]
@@ -141,7 +139,7 @@ public sealed class MainMenuTests : IDisposable
         Menu(console).Run();
 
         // Had the mode been asked after auto, it would have taken the Enter meant for Start.
-        Assert.Equal("auto", Assert.Single(_started).Settings.Key);
+        Assert.Equal("auto", Assert.Single(_started).Key);
     }
 
     [Fact]
@@ -161,7 +159,7 @@ public sealed class MainMenuTests : IDisposable
 
         Menu(console).Run();
 
-        AppSettings settings = Assert.Single(_started).Settings;
+        AppSettings settings = Assert.Single(_started);
         Assert.False(settings.GateOn || settings.OnsetsOn || settings.ChordCharacterOn || settings.DynamicsOn);
         Assert.Contains("inga", console.Output);
     }
@@ -205,7 +203,7 @@ public sealed class MainMenuTests : IDisposable
         Menu(console).Run();
 
         Assert.Contains("Valet kunde inte sparas", console.Output);
-        Assert.Equal("Pluck", Assert.Single(_started).Settings.Sound);
+        Assert.Equal("Pluck", Assert.Single(_started).Sound);
     }
 
     [Fact]
@@ -227,9 +225,29 @@ public sealed class MainMenuTests : IDisposable
         console.Input.PushKey(ConsoleKey.Enter);
 
         // Live mode returns once its audio is closed, saying Ctrl+C stopped it; no Avsluta is needed.
-        int exitCode = new MainMenu(console, Store(), () => new FakeCatalog(), TestPreflight.Create(), (_, _) => new LiveExit(0, Interrupted: true)).Run();
+        int exitCode = new MainMenu(console, Store(), () => new FakeCatalog(), TestPreflight.Create(), _ => new LiveExit(0, Interrupted: true)).Run();
 
         Assert.Equal(0, exitCode);
+    }
+
+    [Fact]
+    public void ALiveModeError_ShowsTheMenuAgain()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Enter);
+        Choose(console, Quit);
+        int runs = 0;
+
+        // Live mode has shown its Swedish error (e.g. a device that cannot be opened) and returns 1.
+        int exitCode = new MainMenu(console, Store(), () => new FakeCatalog(), TestPreflight.Create(), _ =>
+        {
+            runs++;
+            return new LiveExit(1, Interrupted: false);
+        }).Run();
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(1, runs);
+        Assert.Equal(2, console.Output.Split("Inställning").Length - 1);
     }
 
     [Fact]
@@ -239,7 +257,7 @@ public sealed class MainMenuTests : IDisposable
         console.Input.PushKey(ConsoleKey.Enter);
 
         // A recording that could not be saved is not reported as success.
-        int exitCode = new MainMenu(console, Store(), () => new FakeCatalog(), TestPreflight.Create(), (_, _) => new LiveExit(1, Interrupted: true)).Run();
+        int exitCode = new MainMenu(console, Store(), () => new FakeCatalog(), TestPreflight.Create(), _ => new LiveExit(1, Interrupted: true)).Run();
 
         Assert.Equal(1, exitCode);
     }
@@ -255,7 +273,7 @@ public sealed class MainMenuTests : IDisposable
         AudioPreflight preflight = TestPreflight.Create(
             routes: new FakeRoutes(name => name == TestDevices.Speakers.Name ? TestPreflight.Speakers : TestPreflight.HeadphoneJack));
 
-        new MainMenu(console, Store(), () => new FakeCatalog(devices), preflight, (_, _) =>
+        new MainMenu(console, Store(), () => new FakeCatalog(devices), preflight, _ =>
         {
             // The headphones are unplugged while playing.
             devices = [TestDevices.Microphone, speakersAsDefault];
@@ -278,7 +296,7 @@ public sealed class MainMenuTests : IDisposable
 
         Menu(console).Run();
 
-        Assert.Equal(TestDevices.UsbInterface.Name, Assert.Single(_started).Settings.InputDevice);
+        Assert.Equal(TestDevices.UsbInterface.Name, Assert.Single(_started).InputDevice);
         Assert.DoesNotContain("(saknas)", console.Output);
     }
 
@@ -360,9 +378,9 @@ public sealed class MainMenuTests : IDisposable
         return MainMenu.Choices.ToList().IndexOf(choice);
     }
 
-    private LiveExit StartLive(AppSettings settings, bool record)
+    private LiveExit StartLive(AppSettings settings)
     {
-        _started.Add((settings, record));
+        _started.Add(settings);
         return new LiveExit(0, Interrupted: false);
     }
 }
