@@ -18,7 +18,7 @@ public class SynthesizerTests
     [InlineData(Sound.Pluck, "Cm7")]
     public void RenderedChord_HasEveryChordTonesFundamentalWithinFiveCents(Sound sound, string symbol)
     {
-        Chord chord = Parse(symbol);
+        Chord chord = TestChords.Parse(symbol);
         Synthesizer synthesizer = new(sound, SampleRate);
         synthesizer.SetChord(chord, strength: 1);
         float[] samples = Render(synthesizer, SampleRate * 2);
@@ -38,7 +38,7 @@ public class SynthesizerTests
     [InlineData("Cm7")]
     public void RenderedPadChord_HasEveryChordTonesFundamentalWithinFiveCents(string symbol)
     {
-        Chord chord = Parse(symbol);
+        Chord chord = TestChords.Parse(symbol);
         Synthesizer synthesizer = new(Sound.Pad, SampleRate);
         synthesizer.SetChord(chord, strength: 1);
         float[] samples = Render(synthesizer, SampleRate * 7);
@@ -59,7 +59,7 @@ public class SynthesizerTests
     {
         Synthesizer synthesizer = new(sound, SampleRate);
         float[] buffer = new float[BufferSize];
-        Chord[] chords = [Parse("C"), Parse("Am"), Parse("Cmaj7(#11)"), Parse("F#dim")];
+        Chord[] chords = [TestChords.Parse("C"), TestChords.Parse("Am"), TestChords.Parse("Cmaj7(#11)"), TestChords.Parse("F#dim")];
         PlayEvents(synthesizer, chords, buffer, buffers: 400);
 
         long before = GC.GetAllocatedBytesForCurrentThread();
@@ -73,7 +73,7 @@ public class SynthesizerTests
     public void FiveToneChord_SoundsInFull()
     {
         Synthesizer synthesizer = new(Sound.Organ, SampleRate);
-        synthesizer.SetChord(Parse("Cmaj7(#11)"), strength: 1);
+        synthesizer.SetChord(TestChords.Parse("Cmaj7(#11)"), strength: 1);
         Render(synthesizer, BufferSize);
 
         foreach (int note in new[] { 48, 52, 55, 59, 66 })
@@ -117,7 +117,7 @@ public class SynthesizerTests
     public void FiveToneChordAtFullStrength_PeaksAtMostPointNine(Sound sound)
     {
         Synthesizer synthesizer = new(sound, SampleRate);
-        synthesizer.SetChord(Parse("Cmaj7(#11)"), strength: 1);
+        synthesizer.SetChord(TestChords.Parse("Cmaj7(#11)"), strength: 1);
 
         float[] samples = Render(synthesizer, SampleRate * 2);
 
@@ -128,11 +128,11 @@ public class SynthesizerTests
     public void ChordChange_KeepsCommonTonesReleasesLeavingOnesAndStartsNewOnes()
     {
         Synthesizer synthesizer = new(Sound.Pad, SampleRate);
-        synthesizer.SetChord(Parse("C"), strength: 1);
+        synthesizer.SetChord(TestChords.Parse("C"), strength: 1);
         Render(synthesizer, SampleRate / 2);
         long startsBefore = synthesizer.Starts;
 
-        synthesizer.SetChord(Parse("Am"), strength: 1);
+        synthesizer.SetChord(TestChords.Parse("Am"), strength: 1);
         Render(synthesizer, BufferSize);
 
         Assert.Equal(startsBefore + 1, synthesizer.Starts);
@@ -147,8 +147,8 @@ public class SynthesizerTests
     public void ChordChangesQueuedTogether_EachLeadsFromTheChordBeforeItOnItsSample()
     {
         Synthesizer synthesizer = new(Sound.Pad, SampleRate);
-        synthesizer.SetChord(Parse("C"), strength: 1);
-        synthesizer.SetChord(Parse("Am"), strength: 1, offset: BufferSize * 3);
+        synthesizer.SetChord(TestChords.Parse("C"), strength: 1);
+        synthesizer.SetChord(TestChords.Parse("Am"), strength: 1, offset: BufferSize * 3);
 
         Render(synthesizer, BufferSize * 4);
 
@@ -159,13 +159,28 @@ public class SynthesizerTests
     }
 
     [Fact]
+    public void SetStrength_GlidesWithoutAStep()
+    {
+        Synthesizer synthesizer = new(Sound.Organ, SampleRate);
+        synthesizer.SetChord(TestChords.Parse("C"), strength: 1);
+        float[] before = Render(synthesizer, Ms(200));
+
+        synthesizer.SetStrength(0.1);
+        float[] after = Render(synthesizer, Ms(100));
+
+        float[] around = [before[^1], .. after];
+        Assert.True(LargestStep(around, 1, around.Length) <= LargestStep(before, Ms(100), before.Length) * 1.1);
+        Assert.True(after[^Ms(30)..].Max(Math.Abs) < before.Max(Math.Abs) * 0.15);
+    }
+
+    [Fact]
     public void ChordChange_StartsACommonToneAgainOnceItHasDiedAway()
     {
         Synthesizer synthesizer = new(Sound.Pluck, SampleRate);
-        synthesizer.SetChord(Parse("C"), strength: 1);
+        synthesizer.SetChord(TestChords.Parse("C"), strength: 1);
         Render(synthesizer, SampleRate);
 
-        synthesizer.SetChord(Parse("Am"), strength: 1);
+        synthesizer.SetChord(TestChords.Parse("Am"), strength: 1);
         Render(synthesizer, BufferSize);
 
         Assert.Equal(1, synthesizer.Held(48));
@@ -179,9 +194,9 @@ public class SynthesizerTests
     {
         int[] events = [Ms(100), Ms(1600), Ms(3100), Ms(4600)];
         Synthesizer synthesizer = new(sound, SampleRate);
-        synthesizer.SetChord(Parse("C"), strength: 1, offset: events[0]);
-        synthesizer.SetChord(Parse("Am"), strength: 1, offset: events[1]);
-        synthesizer.SetChord(Parse("F#dim"), strength: 1, offset: events[2]);
+        synthesizer.SetChord(TestChords.Parse("C"), strength: 1, offset: events[0]);
+        synthesizer.SetChord(TestChords.Parse("Am"), strength: 1, offset: events[1]);
+        synthesizer.SetChord(TestChords.Parse("F#dim"), strength: 1, offset: events[2]);
         synthesizer.ReleaseAll(offset: events[3]);
         float[] samples = Render(synthesizer, Ms(5600));
         int attack = Ms(synthesizer.Preset.PlayedAttackMs);
@@ -225,7 +240,7 @@ public class SynthesizerTests
         Synthesizer synthesizer = new(Sound.Pad, SampleRate);
         for (int i = 0; i < symbols.Length; i++)
         {
-            synthesizer.SetChord(Parse(symbols[i]), strength: 1, offset: i * Ms(100));
+            synthesizer.SetChord(TestChords.Parse(symbols[i]), strength: 1, offset: i * Ms(100));
         }
 
         float[] samples = Render(synthesizer, SampleRate * 2);
@@ -319,7 +334,7 @@ public class SynthesizerTests
     public void Release_EndsInSilence()
     {
         Synthesizer synthesizer = new(Sound.Pad, SampleRate);
-        synthesizer.SetChord(Parse("C"), strength: 1);
+        synthesizer.SetChord(TestChords.Parse("C"), strength: 1);
         Render(synthesizer, SampleRate);
 
         synthesizer.ReleaseAll();
@@ -386,8 +401,8 @@ public class SynthesizerTests
     private static float[] RenderSequence(Sound sound)
     {
         Synthesizer synthesizer = new(sound, SampleRate);
-        synthesizer.SetChord(Parse("C"), strength: 1);
-        synthesizer.SetChord(Parse("G7"), strength: 0.7, offset: Ms(400));
+        synthesizer.SetChord(TestChords.Parse("C"), strength: 1);
+        synthesizer.SetChord(TestChords.Parse("G7"), strength: 0.7, offset: Ms(400));
         synthesizer.ReleaseAll(offset: Ms(900));
         return Render(synthesizer, SampleRate);
     }
@@ -417,11 +432,5 @@ public class SynthesizerTests
     private static int Ms(double ms)
     {
         return (int)(ms * SampleRate / 1000);
-    }
-
-    private static Chord Parse(string symbol)
-    {
-        Assert.True(ChordSymbol.TryParse(symbol, out Chord chord));
-        return chord;
     }
 }

@@ -112,6 +112,13 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "Sound": "Piano" }""", "Sound")]
     [InlineData("""{ "Sound": "pad" }""", "Sound")]
     [InlineData("""{ "Sound": null }""", "Sound")]
+    [InlineData("""{ "DynamicsQuietDbfs": -12 }""", "DynamicsQuietDbfs och DynamicsLoudDbfs")]
+    [InlineData("""{ "DynamicsQuietDbfs": -91 }""", "DynamicsQuietDbfs")]
+    [InlineData("""{ "DynamicsLoudDbfs": 1 }""", "DynamicsLoudDbfs")]
+    [InlineData("""{ "CharacterSparseBelowDbfs": -18 }""", "CharacterSparseBelowDbfs och CharacterFullAboveDbfs")]
+    [InlineData("""{ "CharacterFullAboveDbfs": -26 }""", "CharacterSparseBelowDbfs och CharacterFullAboveDbfs")]
+    [InlineData("""{ "CharacterFullAboveDbfs": 0.5 }""", "CharacterFullAboveDbfs")]
+    [InlineData("""{ "GateOn": "ja" }""", "GateOn")]
     public void Load_InvalidValue_IgnoresWholeFileAndNamesSetting(string content, string setting)
     {
         WriteUserFile(content);
@@ -162,6 +169,14 @@ public sealed class SettingsStoreTests : IDisposable
             KeyChangeSeconds = 6,
             KeyFirstSeconds = 3,
             Sound = "Organ",
+            GateOn = false,
+            DynamicsOn = true,
+            ChordCharacterOn = false,
+            OnsetsOn = true,
+            DynamicsQuietDbfs = -50,
+            DynamicsLoudDbfs = -10,
+            CharacterSparseBelowDbfs = -35,
+            CharacterFullAboveDbfs = -15,
         };
 
         CreateStore().Save(saved);

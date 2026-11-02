@@ -25,23 +25,9 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
     {
         SettingsLoadResult loaded = loadSettings();
         ConsoleMessages.SettingsMessage(console, loaded);
-        if (!File.Exists(path))
+        if (RecordingFiles.Read(console, path) is not { } audio)
         {
-            return ConsoleMessages.Error(console, MissingFileMessage(path));
-        }
-
-        WavAudio audio;
-        try
-        {
-            audio = WavReader.Read(path);
-        }
-        catch (InvalidDataException exception)
-        {
-            return ConsoleMessages.Error(console, $"Filen {path} kunde inte läsas: {exception.Message}");
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return ConsoleMessages.Error(console, $"Filen {path} kunde inte läsas.");
+            return 1;
         }
 
         AppSettings settings = loaded.Settings with
@@ -51,24 +37,9 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
             Key = key ?? loaded.Settings.Key,
             Mode = mode ?? loaded.Settings.Mode,
         };
-        if (SettingsValidator.Validate(settings) is { } error)
+        if (PrepareHarmony(console, settings, key is not null, mode is not null) is not { } harmonizer)
         {
-            return ConsoleMessages.Error(console, $"Ogiltigt värde för {error.Setting}: {error.Problem}.");
-        }
-
-        if (!Harmonizer.HasBuiltStyle(settings))
-        {
-            return ConsoleMessages.Error(console, NotBuiltMessage(settings.HarmonyStyle));
-        }
-
-        Harmonizer harmonizer = Harmonizer.FromSettings(settings);
-        if ((key is not null || mode is not null) && !harmonizer.UsesKey)
-        {
-            ConsoleMessages.Warning(console, KeyIgnoredMessage);
-        }
-        else if (mode is not null && harmonizer.Key is null)
-        {
-            ConsoleMessages.Warning(console, ModeIgnoredMessage);
+            return 1;
         }
 
         string keyName = !harmonizer.UsesKey ? "–" : harmonizer.Key is { } fixedKey ? HarmonyNames.Key(fixedKey) : HarmonySettings.AutoKey;
@@ -94,6 +65,37 @@ public sealed class HarmonizeCommand(IAnsiConsole console, Func<SettingsLoadResu
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Validates a run's settings and builds its harmony, warning when a given <c>--key</c> or <c>--mode</c> is
+    /// ignored; null after an error has been shown. Shared by <c>--harmonize</c> and <c>--accompany</c>.
+    /// </summary>
+    internal static Harmonizer? PrepareHarmony(IAnsiConsole console, AppSettings settings, bool keyGiven, bool modeGiven)
+    {
+        if (SettingsValidator.Validate(settings) is { } error)
+        {
+            ConsoleMessages.Error(console, $"Ogiltigt värde för {error.Setting}: {error.Problem}.");
+            return null;
+        }
+
+        if (!Harmonizer.HasBuiltStyle(settings))
+        {
+            ConsoleMessages.Error(console, NotBuiltMessage(settings.HarmonyStyle));
+            return null;
+        }
+
+        Harmonizer harmonizer = Harmonizer.FromSettings(settings);
+        if ((keyGiven || modeGiven) && !harmonizer.UsesKey)
+        {
+            ConsoleMessages.Warning(console, KeyIgnoredMessage);
+        }
+        else if (modeGiven && harmonizer.Key is null)
+        {
+            ConsoleMessages.Warning(console, ModeIgnoredMessage);
+        }
+
+        return harmonizer;
     }
 
     public static string MissingFileMessage(string path)

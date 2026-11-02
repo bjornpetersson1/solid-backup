@@ -4,7 +4,7 @@
 - **Labels:** `E5 Sound`
 - **Phase:** 5. Sound
 - **Depends on:** E3-3 (#10), E4-2 (#12), E5-1 (#14)
-- **Status:** Approved
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 792 tests passed); listening to `--accompany` is a manual check for the owner; CI on Ubuntu is checked on the PR
 
 ## Summary
 Four level features, each a separate switchable component behind one mechanism: the gate (silence is silent), dynamics (chord loudness follows the input level), chord character (soft gives a sparse chord, loud a fuller one) and onsets (an articulated note changes the chord without waiting and strikes it anew). They sit between the analysis and harmony (E3, E4) and the synthesizer (E5-1). `--accompany` runs a recording through the whole chain into a WAV file.
@@ -63,13 +63,13 @@ Four level features, each a separate switchable component behind one mechanism: 
 10. **The canonical check passes.** `dotnet format --verify-no-changes && dotnet build -warnaserror && dotnet test` exits 0 from the repo root, on macOS and in CI on Ubuntu.
 
 ## Tasks
-- [ ] The feature interface, the per-buffer accompaniment it adjusts, and the registry with switches.
-- [ ] The gate, dynamics, chord character and onset features.
-- [ ] The offline chain from a WAV input to the synth, reusable by E5-5 and E6-1.
-- [ ] Settings, validation and README for the switches and the four levels.
-- [ ] `--accompany`, `--render` with a recording, `--no-voice`, `--features`.
-- [ ] The onset sentence in `docs/harmony.md`.
-- [ ] Tests: each feature, the 16 combinations on the singing recording, the extension test, allocation, settings, command line.
+- [x] The feature interface, the per-buffer accompaniment it adjusts, and the registry with switches.
+- [x] The gate, dynamics, chord character and onset features.
+- [x] The offline chain from a WAV input to the synth, reusable by E5-5 and E6-1.
+- [x] Settings, validation and README for the switches and the four levels.
+- [x] `--accompany`, `--render` with a recording, `--no-voice`, `--features`.
+- [x] The onset sentence in `docs/harmony.md`.
+- [x] Tests: each feature, the 16 combinations on the singing recording, the extension test, allocation, settings, command line.
 
 ## Decisions
 - **Onset = change without hold times + a new strike** (owner's choice): an articulated note is heard as one, whether the chord changes or not. Not a phrase start, so Blues keeps its key.
@@ -82,5 +82,31 @@ Four level features, each a separate switchable component behind one mechanism: 
 - **Fixed feature order** (default): the gate decides whether anything sounds, onsets when to strike, character which tones, dynamics how loud; each aspect has one owner, which is what makes the "changes only its own aspect" test possible.
 - **Flat boolean settings** (default): `AppSettings` is flat today; the registry maps each feature to its setting.
 - **Builds on E5-1:** the voicing, the click-free common-tone rule and the tone-level strength. Builds on E3-3: the level meter, gate and onset detector, unchanged.
+- **E5-1 delivered voice leading** (spec check before implementing): E5-1's voicing became voice leading within C3–C5 after this spec was approved. Chord character shapes the voice-led chord: sparse keeps its root and fifth (or third), full adds the root an octave below the voiced root. The examples in criterion 4 are a first chord, in close voicing, so they are unchanged.
+- **The chain** (implementation): `Accompaniment.Accompanist` is an `IAudioProcessor`, so E6-1 can put it in the live pipeline. Per buffer it analyses (pitch, level, gate, onset), runs each feature's step before the harmony (the gate hides the note, onsets ask for an immediate evaluation), the harmony, each feature's step after it, and tells the synthesizer only what changed. `Analyze` and `Play` are also separate, so a test analyses the singing recording once and plays it with all 16 combinations (about 15 s instead of minutes).
+- **The phrase stop is the chain's, not a feature's** (implementation): with the gate off, the chord sounds until `PhraseResetMs` after the last note reached the harmony. That is the neutral behaviour every combination shares; the gate only makes silence silent sooner.
+- **The gate brings the chord back only with a note** (implementation): breath before a note opened the gate in a silence segment of the singing recording, and the chord came back without a note. The criterion says the chord is struck anew "when it opens again with a note", so the gate feature stays closed until the gate is open and a note sounds.
+- **The gate uses the current gate state** (implementation): the pitch estimate lags the level by its window, so the gate state of the same buffer is used rather than E3-1's scorer's time-aligned one. Closing hides the delayed note slightly early and opening lets it through slightly late, which suits both rules; the combination test shows silence silent with the gate on.
+- **Onsets in tests** (implementation): the detector briefly reports no note where a note changes with a jump in level, and the harmony then chooses at once anyway (after silence), so recorded signals cannot show the hold-time bypass. The onset rules are tested with analyses built note by note; the singing recording covers them end to end.
+- **A strength change glides over 5 ms** (implementation): dynamics changes the strength every buffer, and `Synthesizer.SetStrength` moves each held voice towards it, so no zipper noise.
+- **Chord character's level** (implementation): character and dynamics each smooth the level with their own 50 ms one-pole (`LevelSmoother`), so each feature stands alone.
+- **The options as a table of modes** (implementation): `--accompany` would have added more pairwise checks, as E5-1's clean-code review foresaw. `AppCommand` now lists each mode with the options that belong to it; two modes, or an option without its mode, give generated Swedish messages (e.g. "--play kan inte kombineras med --devices.", "--features gäller bara tillsammans med --accompany."). `--passthrough` with `--devices` is now refused too; before, `--devices` won silently.
+- **Feature names for `--features`** (implementation): `gate`, `onsets`, `character`, `dynamics`, or `none`.
+- **Clean code: a seam for E5-5's patterns.** What the synthesizer is told now goes through `IRhythmPattern`; today's held chord is `HeldPattern`. Voice leading and chord shape moved out of the synthesizer into `ChordVoicer` (lead from the previous chord, then shape), which the patterns share. The synthesizer is back to tone-level events plus E5-1's whole-chord `SetChord`, and the strike and its "only when already playing" rule live in `HeldPattern`. `AnalysisFrame` carries the buffer's end sample, so E5-5's grid can place tones without rounding from milliseconds.
+- **Clean code: one phrase clock.** The chain asks the harmony whether the phrase is still on (`Harmonizer.InPhrase`) instead of keeping its own silence timer, so the chord stops at the same moment the style forgets it.
+- **Clean code: smaller strength traffic.** `HeldPattern` passes a new strength on only when it has moved by 0.1 dB; the voices glide between steps anyway.
+- **Clean code: `--accompany` runs through `AudioPipeline`** with `MemoryAudioInput` and `MemoryAudioOutput`, the same path as live audio, and the commands share one WAV read and write helper (`RecordingFiles`) with the Swedish errors.
+- **Code review fixes:**
+  - onsets compare a note with the note *before* the onset's buffer, so a new note the detector already reports in that buffer is evaluated at once and struck;
+  - "the next stable note": the pitch detector's own note hold (10 ms and two estimates) already keeps passing pitches out of its notes, so the onset feature takes its first new note;
+  - one smoothed level is computed in the analysis (`AnalysisFrame.SmoothedLevelDbfs`) and shared by dynamics and chord character. Right after the gate opens, while the level meter's window fills, it follows the level instead of smoothing up from the silence floor, so a phrase no longer starts 24 dB down as a sparse chord and swells; within a phrase a step is still smoothed over 50 ms;
+  - `--accompany` turns the whole file down when the voice plus the chords would pass full scale, instead of clipping;
+  - `--accompany` warns, as `--harmonize` does, when `--key` or `--mode` is ignored; both share one preparation step;
+  - an option given with the wrong mode says it cannot be combined with that mode (e.g. "--chords kan inte kombineras med --accompany.");
+  - the common-tone rule is written once (`CommonTones`) and used by both the synthesizer's whole-chord change and `HeldPattern`;
+  - the settings errors for a pair (quiet/loud, sparse/full) name both settings;
+  - `SynthCommand` and its preflight are built only for `--render` and `--play`.
+- **PR review fix:** the gate check in the combination test requires silence from exactly the segment's start plus `GateHoldMs` plus the release, as criterion 6 says, without an extra settling margin.
+- **Clean code: allocation.** A `ReadOnlySpan<int>` property over a collection expression allocated in the measured path (found by the allocation test); it is a static array now.
 
 ## Open Questions

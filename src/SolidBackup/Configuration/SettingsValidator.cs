@@ -1,3 +1,4 @@
+using SolidBackup.Accompaniment;
 using SolidBackup.Analysis;
 using SolidBackup.Harmony;
 using SolidBackup.Synthesis;
@@ -8,6 +9,8 @@ public sealed record SettingsError(string Setting, string Problem);
 
 public static class SettingsValidator
 {
+    private const double MinLevelDbfs = -90;
+
     private static readonly int[] SupportedSampleRates = [44_100, 48_000];
 
     public static SettingsError? Validate(AppSettings settings)
@@ -87,7 +90,41 @@ public static class SettingsValidator
             return new(nameof(AppSettings.LatencyTargetMs), $"{settings.LatencyTargetMs} ms måste vara större än 0");
         }
 
-        return ValidateHarmony(settings) ?? ValidateSound(settings);
+        return ValidateHarmony(settings) ?? ValidateSound(settings) ?? ValidateLevelFeatures(settings);
+    }
+
+    private static SettingsError? ValidateLevelFeatures(AppSettings settings)
+    {
+        SettingsError? outOfRange = OutOfDbfsRange(nameof(AppSettings.DynamicsQuietDbfs), settings.DynamicsQuietDbfs)
+            ?? OutOfDbfsRange(nameof(AppSettings.DynamicsLoudDbfs), settings.DynamicsLoudDbfs)
+            ?? OutOfDbfsRange(nameof(AppSettings.CharacterSparseBelowDbfs), settings.CharacterSparseBelowDbfs)
+            ?? OutOfDbfsRange(nameof(AppSettings.CharacterFullAboveDbfs), settings.CharacterFullAboveDbfs);
+        if (outOfRange is not null)
+        {
+            return outOfRange;
+        }
+
+        if (settings.DynamicsQuietDbfs >= settings.DynamicsLoudDbfs)
+        {
+            return new(
+                $"{nameof(AppSettings.DynamicsQuietDbfs)} och {nameof(AppSettings.DynamicsLoudDbfs)}",
+                $"{settings.DynamicsQuietDbfs} dBFS måste vara lägre än {settings.DynamicsLoudDbfs} dBFS");
+        }
+
+        double minimumGap = 2 * ChordCharacterFeature.HysteresisDb;
+        if (settings.CharacterFullAboveDbfs - settings.CharacterSparseBelowDbfs < minimumGap)
+        {
+            return new(
+                $"{nameof(AppSettings.CharacterSparseBelowDbfs)} och {nameof(AppSettings.CharacterFullAboveDbfs)}",
+                $"{settings.CharacterSparseBelowDbfs} dBFS måste ligga minst {minimumGap} dB under {settings.CharacterFullAboveDbfs} dBFS");
+        }
+
+        return null;
+    }
+
+    private static SettingsError? OutOfDbfsRange(string setting, double value)
+    {
+        return value is >= MinLevelDbfs and <= 0 ? null : new(setting, $"{value} dBFS måste vara mellan {MinLevelDbfs} och 0 dBFS");
     }
 
     private static SettingsError? ValidateSound(AppSettings settings)

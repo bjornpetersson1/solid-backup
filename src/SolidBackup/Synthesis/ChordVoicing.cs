@@ -18,6 +18,9 @@ public static class ChordVoicing
     /// <summary>The largest number of tones a chord has: a seventh chord with a tension.</summary>
     public const int MaxTones = 5;
 
+    /// <summary>The largest number of tones a shaped chord has: a full chord adds a bass root.</summary>
+    public const int MaxShapedTones = MaxTones + 1;
+
     /// <summary>Writes the chord's MIDI notes in close voicing, lowest first, and returns how many there are.</summary>
     public static int Voice(Chord chord, Span<int> notes)
     {
@@ -84,6 +87,50 @@ public static class ChordVoicing
         notes[..count].Sort();
         return count;
     }
+
+    /// <summary>
+    /// Writes the tones of a voiced chord that sound in <paramref name="shape"/>, lowest first, and returns how many
+    /// there are. Sparse keeps the root and the perfect fifth above it, or the root and the third (minor or major)
+    /// when there is no perfect fifth; full adds the root an octave below the voiced root.
+    /// </summary>
+    public static int Shape(Chord chord, ReadOnlySpan<int> voiced, ChordShape shape, Span<int> notes)
+    {
+        int root = IndexOfPitchClass(voiced, chord.Root);
+        switch (shape)
+        {
+            case ChordShape.Sparse:
+                int partner = -1;
+                foreach (int interval in SparsePartners)
+                {
+                    partner = IndexOfPitchClass(voiced, (chord.Root + interval) % 12);
+                    if (partner >= 0)
+                    {
+                        break;
+                    }
+                }
+
+                notes[0] = voiced[root];
+                int count = 1;
+                if (partner >= 0)
+                {
+                    notes[count++] = voiced[partner];
+                }
+
+                notes[..count].Sort();
+                return count;
+            case ChordShape.Full:
+                notes[0] = voiced[root] - 12;
+                voiced.CopyTo(notes[1..]);
+                notes[..(voiced.Length + 1)].Sort();
+                return voiced.Length + 1;
+            default:
+                voiced.CopyTo(notes);
+                return voiced.Length;
+        }
+    }
+
+    // The tone a sparse chord keeps beside the root: the perfect fifth, else the minor or major third.
+    private static readonly int[] SparsePartners = [7, 3, 4];
 
     private static bool Contains(IReadOnlyList<int> intervals, int interval)
     {

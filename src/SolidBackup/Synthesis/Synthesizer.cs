@@ -26,6 +26,7 @@ public sealed class Synthesizer
 
     private readonly Voice[] _voices;
     private readonly ToneEvent[] _events = new ToneEvent[EventCapacity];
+    private readonly ChordVoicer _voicer = new();
     private readonly int[] _chordNotes = new int[ChordVoicing.MaxTones];
     private readonly int[] _voicing = new int[ChordVoicing.MaxTones];
     private int _eventCount;
@@ -48,6 +49,7 @@ public sealed class Synthesizer
         Release,
         ReleaseAll,
         Chord,
+        Strength,
     }
 
     public SoundPreset Preset { get; }
@@ -73,6 +75,24 @@ public sealed class Synthesizer
         return count;
     }
 
+    /// <summary>How many voices hold a tone (not releasing).</summary>
+    public int HeldVoices
+    {
+        get
+        {
+            int count = 0;
+            foreach (Voice voice in _voices)
+            {
+                if (voice.IsHeld)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+    }
+
     /// <summary>How many voices hold the note (not releasing).</summary>
     public int Held(int midiNote)
     {
@@ -91,19 +111,19 @@ public sealed class Synthesizer
     /// <summary>Starts a tone with a new attack, even if the same note already sounds.</summary>
     public void StartTone(int midiNote, double strength, int offset = 0)
     {
-        Enqueue(new ToneEvent(offset, ToneEventKind.Start, midiNote, strength, null));
+        Enqueue(new ToneEvent(offset, ToneEventKind.Start, midiNote, strength));
     }
 
     /// <summary>Releases every held voice playing the note.</summary>
     public void ReleaseTone(int midiNote, int offset = 0)
     {
-        Enqueue(new ToneEvent(offset, ToneEventKind.Release, midiNote, 0, null));
+        Enqueue(new ToneEvent(offset, ToneEventKind.Release, midiNote, 0));
     }
 
     /// <summary>Releases every held voice, and forgets the chord set by <see cref="SetChord"/>.</summary>
     public void ReleaseAll(int offset = 0)
     {
-        Enqueue(new ToneEvent(offset, ToneEventKind.ReleaseAll, 0, 0, null));
+        Enqueue(new ToneEvent(offset, ToneEventKind.ReleaseAll, 0, 0));
     }
 
     /// <summary>
@@ -115,6 +135,12 @@ public sealed class Synthesizer
     public void SetChord(Chord? chord, double strength, int offset = 0)
     {
         Enqueue(new ToneEvent(offset, ToneEventKind.Chord, 0, strength, chord));
+    }
+
+    /// <summary>Moves every held tone to a new strength, gliding over a few ms so the change does not click.</summary>
+    public void SetStrength(double strength, int offset = 0)
+    {
+        Enqueue(new ToneEvent(offset, ToneEventKind.Strength, 0, strength));
     }
 
     /// <summary>Renders the next buffer, applying each event on its sample.</summary>
@@ -195,6 +221,7 @@ public sealed class Synthesizer
                 break;
             case ToneEventKind.ReleaseAll:
                 _chordNoteCount = 0;
+                _voicer.Forget();
                 foreach (Voice voice in _voices)
                 {
                     voice.Release(_now);
@@ -204,30 +231,30 @@ public sealed class Synthesizer
             case ToneEventKind.Chord:
                 ChangeChord(toneEvent.Chord, toneEvent.Strength);
                 break;
+            case ToneEventKind.Strength:
+                foreach (Voice voice in _voices)
+                {
+                    voice.SetStrength(toneEvent.Strength);
+                }
+
+                break;
         }
     }
 
     private void ChangeChord(Chord? chord, double strength)
     {
-        ReadOnlySpan<int> previous = _chordNotes.AsSpan(0, _chordNoteCount);
-        int count = chord is { } next ? ChordVoicing.Lead(next, previous, _voicing) : 0;
+        int count = 0;
+        if (chord is { } next)
+        {
+            count = _voicer.Next(next, ChordShape.Whole, _voicing);
+        }
+        else
+        {
+            _voicer.Forget();
+        }
+
         ReadOnlySpan<int> notes = _voicing.AsSpan(0, count);
-        foreach (int note in previous)
-        {
-            if (!notes.Contains(note))
-            {
-                Release(note);
-            }
-        }
-
-        foreach (int note in notes)
-        {
-            if (!previous.Contains(note) || Held(note) == 0)
-            {
-                Start(note, strength);
-            }
-        }
-
+        CommonTones.Change(_chordNotes.AsSpan(0, _chordNoteCount), notes, strike: false, new ImmediateTones(this, strength));
         notes.CopyTo(_chordNotes);
         _chordNoteCount = count;
     }
@@ -275,5 +302,24 @@ public sealed class Synthesizer
         return releasing ?? oldest;
     }
 
-    private readonly record struct ToneEvent(int Offset, ToneEventKind Kind, int Note, double Strength, Chord? Chord);
+    // A chord change applied on its sample, straight to the voices.
+    private readonly struct ImmediateTones(Synthesizer synthesizer, double strength) : IToneTarget
+    {
+        public bool IsHeld(int note)
+        {
+            return synthesizer.Held(note) > 0;
+        }
+
+        public void Release(int note)
+        {
+            synthesizer.Release(note);
+        }
+
+        public void Start(int note)
+        {
+            synthesizer.Start(note, strength);
+        }
+    }
+
+    private readonly record struct ToneEvent(int Offset, ToneEventKind Kind, int Note, double Strength, Chord? Chord = null);
 }

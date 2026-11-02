@@ -40,13 +40,9 @@ public sealed class SynthCommand(
             return 1;
         }
 
-        try
+        if (!RecordingFiles.Write(console, path, prepared.Settings.SampleRate, prepared.Samples))
         {
-            WavWriter.WritePcm16(path, prepared.Settings.SampleRate, prepared.Samples);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-        {
-            return ConsoleMessages.Error(console, $"Filen {path} kunde inte skrivas.");
+            return 1;
         }
 
         console.WriteLine(RenderedMessage(path, prepared.Samples.Length / (double)prepared.Settings.SampleRate, prepared.Sound));

@@ -61,4 +61,28 @@ public sealed record AppSettings
 
     /// <summary>The synthesizer's sound: <c>Pad</c>, <c>Organ</c> or <c>Pluck</c>.</summary>
     public required string Sound { get; init; }
+
+    /// <summary>Level feature: notes reach the harmony, and the chord sounds, only while the noise gate is open.</summary>
+    public required bool GateOn { get; init; }
+
+    /// <summary>Level feature: the chord's strength follows the input level.</summary>
+    public required bool DynamicsOn { get; init; }
+
+    /// <summary>Level feature: soft singing gives a sparse chord, loud singing a full one.</summary>
+    public required bool ChordCharacterOn { get; init; }
+
+    /// <summary>Level feature: an articulated note changes the chord without the hold times and strikes it anew.</summary>
+    public required bool OnsetsOn { get; init; }
+
+    /// <summary>Dynamics: the level that plays 24 dB below full strength, and below.</summary>
+    public required double DynamicsQuietDbfs { get; init; }
+
+    /// <summary>Dynamics: the level that plays at full strength, and above.</summary>
+    public required double DynamicsLoudDbfs { get; init; }
+
+    /// <summary>Chord character: below this level the chord is sparse.</summary>
+    public required double CharacterSparseBelowDbfs { get; init; }
+
+    /// <summary>Chord character: above this level the chord is full.</summary>
+    public required double CharacterFullAboveDbfs { get; init; }
 }

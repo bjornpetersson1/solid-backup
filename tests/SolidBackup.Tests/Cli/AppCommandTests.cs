@@ -36,14 +36,14 @@ public class AppCommandTests
     }
 
     [Theory]
-    [InlineData("--input", "USB Audio")]
-    [InlineData("--output", "Externa hörlurar")]
-    public void DeviceOptionWithoutPassThroughOrDevices_FailsWithSwedishMessage(string option, string name)
+    [InlineData("--input", "USB Audio", "--input gäller bara tillsammans med --passthrough eller --devices.")]
+    [InlineData("--output", "Externa hörlurar", "--output gäller bara tillsammans med --passthrough, --devices eller --play.")]
+    public void DeviceOptionWithoutPassThroughOrDevices_FailsWithSwedishMessage(string option, string name, string message)
     {
         (int exitCode, string output, string error) = Invoke(option, name);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal($"{AppCommand.DeviceOptionsAloneMessage} {AppCommand.HelpHint}", error.Trim());
+        Assert.Equal($"{message} {AppCommand.HelpHint}", error.Trim());
         Assert.Empty(output);
     }
 
@@ -91,7 +91,7 @@ public class AppCommandTests
         (int exitCode, string output, string error) = Invoke(option, value);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal($"{AppCommand.HarmonyOptionsAloneMessage} {AppCommand.HelpHint}", error.Trim());
+        Assert.Equal($"{option} gäller bara tillsammans med --harmonize eller --accompany. {AppCommand.HelpHint}", error.Trim());
         Assert.Empty(output);
     }
 
@@ -103,7 +103,7 @@ public class AppCommandTests
         (int exitCode, string output, string error) = Invoke("--harmonize", "melodi.wav", option);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal($"{AppCommand.HarmonizeCombinedMessage} {AppCommand.HelpHint}", error.Trim());
+        Assert.Equal($"{AppCommand.CombinedMessage(option, "--harmonize")} {AppCommand.HelpHint}", error.Trim());
         Assert.Empty(output);
     }
 
@@ -176,20 +176,23 @@ public class AppCommandTests
         (int exitCode, _, string error) = Invoke(option, value);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal($"{AppCommand.SynthOptionsAloneMessage} {AppCommand.HelpHint}", error.Trim());
+        Assert.StartsWith($"{option} gäller bara tillsammans med ", error.Trim());
+        Assert.Contains("--render", error);
     }
 
     [Theory]
-    [InlineData("--render", "x.wav", "--play")]
-    [InlineData("--render", "x.wav", "--passthrough")]
-    [InlineData("--play", "--devices")]
-    [InlineData("--play", "--harmonize", "x.wav")]
-    public void RenderOrPlayCombined_FailsWithSwedishMessage(params string[] args)
+    [InlineData("--passthrough", "--render", "--render", "x.wav", "--passthrough")]
+    [InlineData("--render", "--play", "--render", "x.wav", "--play")]
+    [InlineData("--devices", "--play", "--play", "--devices")]
+    [InlineData("--harmonize", "--play", "--play", "--harmonize", "x.wav")]
+    [InlineData("--accompany", "--play", "--accompany", "x.wav", "--render", "y.wav", "--play")]
+    [InlineData("--passthrough", "--devices", "--passthrough", "--devices")]
+    public void TwoModes_FailWithSwedishMessage(string first, string second, params string[] args)
     {
         (int exitCode, _, string error) = Invoke(args);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal($"{AppCommand.SynthCombinedMessage} {AppCommand.HelpHint}", error.Trim());
+        Assert.Equal($"{AppCommand.CombinedMessage(first, second)} {AppCommand.HelpHint}", error.Trim());
     }
 
     [Fact]
@@ -198,7 +201,51 @@ public class AppCommandTests
         (int exitCode, _, string error) = Invoke("--play", "--input", "USB Audio");
 
         Assert.Equal(1, exitCode);
-        Assert.Equal($"{AppCommand.DeviceOptionsAloneMessage} {AppCommand.HelpHint}", error.Trim());
+        Assert.Equal($"{AppCommand.CombinedMessage("--input", "--play")} {AppCommand.HelpHint}", error.Trim());
+    }
+
+    [Fact]
+    public void ChordsWithAccompany_SaysTheyCannotBeCombined()
+    {
+        (int exitCode, _, string error) = Invoke("--accompany", "x.wav", "--render", "y.wav", "--chords", "C G");
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.CombinedMessage("--chords", "--accompany")} {AppCommand.HelpHint}", error.Trim());
+    }
+
+    [Fact]
+    public void AccompanyWithoutRender_FailsWithSwedishMessage()
+    {
+        (int exitCode, _, string error) = Invoke("--accompany", "x.wav");
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal($"{AppCommand.AccompanyNeedsRenderMessage} {AppCommand.HelpHint}", error.Trim());
+    }
+
+    [Theory]
+    [InlineData("--features", "gate")]
+    [InlineData("--no-voice")]
+    public void AccompanyOptionWithoutAccompany_FailsWithSwedishMessage(params string[] args)
+    {
+        (int alone, _, string aloneError) = Invoke(args);
+        (int withRender, _, string renderError) = Invoke([.. args, "--render", "x.wav"]);
+
+        Assert.Equal(1, alone);
+        Assert.Equal($"{AppCommand.OptionAloneMessage(args[0], ["--accompany"])} {AppCommand.HelpHint}", aloneError.Trim());
+        Assert.Equal(1, withRender);
+        Assert.Equal($"{AppCommand.CombinedMessage(args[0], "--render")} {AppCommand.HelpHint}", renderError.Trim());
+    }
+
+    [Fact]
+    public void Help_ListsAccompanyOptionsWithSwedishDescriptions()
+    {
+        (int exitCode, string output, _) = Invoke("--help");
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("--accompany <wav>", output);
+        Assert.Contains("--no-voice", output);
+        Assert.Contains("--features", output);
+        Assert.Contains("gate, onsets, character, dynamics", output);
     }
 
     private static (int ExitCode, string Output, string Error) Invoke(params string[] args)
