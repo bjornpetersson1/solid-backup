@@ -66,6 +66,8 @@ Record a session's input (the voice) and output (the chords) to one stereo WAV f
 - **Ring of 2 s** (implementation): the ring is rounded up to a power of two (2^18 floats, about 2.7 s of stereo at 48 kHz).
 - **Clean code:** the writer drains the ring straight from its one or two pieces and sleeps 50 ms in between (the audio thread never signals it, since that could make a system call); both WAV writers share one header and PCM conversion (`Pcm16Wav`); a write failure is a `RecordingFailedException`; the open/finish flow and its messages are `Cli.RecordingSession`, which E6-1's live command reuses; the recorder takes its rate and buffer size from the opened input, the same source as the pipeline.
 
+- **Superseded by E6-1:** the recorder has one ring per side (each at least 2 s of mono audio), fed from the input's and the output's threads in live mode, or from one thread through `OnBuffer`; dropped buffers become silence in their place, the writer drops the lead of a side on a faster clock, and overruns count a pair dropped together once (`specs/E6-1-live-pipeline.md`).
+
 ## Open Questions
 - **Code review fixes:**
   - a session whose audio fails to start throws its recording away (the file is deleted and nothing claims it was saved);
