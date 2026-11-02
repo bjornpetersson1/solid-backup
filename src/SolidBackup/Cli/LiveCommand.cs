@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 
 using SolidBackup.Audio;
 using SolidBackup.Audio.Devices;
@@ -8,6 +7,7 @@ using SolidBackup.Live;
 using SolidBackup.Recording;
 
 using Spectre.Console;
+using Spectre.Console.Rendering;
 
 namespace SolidBackup.Cli;
 
@@ -16,8 +16,8 @@ public readonly record struct LiveExit(int ExitCode, bool Interrupted);
 
 /// <summary>
 /// Live mode: the microphone through the whole chain to the output, until q, Esc or Ctrl+C. It runs the same checks
-/// and recording as <c>--passthrough</c> (<see cref="AudioSession"/>), shows one status line refreshed about twice a
-/// second while it plays, lets the chord ring out on q or Esc (not on Ctrl+C), and ends with the dropouts and the
+/// and recording as <c>--passthrough</c> (<see cref="AudioSession"/>), shows the dashboard (<see cref="LiveDashboard"/>)
+/// redrawn about five times a second while it plays, lets the chord ring out on q or Esc (not on Ctrl+C), and ends with the dropouts and the
 /// latency. <see cref="Play"/> is the entry point for settings that are already validated, such as the menu's.
 /// </summary>
 public sealed class LiveCommand(
@@ -25,12 +25,13 @@ public sealed class LiveCommand(
     Func<SettingsLoadResult> loadSettings,
     Func<AppSettings, IAudioDevices> openDevices,
     AudioPreflight preflight,
-    Func<AppSettings, (string Path, Stream Stream)>? createRecording = null)
+    Func<AppSettings, (string Path, Stream Stream)>? createRecording = null,
+    bool returnsToMenu = false)
 {
-    public const string RunningMessage = "Live-läget pågår. Tryck q eller Esc för att sluta.";
     public const string NotInteractiveMessage = "Live-läget kräver en interaktiv terminal.";
 
-    private static readonly TimeSpan StatusInterval = TimeSpan.FromMilliseconds(500);
+    /// <summary>How often the dashboard is redrawn: a few times a second.</summary>
+    public static readonly TimeSpan RedrawInterval = TimeSpan.FromMilliseconds(200);
 
     private readonly AudioSession _session = new(console, openDevices, preflight, createRecording);
 
@@ -66,85 +67,59 @@ public sealed class LiveCommand(
         LiveActivity? activity = null;
 
         // Measured before anything opens, so the devices and a recording are not held open while it runs.
-        int exitCode = _session.Run(settings, record, () => activity = new LiveActivity(settings, ChainDelay.MeasureMs(settings)), cancellation);
+        int exitCode = _session.Run(
+            settings, record, () => activity = new LiveActivity(settings, ChainDelay.MeasureMs(settings), returnsToMenu), cancellation);
         return new LiveExit(exitCode, activity?.Interrupted ?? false);
     }
 
-    public static string StatusLine(LiveSnapshot snapshot, double targetMs)
-    {
-        return $"Ton {snapshot.State.Estimate} · Ackord {ChordText(snapshot.State)} · Tonart {KeyText(snapshot.State)} · "
-            + $"Latens {LatencyText(snapshot.Latency, targetMs)} · Avbrott {snapshot.Counters.Dropouts}";
-    }
-
-    public static string Summary(LiveSnapshot snapshot, double targetMs)
+    public static string Summary(LiveSnapshot snapshot)
     {
         AudioCounters counters = snapshot.Counters;
+        LiveLatency latency = snapshot.Latency;
+        int target = snapshot.Settings.LatencyTargetMs;
+        string meets = latency.TotalMs is null ? $"målet {target} ms" : $"{(latency.Meets(target) ? "under" : "över")} målet {target} ms";
         return $"Live-läget stoppat. Avbrott: {counters.Dropouts} (överflöden i ingången: {counters.InputOverflows}, "
-            + $"underflöden i utgången: {counters.OutputUnderflows}). Latens: {LatencyText(snapshot.Latency, targetMs)}, "
-            + $"{PartsText(snapshot.Latency)}.";
+            + $"underflöden i utgången: {counters.OutputUnderflows}). Latens: {LatencyTexts.Total(latency)} ms ({meets}), "
+            + $"ingång {LatencyTexts.Ms(latency.InputMs)} + kedja {LatencyTexts.Chain(latency)} + överlämning {LatencyTexts.Ms(latency.HandOverMs)} "
+            + $"+ utgång {LatencyTexts.Ms(latency.OutputMs)} ms.";
     }
 
-    /// <summary>The total and whether it meets the target, e.g. "38.2 ms (under målet 50 ms)"; "?" when the chain's delay is unknown.</summary>
-    public static string LatencyText(LiveLatency latency, double targetMs)
-    {
-        string target = Ms(targetMs, "0.#");
-        return latency.TotalMs is { } total
-            ? $"{Ms(total)} ms ({(latency.Meets(targetMs) ? "under" : "över")} målet {target} ms)"
-            : $"? ms (målet {target} ms)";
-    }
-
-    public static string PartsText(LiveLatency latency)
-    {
-        string chain = latency.ChainMs is { } ms ? Ms(ms) : "?";
-        return $"ingång {Ms(latency.InputMs)} + kedja {chain} + överlämning {Ms(latency.HandOverMs)} + utgång {Ms(latency.OutputMs)} ms";
-    }
-
-    private static string ChordText(LiveState state)
-    {
-        return state.Chord is { } chord ? chord.Symbol : "–";
-    }
-
-    private static string KeyText(LiveState state)
-    {
-        return state.Key is { } key ? HarmonyNames.Key(key) : "–";
-    }
-
-    private static string Ms(double ms, string format = "0.0")
-    {
-        return ms.ToString(format, CultureInfo.InvariantCulture);
-    }
-
-    private sealed class LiveActivity(AppSettings settings, double? chainDelayMs) : IAudioActivity
+    private sealed class LiveActivity(AppSettings settings, double? chainDelayMs, bool returnsToMenu) : IAudioActivity
     {
         private LiveMode? _mode;
+        private string? _speakerWarning;
 
         public bool Interrupted { get; private set; }
 
-        public void Start(IAudioDevices devices, SessionRecorder? recorder)
+        public void Start(AudioStart start)
         {
-            _mode = new LiveMode(devices, settings, chainDelayMs, recorder);
+            _speakerWarning = start.SpeakerWarning;
+            _mode = new LiveMode(start.Devices, settings, chainDelayMs, start.Recorder);
             _mode.Start();
         }
 
+        // The dashboard runs on this thread and only reads snapshots, so it cannot hold up the audio; it ends before
+        // the fade and the stop.
         public void WaitForStop(IAnsiConsole console, CancellationToken cancellation)
         {
-            console.WriteLine(RunningMessage);
-            Stopwatch sinceStatus = Stopwatch.StartNew();
-            ShowStatus(console);
-            StopReason reason = StopKeys.WaitForStop(
-                console,
-                () =>
-                {
-                    if (sinceStatus.Elapsed >= StatusInterval)
+            Stopwatch clock = Stopwatch.StartNew();
+            RedrawPacer pacer = new(RedrawInterval, () => clock.Elapsed);
+            StopReason reason = StopReason.Interrupted;
+            console.Live(Dashboard(console)).Start(live =>
+            {
+                reason = StopKeys.WaitForStop(
+                    console,
+                    () =>
                     {
-                        ShowStatus(console);
-                        sinceStatus.Restart();
-                    }
+                        if (pacer.Due())
+                        {
+                            live.UpdateTarget(Dashboard(console));
+                        }
 
-                    return false;
-                },
-                cancellation);
-            console.WriteLine();
+                        return false;
+                    },
+                    cancellation);
+            });
 
             // q and Esc let the chord ring out; Ctrl+C stops at once, also during the fade.
             if (reason == StopReason.StopKey)
@@ -162,17 +137,12 @@ public sealed class LiveCommand(
 
         public string Summary()
         {
-            return LiveCommand.Summary(Snapshot(), settings.LatencyTargetMs);
+            return LiveCommand.Summary(Snapshot());
         }
 
-        // Rewrites the one line in place: back to its start, the status, and the rest of the old line cleared. It is
-        // written as ANSI, since Spectre would wrap or escape the control characters in plain text, and cut to the
-        // terminal's width, since a line that wraps could not be rewritten.
-        private void ShowStatus(IAnsiConsole console)
+        private IRenderable Dashboard(IAnsiConsole console)
         {
-            string line = StatusLine(Snapshot(), settings.LatencyTargetMs);
-            int width = Math.Max(1, console.Profile.Width - 1);
-            console.WriteAnsi($"\r{(line.Length > width ? line[..width] : line)}\u001b[K");
+            return LiveDashboard.Render(Snapshot(), new DashboardContext(returnsToMenu, _speakerWarning), console.Profile.Width);
         }
 
         private LiveSnapshot Snapshot()

@@ -130,6 +130,42 @@ public class LiveChainTests
     }
 
     [Fact]
+    public void WithTheDashboardDrawingOnAnotherThread_TheAudioSideStillAllocatesNothing()
+    {
+        float[] voice = Singing.Samples[..(2 * Singing.SampleRate)];
+        AppSettings settings = TestSettings.Default with { SampleRate = Singing.SampleRate };
+        LiveChain chain = new(new Accompanist(settings));
+        float[] output = new float[settings.BufferSize];
+        Run(chain, voice, output);
+        using CancellationTokenSource stop = new();
+        using ManualResetEventSlim firstDrawn = new();
+        int drawn = 0;
+        Thread dashboard = new(() =>
+        {
+            Spectre.Console.Testing.TestConsole console = new();
+            while (!stop.IsCancellationRequested)
+            {
+                chain.TryReadState(out LiveState state);
+                LiveSnapshot snapshot = TestSnapshots.Of(state, settings);
+                console.Write(LiveDashboard.Render(snapshot, new DashboardContext(false, null), 120));
+                drawn++;
+                firstDrawn.Set();
+            }
+        });
+        dashboard.Start();
+        Assert.True(firstDrawn.Wait(TimeSpan.FromSeconds(30)));
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        Run(chain, voice, output);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        stop.Cancel();
+        dashboard.Join();
+
+        Assert.Equal(0, allocated);
+        Assert.True(drawn > 0);
+    }
+
+    [Fact]
     public void State_FollowsTheLatestInputBuffer()
     {
         AppSettings settings = Chain.Settings("gate");
