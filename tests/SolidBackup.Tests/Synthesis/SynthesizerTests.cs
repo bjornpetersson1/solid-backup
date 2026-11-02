@@ -271,14 +271,26 @@ public class SynthesizerTests
     }
 
     [Fact]
-    public void ShortEdges_AreStretchedToFiveMs()
+    public void EdgesShorterThanFiveMs_ArePlayedAsFiveMs()
     {
-        Synthesizer synthesizer = new(Sound.Organ, SampleRate);
-        synthesizer.StartTone(69, strength: 1);
-        float[] samples = Render(synthesizer, Ms(4));
+        SoundPreset preset = new(Oscillator.Sawtooth, DetuneCents: 0, CutoffHz: 0, AttackMs: 1, DecayMs: 0, Sustain: 0.5, ReleaseMs: 1);
 
-        // Organ's 10 ms attack is above the floor; a tone never reaches full level within 4 ms either way.
-        Assert.True(samples.Max(Math.Abs) < Synthesizer.VoiceGain * 0.5);
+        Assert.Equal(SoundPreset.MinEdgeMs, preset.PlayedAttackMs);
+        Assert.Equal(SoundPreset.MinEdgeMs, preset.PlayedDecayMs);
+        Assert.Equal(SoundPreset.MinEdgeMs, preset.PlayedReleaseMs);
+    }
+
+    [Theory]
+    [MemberData(nameof(Sounds))]
+    public void ATone_TakesAtLeastFiveMsToReachFullLevel(Sound sound)
+    {
+        Synthesizer synthesizer = new(sound, SampleRate);
+        synthesizer.StartTone(48, strength: 1);
+
+        float[] samples = Render(synthesizer, Ms(SoundPreset.MinEdgeMs) - 1);
+
+        // A sawtooth or organ tone at full level peaks at the voice gain; within 5 ms the envelope has not got there.
+        Assert.True(samples.Max(Math.Abs) < Synthesizer.VoiceGain);
     }
 
     [Theory]

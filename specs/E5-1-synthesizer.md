@@ -4,7 +4,7 @@
 - **Labels:** `E5 Sound`
 - **Phase:** 5. Sound
 - **Depends on:** E2-2 (#6)
-- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 635 tests passed); listening to the three sounds with `--play` is a manual check for the owner; CI on Ubuntu is checked on the PR
+- **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 638 tests passed); listening to the three sounds with `--play` is a manual check for the owner; CI on Ubuntu is checked on the PR
 
 ## Summary
 The app's own polyphonic synthesizer: band-limited oscillators, an ADSR envelope per voice, three sounds (pad, organ, pluck), voice leading within C3–C5 that starts from close voicing, and click-free chord changes where common tones keep sounding. `--render` writes chords to a WAV file and `--play` plays them in the headphones, so the owner can hear the sounds before live mode exists.
@@ -98,6 +98,7 @@ The app's own polyphonic synthesizer: band-limited oscillators, an ADSR envelope
   - `--play` counts output underflows and prints them; the mono-to-channels copy and the channel count are shared with `PortAudioOutput`;
   - the exact enum-name parser moved from `HarmonySettings` to `Configuration.SettingNames`, as `Sound` is not a harmony setting;
   - `Chord.Tensions` is a read-only copy beside the constant pattern check, and a test keeps them in step.
+- **PR review fixes:** the 5 ms floor is proved directly (a preset with 1 ms edges and no decay plays them as 5 ms, and no sound reaches full level within 5 ms), and `--play` keeps the stream open for 100 ms of silence after the samples, so stopping cuts nothing that is still on its way to the device.
 - **Not changed in clean code:** the pairwise option checks in `AppCommand` were not turned into a table of modes; E5-2 and E5-5 add options and can restructure them if they grow. Rendering stays sample by sample over the voices rather than voice by voice per segment; it is well within the budget, and the simpler loop keeps events exact.
 - **Test queries on the synthesizer** (implementation): `Starts`, `Sounding(note)` and `Held(note)` let tests check the common-tone and stealing rules without reading audio.
 - **Shared helpers reused** (clean code): `Pitch.Frequency` for tuning, `Duration.Samples` for millisecond lengths, `Pitch.ParabolaOffset` and `Pitch.Cents` in the test spectrum, and `Chord.Tensions` for the parser.

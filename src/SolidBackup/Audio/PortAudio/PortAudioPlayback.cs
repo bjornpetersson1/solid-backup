@@ -18,6 +18,7 @@ public sealed class PortAudioPlayback : IAudioPlayback
     private readonly int _channels;
     private readonly int _sampleRate;
     private readonly int _bufferSize;
+    private readonly int _tailFrames;
     private float[] _samples = [];
     private PaStream? _stream;
     private int _position;
@@ -30,11 +31,15 @@ public sealed class PortAudioPlayback : IAudioPlayback
         _channels = PortAudioStreams.OutputChannels(device);
         _sampleRate = settings.SampleRate;
         _bufferSize = settings.BufferSize;
+
+        // Silence played after the samples, longer than the device's output latency, so the last ones are heard before the stream stops.
+        _tailFrames = settings.SampleRate / 10;
     }
 
     public string OutputDeviceName => _device.Name;
 
-    public bool IsFinished => Volatile.Read(ref _position) >= _samples.Length;
+    /// <summary>True once the samples, and a short silence after them, have been handed to the device, so stopping cuts none of the sound.</summary>
+    public bool IsFinished => Volatile.Read(ref _position) >= _samples.Length + _tailFrames;
 
     public long Underflows => Interlocked.Read(ref _underflows);
 
@@ -93,7 +98,7 @@ public sealed class PortAudioPlayback : IAudioPlayback
         int position = _position;
         int frames = Math.Clamp(_samples.Length - position, 0, (int)frameCount);
         PortAudioStreams.FanOut(_samples.AsSpan(position, frames), new Span<float>((void*)output, (int)frameCount * _channels), _channels);
-        Volatile.Write(ref _position, position + frames);
+        Volatile.Write(ref _position, position + (int)frameCount);
         return StreamCallbackResult.Continue;
     }
 }
