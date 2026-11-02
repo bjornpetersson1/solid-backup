@@ -54,6 +54,9 @@ public sealed class Synthesizer
 
     public SoundPreset Preset { get; }
 
+    /// <summary>Told about every tone that starts or is released, with its sample since the synthesizer began; for tests and measurement.</summary>
+    public IToneListener? Listener { get; set; }
+
     /// <summary>How many tones have started since the synthesizer began; a kept common tone is no new start.</summary>
     public long Starts { get; private set; }
 
@@ -224,6 +227,11 @@ public sealed class Synthesizer
                 _voicer.Forget();
                 foreach (Voice voice in _voices)
                 {
+                    if (voice.IsHeld)
+                    {
+                        Listener?.OnRelease(_now, voice.Note);
+                    }
+
                     voice.Release(_now);
                 }
 
@@ -263,6 +271,7 @@ public sealed class Synthesizer
     {
         FreeVoice().Start(note, strength, _now);
         Starts++;
+        Listener?.OnStart(_now, note, strength);
     }
 
     private void Release(int note)
@@ -271,6 +280,7 @@ public sealed class Synthesizer
         {
             if (voice.IsHeld && voice.Note == note)
             {
+                Listener?.OnRelease(_now, note);
                 voice.Release(_now);
             }
         }

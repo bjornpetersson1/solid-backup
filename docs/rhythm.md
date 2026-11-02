@@ -38,7 +38,7 @@ Added to `appsettings.json`, validated with Swedish errors, listed in the README
 
 ## The patterns
 
-All three play the chord's tones in the voicing the synthesizer gives them (E5-1), lowest to highest.
+All three play the chord's tones in the voicing the synthesizer gives them (E5-1), lowest to highest. That voicing is led from the previous chord, so a bar starts on the chord's lowest tone, which is not always its root (decided with the owner in E5-5). After a stop, the next chord is in close voicing again, root first.
 
 ### Held (`Held`)
 
@@ -87,7 +87,7 @@ Unless a row says otherwise: 48 kHz, 90 BPM (one beat = 32000 samples, one eight
 | R2 | Arpeggio | C E G C E G C E starting at 0, 16000, … 112000; bar 2 starts again on C at 128000. | Tone = step in bar mod 3. |
 | R3 | Arpeggio, 3/4 | C E G C E G; bar 2 starts on C at 96000. | Six eighths per bar in 3/4. |
 | R4 | Arpeggio, a four-tone chord C E G Bb | C E G Bb C E G Bb in bar 1. | Tone = step in bar mod 4. |
-| R5 | Arpeggio; the chord changes to F (F A C) at 20000 | E from 16000 rings until 32000; at 32000 C (tone 2 of F A C), at 48000 F. | The new chord from the next step; the tone index follows the bar. |
+| R5 | Arpeggio; the chord changes to F at 20000 | E from 16000 rings until 32000; at 32000 A, at 48000 C. | The new chord from the next step; the tone index follows the bar. F is voice-led from C3 E3 G3 (E5-1) to C3 F3 A3, so tone 2 is A and tone 0 is C. |
 | R6 | Held; the chord changes to F at 20000 | F from 20000. | Held changes at once. |
 | R7 | Strum; the first chord after silence comes at 40000 | Nothing before 64000; the first strike at 64000. | The first chord also waits for the next beat. |
 | R8 | Strum; the first chord comes at exactly 64000 | The first strike at 64000. | A chord on a step's sample plays on that step. |

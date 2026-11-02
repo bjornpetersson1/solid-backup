@@ -1,6 +1,7 @@
 using SolidBackup.Accompaniment;
 using SolidBackup.Analysis;
 using SolidBackup.Harmony;
+using SolidBackup.Rhythm;
 using SolidBackup.Synthesis;
 
 namespace SolidBackup.Configuration;
@@ -95,7 +96,7 @@ public static class SettingsValidator
             return new(nameof(AppSettings.RecordingFolder), "en mapp krävs, t.ex. \"recordings\"");
         }
 
-        return ValidateHarmony(settings) ?? ValidateSound(settings) ?? ValidateLevelFeatures(settings);
+        return ValidateHarmony(settings) ?? ValidateSound(settings) ?? ValidateLevelFeatures(settings) ?? ValidateRhythm(settings);
     }
 
     private static SettingsError? ValidateLevelFeatures(AppSettings settings)
@@ -125,6 +126,23 @@ public static class SettingsValidator
         }
 
         return null;
+    }
+
+    private static SettingsError? ValidateRhythm(AppSettings settings)
+    {
+        if (!SettingNames.TryParse<RhythmPatternName>(settings.RhythmPattern, out _))
+        {
+            return new(nameof(AppSettings.RhythmPattern), $"\"{settings.RhythmPattern}\" är inget känt rytmmönster; välj {string.Join(", ", Enum.GetNames<RhythmPatternName>())}");
+        }
+
+        if (settings.Bpm is < RhythmSettings.MinBpm or > RhythmSettings.MaxBpm)
+        {
+            return new(nameof(AppSettings.Bpm), $"{settings.Bpm} måste vara mellan {RhythmSettings.MinBpm} och {RhythmSettings.MaxBpm}");
+        }
+
+        return RhythmSettings.TryParseTimeSignature(settings.TimeSignature, out _)
+            ? null
+            : new(nameof(AppSettings.TimeSignature), $"\"{settings.TimeSignature}\" är ingen taktart som stöds; välj {string.Join(" eller ", RhythmSettings.AllTimeSignatures)}");
     }
 
     private static SettingsError? OutOfDbfsRange(string setting, double value)

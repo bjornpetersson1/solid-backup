@@ -38,8 +38,12 @@ internal static class Chain
 
     public static ChainStep[] Play(AppSettings settings, AnalysisFrame[] analyses, IReadOnlyList<LevelFeatureEntry>? registry = null)
     {
-        Accompanist accompanist = new(settings, registry);
-        float[] buffer = new float[settings.BufferSize];
+        return PlayWith(new Accompanist(settings, registry), analyses);
+    }
+
+    public static ChainStep[] PlayWith(Accompanist accompanist, AnalysisFrame[] analyses)
+    {
+        float[] buffer = new float[analyses.Length == 0 ? 1 : analyses[0].BufferLength];
         ChainStep[] steps = new ChainStep[analyses.Length];
         for (int i = 0; i < analyses.Length; i++)
         {
@@ -57,7 +61,7 @@ internal static class Chain
     }
 
     /// <summary>
-    /// Analyses as the detector would give them, without its gaps: each note held without a break for its length, at
+    /// Analyses as the detector would give them, without its gaps: each note (or silence, as −1) held without a break for its length, at
     /// <paramref name="levelDbfs"/>, the gate open, and an onset on the first buffer at or after each of <paramref name="onsetsMs"/>.
     /// </summary>
     public static AnalysisFrame[] Notes(AppSettings settings, double levelDbfs, (int Midi, double Ms)[] notes, params double[] onsetsMs)
@@ -72,7 +76,7 @@ internal static class Chain
             while ((frames.Count + 1) * bufferMs <= end + 1e-9)
             {
                 double time = (frames.Count + 1) * bufferMs;
-                PitchEstimate estimate = new(time, HasNote: true, midi * 100.0, Confidence: 1);
+                PitchEstimate estimate = midi < 0 ? PitchEstimate.NoNote(time, 0) : new(time, HasNote: true, midi * 100.0, Confidence: 1);
                 long endSample = (frames.Count + 1L) * settings.BufferSize;
                 frames.Add(new AnalysisFrame(endSample, time, settings.BufferSize, levelDbfs, levelDbfs, GateOpen: true, onsetFrames.Contains(frames.Count + 1), estimate));
             }

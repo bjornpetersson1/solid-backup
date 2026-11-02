@@ -8,7 +8,7 @@ namespace SolidBackup.Accompaniment;
 
 /// <summary>
 /// The whole chain for one buffer: analysis (pitch, level, gate, onsets), the level features that are on, the
-/// harmony, the rhythm pattern (the chord held, <see cref="HeldPattern"/>) and the synthesizer. Without the gate, the chord keeps sounding through
+/// harmony, the rhythm pattern (<see cref="RhythmPatterns"/>) and the synthesizer. Without the gate, the chord keeps sounding through
 /// silence until <c>PhraseResetMs</c> has passed (<c>docs/rhythm.md</c>). Everything is built in the constructor,
 /// so a buffer allocates nothing; the chain is deterministic, so a recording always gives the same output.
 /// </summary>
@@ -19,7 +19,7 @@ public sealed class Accompanist : IAudioProcessor
     private readonly NoiseGate _gate;
     private readonly OnsetDetector _onsets;
     private readonly ILevelFeature[] _features;
-    private readonly IRhythmPattern _pattern = new HeldPattern();
+    private readonly IRhythmPattern _pattern;
     private readonly LevelSmoother _smoother;
     private readonly int _sampleRate;
     private readonly long _followSamples;
@@ -39,6 +39,7 @@ public sealed class Accompanist : IAudioProcessor
         _onsets = new OnsetDetector(settings.SampleRate, settings.OnsetThresholdDb, settings.OnsetMinIntervalMs, _level.WindowLength);
         _features = [.. (registry ?? LevelFeatures.All).Where(entry => entry.IsOn(settings)).Select(entry => entry.Create(settings))];
         Harmonizer = Harmonizer.FromSettings(settings);
+        _pattern = RhythmPatterns.Create(settings);
         Synthesizer = new Synthesizer(Enum.Parse<Sound>(settings.Sound), settings.SampleRate);
     }
 

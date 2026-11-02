@@ -106,6 +106,35 @@ public sealed class SynthCommandTests : IDisposable
     }
 
     [Fact]
+    public void Render_WithAPattern_PlaysItOnTheGrid()
+    {
+        string held = Path.Combine(_folder, "held.wav");
+        string arpeggio = Path.Combine(_folder, "arpeggio.wav");
+
+        Command(TestConsoles.Wide()).Render(held, "Organ", "C", chordMs: 1000);
+        Command(TestConsoles.Wide()).Render(arpeggio, "Organ", "C", chordMs: 1000, new RhythmOverrides("Arpeggio", Bpm: 120));
+
+        float[] heldSamples = WavReader.Read(held).Samples;
+        float[] arpeggioSamples = WavReader.Read(arpeggio).Samples;
+        Assert.Equal(heldSamples.Length, arpeggioSamples.Length);
+        Assert.NotEqual(heldSamples, arpeggioSamples);
+    }
+
+    [Theory]
+    [InlineData("Swing", null, null, "Ogiltigt värde för RhythmPattern")]
+    [InlineData(null, 300, null, "Ogiltigt värde för Bpm: 300 måste vara mellan 40 och 240")]
+    [InlineData(null, null, "6/8", "Ogiltigt värde för TimeSignature")]
+    public void Render_InvalidRhythm_FailsWithSwedishMessage(string? pattern, int? bpm, string? timeSignature, string message)
+    {
+        TestConsole console = TestConsoles.Wide();
+
+        int exitCode = Command(console).Render(Path.Combine(_folder, "x.wav"), rhythm: new RhythmOverrides(pattern, bpm, timeSignature));
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains(message, console.Output);
+    }
+
+    [Fact]
     public void Render_UnknownSound_FailsWithSwedishMessage()
     {
         TestConsole console = TestConsoles.Wide();

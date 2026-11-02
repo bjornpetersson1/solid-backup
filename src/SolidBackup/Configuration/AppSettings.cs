@@ -86,6 +86,15 @@ public sealed record AppSettings
     /// <summary>Chord character: above this level the chord is full.</summary>
     public required double CharacterFullAboveDbfs { get; init; }
 
+    /// <summary>The rhythm pattern: <c>Held</c>, <c>Arpeggio</c> or <c>Strum</c>; see <c>docs/rhythm.md</c>.</summary>
+    public required string RhythmPattern { get; init; }
+
+    /// <summary>The tempo in beats per minute, 40–240.</summary>
+    public required int Bpm { get; init; }
+
+    /// <summary>The time signature: <c>4/4</c> or <c>3/4</c>.</summary>
+    public required string TimeSignature { get; init; }
+
     /// <summary>Where recordings go: a folder relative to the current directory, or an absolute path.</summary>
     public required string RecordingFolder { get; init; }
 }

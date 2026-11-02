@@ -9,4 +9,13 @@ namespace SolidBackup.Accompaniment;
 /// began, and the pitch.
 /// </summary>
 public readonly record struct AnalysisFrame(
-    long EndSample, double TimeMs, int BufferLength, double LevelDbfs, double SmoothedLevelDbfs, bool GateOpen, bool Onset, PitchEstimate Estimate);
+    long EndSample, double TimeMs, int BufferLength, double LevelDbfs, double SmoothedLevelDbfs, bool GateOpen, bool Onset, PitchEstimate Estimate)
+{
+    public long StartSample => EndSample - BufferLength;
+
+    /// <summary>Only a buffer's place, for playing a pattern without analysis (rendering chords, tests).</summary>
+    public static AnalysisFrame Position(long endSample, int bufferLength, int sampleRate)
+    {
+        return new AnalysisFrame(endSample, endSample * 1000.0 / sampleRate, bufferLength, 0, 0, GateOpen: true, Onset: false, default);
+    }
+}

@@ -104,6 +104,18 @@ public sealed class AccompanyCommandTests : IDisposable
     }
 
     [Fact]
+    public void Run_WithAPattern_ChangesTheAccompaniment()
+    {
+        string held = Path.Combine(_folder, "held.wav");
+        string strum = Path.Combine(_folder, "strum.wav");
+
+        Command(TestConsoles.Wide()).Run(_input, held, new AccompanyOptions(Key: "C", NoVoice: true));
+        Command(TestConsoles.Wide()).Run(_input, strum, new AccompanyOptions(Key: "C", NoVoice: true, Rhythm: new RhythmOverrides("Strum", 120)));
+
+        Assert.NotEqual(WavReader.Read(held).Samples, WavReader.Read(strum).Samples);
+    }
+
+    [Fact]
     public void Run_MissingRecording_FailsWithSwedishMessage()
     {
         TestConsole console = TestConsoles.Wide();

@@ -27,7 +27,7 @@ public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResu
             return 1;
         }
 
-        AppSettings settings = loaded.Settings with
+        AppSettings settings = RhythmOverrides.Apply(options.Rhythm, loaded.Settings) with
         {
             SampleRate = audio.SampleRate,
             HarmonyStyle = options.Style ?? loaded.Settings.HarmonyStyle,
@@ -114,4 +114,5 @@ public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResu
 }
 
 /// <summary>The per-run overrides of <c>--accompany</c>; null keeps the setting.</summary>
-public sealed record AccompanyOptions(string? Style = null, string? Key = null, string? Mode = null, string? Sound = null, string? Features = null, bool NoVoice = false);
+public sealed record AccompanyOptions(
+    string? Style = null, string? Key = null, string? Mode = null, string? Sound = null, string? Features = null, bool NoVoice = false, RhythmOverrides? Rhythm = null);
