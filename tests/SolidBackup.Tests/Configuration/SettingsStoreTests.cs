@@ -185,6 +185,7 @@ public sealed class SettingsStoreTests : IDisposable
             CharacterSparseBelowDbfs = -35,
             CharacterFullAboveDbfs = -15,
             RecordingFolder = "/tmp/inspelningar",
+            RecordOn = true,
             RhythmPattern = "Strum",
             Bpm = 120,
             TimeSignature = "3/4",

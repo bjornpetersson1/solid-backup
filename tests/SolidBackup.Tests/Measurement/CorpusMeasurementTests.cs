@@ -4,6 +4,8 @@ using SolidBackup.Measurement;
 namespace SolidBackup.Tests.Measurement;
 
 /// <summary>The analysis components on the whole corpus, with the bundled default settings (BufferSize 64).</summary>
+// Its analysis time is measured against real time, so it runs alone.
+[Collection(TimingCollection.Name)]
 public sealed class CorpusMeasurementTests
 {
     private static readonly AppSettings Defaults = new SettingsStore(SettingsStore.BundledDefaultsPath, "").Load().Settings;

@@ -10,6 +10,9 @@ namespace SolidBackup.Cli;
 public sealed class DeviceListCommand(
     IAnsiConsole console, Func<SettingsLoadResult> loadSettings, Func<IAudioDeviceCatalog> openCatalog, AudioPreflight preflight)
 {
+    /// <summary>How a system default device is marked, here and in the menu.</summary>
+    public const string DefaultTag = "[standard]";
+
     public int Run()
     {
         SettingsLoadResult loaded = loadSettings();
@@ -34,7 +37,7 @@ public sealed class DeviceListCommand(
         string[] tags =
         [
             $"{device.Name} ({channels} {(channels == 1 ? "kanal" : "kanaler")})",
-            device.IsDefault(direction) ? "[standard]" : "",
+            device.IsDefault(direction) ? DefaultTag : "",
             chosen ? "[vald]" : "",
             builtInSpeakers ? "[inbyggda högtalare]" : "",
         ];

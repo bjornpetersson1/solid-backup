@@ -73,7 +73,7 @@ public sealed class SynthCommand(
 
             playback.Start(prepared.Samples);
             console.WriteLine(PlayingMessage);
-            bool finished = StopKeys.WaitForStop(console, () => playback.IsFinished, cancellation);
+            bool finished = StopKeys.WaitForStop(console, () => playback.IsFinished, cancellation) == StopReason.Finished;
             playback.Stop();
             console.WriteLine(PlayedSummary(finished, playback.Underflows));
             return 0;

@@ -2,6 +2,19 @@ using Spectre.Console;
 
 namespace SolidBackup.Cli;
 
+/// <summary>Why a command that plays audio stopped waiting.</summary>
+internal enum StopReason
+{
+    /// <summary>The audio came to its end.</summary>
+    Finished,
+
+    /// <summary>q or Esc.</summary>
+    StopKey,
+
+    /// <summary>Ctrl+C or a cancellation.</summary>
+    Interrupted,
+}
+
 /// <summary>How a command that plays audio waits to be stopped: by q, Esc, Ctrl+C or a cancellation.</summary>
 internal static class StopKeys
 {
@@ -9,10 +22,10 @@ internal static class StopKeys
 
     /// <summary>
     /// Waits until a stop key, Ctrl+C, <paramref name="cancellation"/> or <paramref name="finished"/>, and returns
-    /// whether it finished. Call it once the audio runs: until then, opening can block on the permission dialog, and
+    /// which it was. Call it once the audio runs: until then, opening can block on the permission dialog, and
     /// Ctrl+C must still be able to end the process. From here on Ctrl+C becomes a normal stop, so the audio closes.
     /// </summary>
-    public static bool WaitForStop(IAnsiConsole console, Func<bool> finished, CancellationToken cancellation)
+    public static StopReason WaitForStop(IAnsiConsole console, Func<bool> finished, CancellationToken cancellation)
     {
         using CancellationTokenSource stop = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         ConsoleCancelEventHandler stopOnCtrlC = (_, args) =>
@@ -24,17 +37,22 @@ internal static class StopKeys
         try
         {
             // Polls instead of blocking in ReadKey, so a cancellation is noticed without a key press.
-            while (!stop.IsCancellationRequested && !Pressed(console))
+            while (!stop.IsCancellationRequested)
             {
+                if (Pressed(console))
+                {
+                    return StopReason.StopKey;
+                }
+
                 if (finished())
                 {
-                    return true;
+                    return StopReason.Finished;
                 }
 
                 stop.Token.WaitHandle.WaitOne(PollInterval);
             }
 
-            return false;
+            return StopReason.Interrupted;
         }
         finally
         {

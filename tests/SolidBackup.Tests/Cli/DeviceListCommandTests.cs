@@ -71,16 +71,4 @@ public class DeviceListCommandTests
 
     private static AppSettings Settings(string inputDevice, string outputDevice) =>
         TestSettings.Default with { InputDevice = inputDevice, OutputDevice = outputDevice };
-
-    private sealed class FakeCatalog : IAudioDeviceCatalog
-    {
-        public IReadOnlyList<AudioDeviceInfo> Devices => TestDevices.All;
-
-        public bool Disposed { get; private set; }
-
-        public void Dispose()
-        {
-            Disposed = true;
-        }
-    }
 }

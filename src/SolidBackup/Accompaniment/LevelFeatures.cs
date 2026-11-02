@@ -2,9 +2,13 @@ using SolidBackup.Configuration;
 
 namespace SolidBackup.Accompaniment;
 
-/// <summary>A level feature with its name (as <c>--features</c> takes it), its switch in the settings and how to build it.</summary>
+/// <summary>
+/// A level feature with its name (as <c>--features</c> takes it), its Swedish name for the console, its switch in the
+/// settings and how to build it.
+/// </summary>
 public sealed record LevelFeatureEntry(
     string Name,
+    string DisplayName,
     Func<AppSettings, bool> IsOn,
     Func<AppSettings, bool, AppSettings> Switch,
     Func<AppSettings, ILevelFeature> Create);
@@ -17,15 +21,17 @@ public static class LevelFeatures
 {
     public static IReadOnlyList<LevelFeatureEntry> All { get; } =
     [
-        new("gate", settings => settings.GateOn, (settings, on) => settings with { GateOn = on }, _ => new GateFeature()),
-        new("onsets", settings => settings.OnsetsOn, (settings, on) => settings with { OnsetsOn = on }, _ => new OnsetFeature()),
+        new("gate", "grind", settings => settings.GateOn, (settings, on) => settings with { GateOn = on }, _ => new GateFeature()),
+        new("onsets", "ansättningar", settings => settings.OnsetsOn, (settings, on) => settings with { OnsetsOn = on }, _ => new OnsetFeature()),
         new(
             "character",
+            "ackordkaraktär",
             settings => settings.ChordCharacterOn,
             (settings, on) => settings with { ChordCharacterOn = on },
             settings => new ChordCharacterFeature(settings.CharacterSparseBelowDbfs, settings.CharacterFullAboveDbfs)),
         new(
             "dynamics",
+            "dynamik",
             settings => settings.DynamicsOn,
             (settings, on) => settings with { DynamicsOn = on },
             settings => new DynamicsFeature(settings.DynamicsQuietDbfs, settings.DynamicsLoudDbfs)),

@@ -23,11 +23,13 @@ public static class AppCommand
     /// Parses and runs the command line. Parse errors and unexpected exceptions get a Swedish
     /// message and exit code 1, instead of System.CommandLine's English text or a stack trace.
     /// </summary>
-    public static int Run(string[] args, Func<IAnsiConsole> createConsole, InvocationConfiguration? configuration = null)
+    /// <param name="createMenu">Builds the menu shown without arguments; the real devices and settings when null.</param>
+    public static int Run(
+        string[] args, Func<IAnsiConsole> createConsole, InvocationConfiguration? configuration = null, Func<IAnsiConsole, MainMenu>? createMenu = null)
     {
         configuration ??= new InvocationConfiguration();
         configuration.EnableDefaultExceptionHandler = false;
-        ParseResult parseResult = Create(createConsole).Parse(args);
+        ParseResult parseResult = Create(createConsole, createMenu).Parse(args);
         if (parseResult.Errors.Count > 0)
         {
             configuration.Error.WriteLine($"{ParseErrorMessage(parseResult)} {HelpHint}");
@@ -45,8 +47,9 @@ public static class AppCommand
         }
     }
 
-    public static RootCommand Create(Func<IAnsiConsole> createConsole)
+    public static RootCommand Create(Func<IAnsiConsole> createConsole, Func<IAnsiConsole, MainMenu>? createMenu = null)
     {
+        createMenu ??= CreateMenu;
         RootCommand root = new(Description);
         root.Options.OfType<HelpOption>().Single().Description = "Visa hjälp och användning.";
         VersionOption versionOption = root.Options.OfType<VersionOption>().Single();
@@ -223,7 +226,7 @@ public static class AppCommand
 
             return parseResult.GetValue(passThroughOption)
                 ? new PassThroughCommand(createConsole(), loadSettings, PortAudioDevices.Open, CreatePreflight()).Run(record: parseResult.GetValue(recordOption))
-                : new MainMenu(createConsole()).Run();
+                : createMenu(createConsole()).Run();
         });
         return root;
     }
@@ -285,9 +288,21 @@ public static class AppCommand
         return loaded with { Settings = settings };
     }
 
+    private static MainMenu CreateMenu(IAnsiConsole console)
+    {
+        AudioPreflight preflight = CreatePreflight();
+        LiveCommand live = new(console, LoadSettings, PortAudioDevices.Open, preflight);
+        return new MainMenu(console, CreateStore(), PortAudioSession.Open, preflight, settings => live.Play(settings, settings.RecordOn));
+    }
+
     private static SettingsLoadResult LoadSettings()
     {
-        return new SettingsStore(SettingsStore.BundledDefaultsPath, SettingsStore.DefaultUserSettingsPath).Load();
+        return CreateStore().Load();
+    }
+
+    private static SettingsStore CreateStore()
+    {
+        return new SettingsStore(SettingsStore.BundledDefaultsPath, SettingsStore.DefaultUserSettingsPath);
     }
 
     private static AudioPreflight CreatePreflight()

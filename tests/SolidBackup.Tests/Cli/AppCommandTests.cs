@@ -2,6 +2,7 @@ using System.CommandLine;
 
 using SolidBackup.Cli;
 using SolidBackup.Configuration;
+using SolidBackup.Tests.Audio.Devices;
 
 using Spectre.Console.Testing;
 
@@ -129,10 +130,19 @@ public class AppCommandTests
     [Fact]
     public void NoArguments_RunsMenu()
     {
+        // Avsluta is the last item; Starta live is preselected.
         TestConsole console = new TestConsole().Interactive();
+        foreach (int _ in Enumerable.Range(0, MainMenu.Choices.Count - 1))
+        {
+            console.Input.PushKey(ConsoleKey.DownArrow);
+        }
+
         console.Input.PushKey(ConsoleKey.Enter);
 
-        int exitCode = AppCommand.Run([], () => console);
+        SettingsStore store = new(SettingsStore.BundledDefaultsPath, Path.Combine(Path.GetTempPath(), $"solid-backup-{Guid.NewGuid():N}.json"));
+        MainMenu menu = new(console, store, () => new FakeCatalog(), TestPreflight.Create(), _ => throw new InvalidOperationException("Live mode is not started."));
+
+        int exitCode = AppCommand.Run([], () => console, createMenu: _ => menu);
 
         Assert.Equal(0, exitCode);
         Assert.Contains(MainMenu.Title, console.Output);
