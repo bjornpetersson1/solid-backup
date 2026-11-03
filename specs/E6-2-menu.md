@@ -5,6 +5,7 @@
 - **Phase:** 6. Live mode
 - **Depends on:** E1-3 (#3), E1-4 (#4), E2-3 (#7), E6-1 (#19)
 - **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 961 tests passed); hearing every choice live and a real Ctrl+C in the menu and in live mode are manual checks for the owner
+- **Superseded in part:** E7-1, E7-2 and E7-3 (#70–#72) add the menu items Ackordbyten (change rate and sensitivity, so part of the harmony timing is now chosen in the menu), Autospel and Medhörning.
 
 ## Summary
 The start menu: the app started without arguments shows the current choices and lets the owner change devices, key, harmony style, sound, rhythm (pattern, tempo, time signature), level features and recording, each saved at once as the next start's defaults, and start live mode (E6-1) from it. `Esc` or `q` fades the sound out and returns to the menu; `Ctrl+C` quits cleanly.

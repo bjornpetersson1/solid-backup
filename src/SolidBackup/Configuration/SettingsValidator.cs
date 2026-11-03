@@ -91,9 +91,9 @@ public static class SettingsValidator
             return new(nameof(AppSettings.LatencyTargetMs), $"{settings.LatencyTargetMs} ms måste vara större än 0");
         }
 
-        if (settings.MonitorLevelPercent is < MonitorLevels.Min or > MonitorLevels.Max)
+        if (settings.MonitorLevelPercent is < MonitorSettings.MinLevelPercent or > MonitorSettings.MaxLevelPercent)
         {
-            return new(nameof(AppSettings.MonitorLevelPercent), $"{settings.MonitorLevelPercent} % måste vara mellan {MonitorLevels.Min} och {MonitorLevels.Max} %");
+            return new(nameof(AppSettings.MonitorLevelPercent), $"{settings.MonitorLevelPercent} % måste vara mellan {MonitorSettings.MinLevelPercent} och {MonitorSettings.MaxLevelPercent} %");
         }
 
         if (string.IsNullOrWhiteSpace(settings.RecordingFolder))

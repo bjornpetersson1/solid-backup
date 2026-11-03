@@ -60,21 +60,24 @@ public sealed class FreeTests
     [Fact]
     public void OverRandomNotes_NoTwoChangesInARowKeepTheRoot()
     {
-        // 10 000 notes of 150–700 ms, one in four up to 3 s, one in eight a silence; one estimate per 64-sample buffer.
-        Random random = new(7);
-        List<PitchEstimate> estimates = [];
+        AssertNoTwoChangesInARowKeepTheRoot(RandomNotes(10_000, seed: 7));
+    }
+
+    // Notes of 150–700 ms, one in four up to 3 s, one in eight a silence; one estimate per 64-sample buffer, made as
+    // they are fed, so the millions of estimates are never held at once.
+    private static IEnumerable<PitchEstimate> RandomNotes(int count, int seed)
+    {
+        Random random = new(seed);
         double time = 0;
-        for (int i = 0; i < 10_000; i++)
+        for (int i = 0; i < count; i++)
         {
             double end = time + (random.Next(4) == 0 ? random.Next(50, 3000) : random.Next(150, 700));
             int? midi = random.Next(8) == 0 ? null : 60 + random.Next(12);
             for (; time < end; time += KeyMelodies.StepMs)
             {
-                estimates.Add(midi is { } note ? new PitchEstimate(time, true, note * 100.0, 1) : PitchEstimate.NoNote(time, 0));
+                yield return midi is { } note ? new PitchEstimate(time, true, note * 100.0, 1) : PitchEstimate.NoNote(time, 0);
             }
         }
-
-        AssertNoTwoChangesInARowKeepTheRoot([.. estimates]);
     }
 
     [Fact]
@@ -146,7 +149,7 @@ public sealed class FreeTests
     }
 
     // Changes within a phrase: a phrase reset (a silence of PhraseResetMs) starts the rule afresh.
-    private static void AssertNoTwoChangesInARowKeepTheRoot(PitchEstimate[] estimates, Action<PitchEstimate, Chord>? onChange = null)
+    private static void AssertNoTwoChangesInARowKeepTheRoot(IEnumerable<PitchEstimate> estimates, Action<PitchEstimate, Chord>? onChange = null)
     {
         Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Examples with { HarmonyStyle = "Free" });
         RootRule rule = new();

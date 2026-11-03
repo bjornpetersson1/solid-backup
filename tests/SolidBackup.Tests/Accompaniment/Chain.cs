@@ -56,13 +56,28 @@ internal static class Chain
         return steps;
     }
 
-    /// <summary>Plays the analyses through a new chain, with every tone the synthesizer starts or releases recorded in <paramref name="run"/>.</summary>
-    public static ChainStep[] PlayRecorded(AppSettings settings, AnalysisFrame[] analyses, out PatternRun run)
+    /// <summary>A new chain whose synthesizer records every tone it starts or releases in <paramref name="run"/>.</summary>
+    public static Accompanist Recorded(AppSettings settings, out PatternRun run)
     {
         Accompanist accompanist = new(settings);
         run = new PatternRun();
         accompanist.Synthesizer.Listener = run;
-        return PlayWith(accompanist, analyses);
+        return accompanist;
+    }
+
+    /// <summary>Plays the analyses through a new chain, with every tone the synthesizer starts or releases recorded in <paramref name="run"/>.</summary>
+    public static ChainStep[] PlayRecorded(AppSettings settings, AnalysisFrame[] analyses, out PatternRun run)
+    {
+        return PlayWith(Recorded(settings, out run), analyses);
+    }
+
+    /// <summary>The samples of a grid's steps from <paramref name="from"/> up to <paramref name="to"/>, every <paramref name="step"/> samples (a whole number).</summary>
+    public static IEnumerable<long> Steps(long from, long to, long step)
+    {
+        for (long sample = (from + step - 1) / step * step; sample < to; sample += step)
+        {
+            yield return sample;
+        }
     }
 
     public static ChainStep[] Run(AppSettings settings, float[] samples)

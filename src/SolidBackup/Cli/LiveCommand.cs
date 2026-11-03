@@ -99,7 +99,7 @@ public sealed class LiveCommand(
         {
             _onSpeakers = start.SpeakerWarning is not null;
             _outputSafe = start.OutputSafeForMonitoring;
-            _mode = new LiveMode(start.Devices, settings, chainDelayMs, start.Recorder, _outputSafe());
+            _mode = new LiveMode(start.Devices, settings, chainDelayMs, start.Recorder, start.OutputSafe);
             _mode.Start();
         }
 

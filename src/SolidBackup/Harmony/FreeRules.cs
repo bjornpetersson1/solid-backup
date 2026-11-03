@@ -12,8 +12,8 @@ namespace SolidBackup.Harmony;
 /// </summary>
 public sealed class FreeRules : IChordRules
 {
-    /// <summary>The three-tone shapes, in order of preference; together they cover every set of three pitch classes once.</summary>
-    public static IReadOnlyList<ChordQuality> Shapes { get; } = Array.AsReadOnly(
+    // The shapes as an array, for the search on the audio thread.
+    private static readonly ChordQuality[] ShapeArray =
     [
         ChordQuality.Major,
         ChordQuality.Minor,
@@ -34,10 +34,10 @@ public sealed class FreeRules : IChordRules
         ChordQuality.PowerFlat9,
         ChordQuality.PowerSharp11,
         ChordQuality.Cluster,
-    ]);
+    ];
 
-    // The shapes as an array, for the search on the audio thread.
-    private static readonly ChordQuality[] ShapeArray = [.. Shapes];
+    /// <summary>The three-tone shapes, in order of preference; together they cover every set of three pitch classes once.</summary>
+    public static IReadOnlyList<ChordQuality> Shapes { get; } = Array.AsReadOnly(ShapeArray);
 
     // Whether the last chord change kept the root, so the next one must move it, and the chord that change gave; a
     // current chord other than that one (not chosen here) starts the rule afresh.

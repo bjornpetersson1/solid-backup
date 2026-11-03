@@ -5,6 +5,7 @@
 - **Phase:** 5. Sound
 - **Depends on:** E3-3 (#10), E4-2 (#12), E5-1 (#14)
 - **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 792 tests passed); listening to `--accompany` is a manual check for the owner; CI on Ubuntu is checked on the PR
+- **Superseded in part:** with E7-1's change-rate grid (#70), a note after an onset is ready at once but is evaluated, and struck, on its allowed beat; with `ChordChangesPerBar` `Off` it is as below.
 
 ## Summary
 Four level features, each a separate switchable component behind one mechanism: the gate (silence is silent), dynamics (chord loudness follows the input level), chord character (soft gives a sparse chord, loud a fuller one) and onsets (an articulated note changes the chord without waiting and strikes it anew). They sit between the analysis and harmony (E3, E4) and the synthesizer (E5-1). `--accompany` runs a recording through the whole chain into a WAV file.

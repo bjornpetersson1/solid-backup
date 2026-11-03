@@ -81,7 +81,7 @@ public static class SettingTexts
             return OnOff(on: false);
         }
 
-        return monitoring ? $"{OnOff(on: true)}, {settings.MonitorLevelPercent} %" : "av (osäker utgång)";
+        return monitoring ? $"{OnOff(on: true)}, {settings.MonitorLevelPercent} %" : $"{OnOff(on: false)} (osäker utgång)";
     }
 
     public static string OnOff(bool on)
