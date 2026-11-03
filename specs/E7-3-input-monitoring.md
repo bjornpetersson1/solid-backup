@@ -88,5 +88,7 @@ Monitoring: in live mode, the microphone signal can be mixed into the headphones
   - **A stalled output**: the input now overwrites the oldest samples when the ring is full, so after a stall the output resumes with the latest input, not with what was there before the stall.
   - **Level 0 %** (finding declined): `MonitorOn` with 0 % still builds the monitor; it is a valid choice the menu shows as "på, 0 %", and the per-sample cost is far below the callback's budget.
 
+- **PR review fixes:** the README's live-mode and menu paragraphs list the E7 dashboard rows (Byten, Autospel, Medhörning) and menu items (Ackordbyten, Autospel, Medhörning) and the monitoring note; the Feedback row in `Constitution/Requirements-and-goal.md` says monitoring plays only to a safe output and stops if that changes.
+
 ## Open Questions
 - None.
