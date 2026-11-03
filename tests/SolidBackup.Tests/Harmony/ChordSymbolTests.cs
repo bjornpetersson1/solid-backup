@@ -36,10 +36,22 @@ public class ChordSymbolTests
     [InlineData("Cdim(#11)")]
     [InlineData("Csus4(11)")]
     [InlineData("Cm7b5(#11)")]
+    [InlineData("C7(no5)(9)")]
+    [InlineData("Caug(#11)")]
+    [InlineData("C(b9,9)(#11)")]
     [InlineData(null)]
     public void TryParse_RejectsAnythingElse(string? symbol)
     {
         Assert.False(ChordSymbol.TryParse(symbol, out _));
+    }
+
+    [Theory]
+    [InlineData("C5(b9)", ChordQuality.PowerFlat9)]
+    [InlineData("C5(#11)", ChordQuality.PowerSharp11)]
+    public void APowerChordSymbolWithATension_IsFreesShape(string symbol, ChordQuality quality)
+    {
+        Assert.True(ChordSymbol.TryParse(symbol, out Chord chord));
+        Assert.Equal(new Chord(0, quality), chord);
     }
 
     [Fact]

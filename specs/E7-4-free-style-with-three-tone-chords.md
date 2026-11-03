@@ -4,7 +4,7 @@
 - **Labels:** `E7 Playtest`
 - **Phase:** 7. Playtest
 - **Depends on:** none open (builds on E4-6 (#44); written after E7-1 (#70))
-- **Status:** Approved
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 1123 tests passed); how Free sounds live is a manual check for the owner
 
 ## Summary
 The Free style chooses among every chord of three pitch classes that contains the note, and moves to a new root at least every other chord change. In the E6 playtest Free stayed on one root and only changed colour (Cmaj7 → Cmaj7(#11)).
@@ -83,10 +83,10 @@ The Free style chooses among every chord of three pitch classes that contains th
 5. **Manual check (owner):** Free sounds varied and moves between roots when singing live. Added to `docs/manual-testing.md`.
 
 ## Tasks
-- [ ] The 19 shapes and their symbols in the chord model.
-- [ ] Rewrite Free's rules: three-tone candidates, keep, the root rule, the new order; no tensions.
-- [ ] Rewrite the Free section, the overview row and the examples in `docs/harmony.md`; `docs/manual-testing.md`.
-- [ ] Tests: the examples, the exhaustive set test, the root-rule property test, the corpus test, symbols, dashboard.
+- [x] The 19 shapes and their symbols in the chord model.
+- [x] Rewrite Free's rules: three-tone candidates, keep, the root rule, the new order; no tensions.
+- [x] Rewrite the Free section, the overview row and the examples in `docs/harmony.md`; `docs/manual-testing.md`.
+- [x] Tests: the examples, the exhaustive set test, the root-rule property test, the corpus test, symbols, dashboard.
 
 ## Decisions
 - **All 19 three-tone shapes** (owner's choice): any three pitch classes that contain the note, as the issue's scope says, in the order above with consonant shapes first.
@@ -97,6 +97,25 @@ The Free style chooses among every chord of three pitch classes that contains th
 - **The augmented triad's root is the note** (default): it is the same set on three roots, and the last tie-break picks the note.
 - **After silence: the note as root of a major triad** (default): Free's old rule took a `maj7`; a major triad is its three-tone counterpart.
 - **E7-1's timing applies** (default): the change rate and sensitivity work on Free's changes like any style's.
+
+- **The chord model** (implementation): the 15 shapes the existing qualities did not cover are new `ChordQuality` values (`Dominant7No5` … `Cluster`) with their tones and symbols in `Chord`; the major, minor, sus4 and diminished triads reuse the existing qualities. `FreeRules.Shapes` lists the 19 in the table's order. The seventh chords and tensions stay for Jazz (`G7(11)`).
+- **The root rule's state** (implementation): `FreeRules` remembers whether the last change kept the root; it starts over when there is no current chord and on `Reset` (a phrase reset). Each harmonizer has its own instance, as with Blues and Jazz.
+- **The property tests** (implementation): the root rule is checked twice: through the harmonizer on 10 000 random notes and the corpus melodies, and on the rules alone over 100 000 random notes, which fails at once without the rule (the harmonizer's hold times make a second same-root change rare, so the first test alone would not show it).
+- **The allocation test's expected count** for Free is 7 changes on its melody (D, Bm, D, E, Cmaj7(no5), E, E7(no5)), worked out by hand from the rules.
+- **Docs** (implementation): the Free section, its overview row, the symbol list and examples F1–F7 in `docs/harmony.md`; the chord-choice row in `Constitution/Requirements-and-goal.md`; E7 step 4 in `docs/manual-testing.md`.
+
+- **Clean code:** `FreeRules` uses `Chord.PitchClassMask` and `Contains` instead of its own bit table, and tries only the roots that put one of a shape's tones on the note (an indexed loop, so it allocates nothing); the new rows of the interval table are labelled; the tests share one root-rule check (`RootRule`) and check the corpus in one pass.
+- **Declined clean-code findings:** b9, 9 and #11 stay as tensions of the chord model, as chord symbols with them are still read (`ChordSymbol`, the synth command's chords); trimming them would change that surface, outside this issue. One table holding each quality's intervals, suffix and allowed tensions would be a restructuring of the shared chord model; the qualities, intervals and suffixes stay in their existing places, kept together by the symbol tests on every root.
+
+- **Code review fixes:**
+  - **Symbols:** "C5(b9)" and "C5(#11)" were also a power chord with a tension, and the symbol table kept whichever came last; Free's shapes and the power chord now take no tensions in `ChordSymbol`, so these symbols read as Free's shapes, and symbols such as "C7(no5)(9)" or "Caug(#11)" are not chords (tests).
+  - **Sparse clusters:** the sparse shape keeps the root and the fifth or a third; Free's cluster has neither and played its root alone. It now keeps the root and the lowest other tone; every Free shape is two tones sparse (test).
+  - **The root rule's state** follows the chords passed in: a current chord the rules did not choose starts the rule afresh (test), so it does not rely on the caller applying every chosen chord.
+  - **Dashboard:** a test shows Free's new symbols on the Ackord row.
+  - **Docs:** the E4 manual check no longer lists Free's tensions as an open point.
+  - **Smaller:** the search runs over a private array of the shapes, the root is written as `(note − interval) mod 12`, and a stray blank line went.
+
+- **Verification:** `--harmonize`'s Free test now expects `C` then `Em` for C4, B4 (the first chord is a major triad; B is not in C and Em shares two tones and moves one semitone).
 
 ## Open Questions
 - None.

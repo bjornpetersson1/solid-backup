@@ -3,60 +3,98 @@ using System.Numerics;
 namespace SolidBackup.Harmony;
 
 /// <summary>
-/// Fri: no key. Seventh chords on every root, each allowing some tensions; the current chord stays while the note
-/// is one of its tones or allowed tensions (taking the note as its tension when it is one), otherwise the chord with the note as a tone or tension is chosen by,
-/// in order: most tones in common with the current chord, least movement from it, quality (maj7, m7, 7, m7b5,
-/// dim7), the note as a chord tone rather than a tension, and the smallest interval from the root up to the note.
+/// Fri (<c>docs/harmony.md</c>, E7-4): no key. Every set of three pitch classes, named by the first of the 19 shapes in
+/// <see cref="Shapes"/> it matches, rooted on the shape's first tone. The current chord stays while it contains the
+/// note; otherwise the chord with the note is chosen by, in order: most tones in common with the current chord, least
+/// movement from it, the earlier shape, and the smallest interval from the root up to the note. After a change that
+/// kept the root, the next change must move it. Keeps that as state, so each harmonizer needs its own instance;
+/// allocates nothing per note.
 /// </summary>
 public sealed class FreeRules : IChordRules
 {
-    // The qualities in order of preference, with the tensions each allows, as bits over the semitones above the
-    // root (b9 = 1, 9 = 2, 11 = 5, #11 = 6), and its tones as the same kind of bits.
-    private static readonly (ChordQuality Quality, int Tensions, int Tones)[] Shapes =
+    /// <summary>The three-tone shapes, in order of preference; together they cover every set of three pitch classes once.</summary>
+    public static IReadOnlyList<ChordQuality> Shapes { get; } = Array.AsReadOnly(
     [
-        Shape(ChordQuality.Major7, 2, 6),
-        Shape(ChordQuality.Minor7, 2, 5),
-        Shape(ChordQuality.Dominant7, 1, 2, 6),
-        Shape(ChordQuality.HalfDiminished7, 5),
-        Shape(ChordQuality.Diminished7),
-    ];
+        ChordQuality.Major,
+        ChordQuality.Minor,
+        ChordQuality.Sus4,
+        ChordQuality.Dominant7No5,
+        ChordQuality.Minor7No5,
+        ChordQuality.Major7No5,
+        ChordQuality.Add9No5,
+        ChordQuality.MinorAdd9No5,
+        ChordQuality.Diminished,
+        ChordQuality.Augmented,
+        ChordQuality.Dominant7No3,
+        ChordQuality.Major7No3,
+        ChordQuality.Sharp11No5,
+        ChordQuality.Sharp9No5,
+        ChordQuality.MinorMajor7No5,
+        ChordQuality.MinorFlat9No5,
+        ChordQuality.PowerFlat9,
+        ChordQuality.PowerSharp11,
+        ChordQuality.Cluster,
+    ]);
+
+    // The shapes as an array, for the search on the audio thread.
+    private static readonly ChordQuality[] ShapeArray = [.. Shapes];
+
+    // Whether the last chord change kept the root, so the next one must move it, and the chord that change gave; a
+    // current chord other than that one (not chosen here) starts the rule afresh.
+    private bool _keptRoot;
+    private Chord? _chosen;
 
     public bool UsesKey => false;
+
+    public void Reset(Key key)
+    {
+        _keptRoot = false;
+        _chosen = null;
+    }
 
     public Chord Choose(int pitchClass, Key key, Chord? current)
     {
         if (current is not { } previous)
         {
-            return new Chord(pitchClass, ChordQuality.Major7);
+            _keptRoot = false;
+            _chosen = new Chord(pitchClass, ChordQuality.Major);
+            return _chosen.Value;
         }
 
-        int previousShape = ShapeOf(previous.Quality);
-        int previousInterval = PitchClass.Interval(previous.Root, pitchClass);
-        if (previousShape >= 0 && Allows(previousShape, previousInterval))
+        if (previous != _chosen)
         {
-            return IsTension(previousShape, previousInterval) ? previous with { Tension = previousInterval } : previous;
+            _keptRoot = false;
         }
+
+        if (previous.Contains(pitchClass))
+        {
+            return previous;
+        }
+
+        int previousTones = previous.PitchClassMask;
 
         Span<int> distances = stackalloc int[12];
-        NearestDistances((previous with { Tension = Chord.NoTension }).PitchClassMask, distances);
+        NearestDistances(previousTones, distances);
 
-        // Each candidate's cost, lowest best: fewer tones in common, more movement, a later quality, a tension rather
-        // than a chord tone, a larger interval from the root up to the note.
-        int previousTones = (previous with { Tension = Chord.NoTension }).PitchClassMask;
-        (int Uncommon, int Movement, int Quality, int AsTension, int Interval) best = (int.MaxValue, 0, 0, 0, 0);
+        // Each candidate's cost, lowest best: fewer tones in common, more movement, a later shape, a larger interval
+        // from the root up to the note.
+        (int Uncommon, int Movement, int Shape, int Interval) best = (int.MaxValue, 0, 0, 0);
         int bestRoot = 0;
-        for (int quality = 0; quality < Shapes.Length; quality++)
+        for (int shape = 0; shape < ShapeArray.Length; shape++)
         {
-            for (int root = 0; root < 12; root++)
+            // Only the roots that put one of the shape's tones on the note; indexed, as an enumerator would allocate.
+            IReadOnlyList<int> intervals = Chord.Intervals(ShapeArray[shape]);
+            for (int tone = 0; tone < intervals.Count; tone++)
             {
-                int interval = PitchClass.Interval(root, pitchClass);
-                if (!Allows(quality, interval))
+                int interval = intervals[tone];
+                int root = (pitchClass - interval + 12) % 12;
+                if (_keptRoot && root == previous.Root)
                 {
                     continue;
                 }
 
-                int tones = Rotate(Shapes[quality].Tones, root);
-                (int, int, int, int, int) cost = (-BitOperations.PopCount((uint)(tones & previousTones)), Movement(tones, distances), quality, IsTension(quality, interval) ? 1 : 0, interval);
+                int tones = new Chord(root, ShapeArray[shape]).PitchClassMask;
+                (int, int, int, int) cost = (-BitOperations.PopCount((uint)(tones & previousTones)), Movement(tones, distances), shape, interval);
                 if (cost.CompareTo(best) < 0)
                 {
                     best = cost;
@@ -65,46 +103,15 @@ public sealed class FreeRules : IChordRules
             }
         }
 
-        return new Chord(bestRoot, Shapes[best.Quality].Quality, best.AsTension == 1 ? best.Interval : Chord.NoTension);
+        Chord chosen = new(bestRoot, ShapeArray[best.Shape]);
+        _keptRoot = chosen.Root == previous.Root;
+        _chosen = chosen;
+        return chosen;
     }
 
     public Key? CurrentKey(Key key)
     {
         return null;
-    }
-
-    // −1 for a quality Free does not use.
-    private static int ShapeOf(ChordQuality quality)
-    {
-        for (int shape = 0; shape < Shapes.Length; shape++)
-        {
-            if (Shapes[shape].Quality == quality)
-            {
-                return shape;
-            }
-        }
-
-        return -1;
-    }
-
-    private static (ChordQuality Quality, int Tensions, int Tones) Shape(ChordQuality quality, params int[] tensions)
-    {
-        return (quality, Bits(tensions), Bits(Chord.Intervals(quality)));
-    }
-
-    private static int Bits(IEnumerable<int> intervals)
-    {
-        return intervals.Aggregate(0, (mask, interval) => mask | (1 << interval));
-    }
-
-    private static bool Allows(int shape, int interval)
-    {
-        return ((Shapes[shape].Tones | Shapes[shape].Tensions) & (1 << interval)) != 0;
-    }
-
-    private static bool IsTension(int shape, int interval)
-    {
-        return (Shapes[shape].Tensions & (1 << interval)) != 0;
     }
 
     // For every pitch class, its distance in semitones (0–6) to the nearest previous tone.
@@ -136,11 +143,5 @@ public sealed class FreeRules : IChordRules
         }
 
         return sum;
-    }
-
-    private static int Rotate(int intervals, int root)
-    {
-        int mask = (intervals << root) | (intervals >> (12 - root));
-        return mask & 0xFFF;
     }
 }

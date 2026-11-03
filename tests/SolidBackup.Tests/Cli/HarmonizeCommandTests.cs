@@ -88,7 +88,7 @@ public sealed class HarmonizeCommandTests : IDisposable
 
         Assert.Equal(0, exitCode);
         Assert.Equal($"{_wavPath}: harmonistil Fri, tonart –", lines[0]);
-        Assert.Equal(["C4   Cmaj7"], ChangesWithoutTimes(lines));
+        Assert.Equal(["C4   C", "B4   Em"], ChangesWithoutTimes(lines));
     }
 
     [Fact]

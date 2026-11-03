@@ -91,7 +91,8 @@ public static class ChordVoicing
     /// <summary>
     /// Writes the tones of a voiced chord that sound in <paramref name="shape"/>, lowest first, and returns how many
     /// there are. Sparse keeps the root and the perfect fifth above it, or the root and the third (minor or major)
-    /// when there is no perfect fifth; full adds the root an octave below the voiced root.
+    /// when there is no perfect fifth, or else the root and the lowest other tone (Free's clusters); full adds the root
+    /// an octave below the voiced root.
     /// </summary>
     public static int Shape(Chord chord, ReadOnlySpan<int> voiced, ChordShape shape, Span<int> notes)
     {
@@ -107,6 +108,11 @@ public static class ChordVoicing
                     {
                         break;
                     }
+                }
+
+                if (partner < 0 && voiced.Length > 1)
+                {
+                    partner = root == 0 ? 1 : 0;
                 }
 
                 notes[0] = voiced[root];

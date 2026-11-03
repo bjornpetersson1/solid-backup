@@ -23,7 +23,7 @@ public static class ChordSymbol
             {
                 foreach (int tension in Chord.Tensions)
                 {
-                    if (tension != Chord.NoTension && Chord.Intervals(quality).Contains(tension))
+                    if (tension != Chord.NoTension && (!TakesTensions(quality) || Chord.Intervals(quality).Contains(tension)))
                     {
                         continue;
                     }
@@ -35,5 +35,16 @@ public static class ChordSymbol
         }
 
         return symbols;
+    }
+
+    // Free's three-tone shapes are named whole, and C5 with a tension would read as one of them (C5(b9), C5(#11)).
+    private static bool TakesTensions(ChordQuality quality)
+    {
+        return quality is not ChordQuality.Power && !IsFreeShape(quality);
+    }
+
+    private static bool IsFreeShape(ChordQuality quality)
+    {
+        return quality >= ChordQuality.Dominant7No5;
     }
 }

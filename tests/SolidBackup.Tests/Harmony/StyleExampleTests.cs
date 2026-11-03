@@ -5,7 +5,7 @@ using SolidBackup.Rhythm;
 
 namespace SolidBackup.Tests.Harmony;
 
-/// <summary>The Church, Campfire, Drone, Pop, Modal and Free examples in <c>docs/harmony.md</c>.</summary>
+/// <summary>The Church, Campfire, Drone, Pop, Modal and Free examples in <c>docs/harmony.md</c>; Free's other rules are in <see cref="FreeTests"/>.</summary>
 public sealed class StyleExampleTests
 {
     [Theory]
@@ -79,17 +79,13 @@ public sealed class StyleExampleTests
     }
 
     [Theory]
-    [InlineData("F1", "C A", "Cmaj7 Am7")]
-    [InlineData("F2", "C A F#", "Cmaj7 Am7 Cmaj7(#11)")]
-    [InlineData("F3", "C A E", "Cmaj7 Am7 Am7")]
-    [InlineData("first chord: the note as the root of a maj7", "F#", "F#maj7")]
-    [InlineData("keep: the note is an allowed tension, which the chord takes", "C D", "Cmaj7 Cmaj7(9)")]
-    [InlineData("keep: a new tension replaces the old one", "C F# D", "Cmaj7 Cmaj7(#11) Cmaj7(9)")]
-    [InlineData("keep: a chord tone keeps the tension", "C F# E", "Cmaj7 Cmaj7(#11) Cmaj7(#11)")]
-    [InlineData("common tones decide", "C Bb", "Cmaj7 C7")]
-    [InlineData("movement decides", "C F", "Cmaj7 Cm7(11)")]
-    [InlineData("quality decides", "C Db", "Cmaj7 C7(b9)")]
-    [InlineData("the root interval decides", "C Eb", "Cmaj7 Abmaj7")]
+    [InlineData("F1", "C A", "C Am")]
+    [InlineData("F2", "C F", "C Csus4")]
+    [InlineData("F3", "C F B", "C Csus4 G7(no5)")]
+    [InlineData("F4", "C F B C", "C Csus4 G7(no5) Csus4")]
+    [InlineData("F5", "C Eb F", "C Cm Ebadd9(no5)")]
+    [InlineData("F6", "C E G", "C C C")]
+    [InlineData("F7", "D - - - - - F#", "D F#")]
     public void Free(string example, string notes, string chords)
     {
         AssertExample(example, new FreeRules(), "C", Mode.Ionian, notes, chords);
@@ -104,7 +100,7 @@ public sealed class StyleExampleTests
 
         string[] chords = Melody.ChordsAtNoteEnds(harmonizer, Melody.Legato("C", "A", "F#"));
 
-        Assert.Equal(["Cmaj7", "Am7", "Cmaj7(#11)"], chords);
+        Assert.Equal(["C", "Am", "F#m7(no5)"], chords);
         Assert.Null(harmonizer.CurrentKey);
     }
 
@@ -123,8 +119,8 @@ public sealed class StyleExampleTests
 
         List<(double TimeMs, Chord Chord)> changes = Melody.Changes(harmonizer, Melody.Legato("C", "A", "F#"));
 
-        Assert.Equal((0.0, "Cmaj7"), (changes[0].TimeMs, changes[0].Chord.Symbol));
-        Assert.Equal(["Cmaj7", "Am7", "Cmaj7(#11)"], changes.Select(change => change.Chord.Symbol));
+        Assert.Equal((0.0, "C"), (changes[0].TimeMs, changes[0].Chord.Symbol));
+        Assert.Equal(["C", "Am", "F#m7(no5)"], changes.Select(change => change.Chord.Symbol));
         Assert.Null(harmonizer.CurrentKey);
     }
 
@@ -182,7 +178,7 @@ public sealed class StyleExampleTests
     [InlineData(HarmonyStyle.Pop, 5)]
     [InlineData(HarmonyStyle.Modal, 3)]
     [InlineData(HarmonyStyle.Blues, 6)]
-    [InlineData(HarmonyStyle.Free, 6)]
+    [InlineData(HarmonyStyle.Free, 7)]
     public void PerEstimateCall_AllocatesNothing(HarmonyStyle style, int expectedChanges)
     {
         PitchEstimate[] estimates = Melody.Estimates(Melody.Legato("D", "B", "A", "F#", "-", "-", "-", "-", "-", "E", "C", "G#", "D"));
