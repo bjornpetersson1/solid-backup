@@ -44,6 +44,7 @@ internal static class TestSettings
         RhythmPattern = "Held",
         Bpm = 90,
         TimeSignature = "4/4",
+        Autoplay = false,
     };
 
     /// <summary>

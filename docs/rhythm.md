@@ -13,7 +13,7 @@ This document is the decision from the E5-4 discussion. It is the rule book for 
 | Onsets and the tempo | Onsets do not touch the tempo or the grid. They only matter for chord changes (E5-2). |
 | Where the grid starts | At the start of live mode, and it runs for the whole session. |
 | Time signature | 4/4 or 3/4, chosen in the menu. |
-| When a pattern plays | While there is a chord; it stops after `PhraseResetMs` of silence. The gate and the level features (E5-2) may silence it earlier. |
+| When a pattern plays | While there is a chord; it stops after `PhraseResetMs` of silence. The gate and the level features (E5-2) may silence it earlier. With `Autoplay` (E7-2) it goes on through any silence. |
 | Chord change | Held changes at once; Arpeggio and Strum use the new chord from their next step, including the first chord after silence. |
 
 ## Settings
@@ -25,6 +25,7 @@ Added to `appsettings.json`, validated with Swedish errors, listed in the README
 | `RhythmPattern` | `Held`, `Arpeggio`, `Strum` | `Held` | Hållet, Arpeggio, Ackordslag |
 | `Bpm` | whole number, 40–240 | 90 | Tempo (BPM) |
 | `TimeSignature` | `4/4`, `3/4` | `4/4` | Taktart |
+| `Autoplay` | `true`, `false` | `false` | Autospel: på / av (E7-2) |
 
 ## The tempo grid
 
@@ -69,6 +70,23 @@ In Arpeggio and Strum, the step on the downbeat plays at full strength and every
 - **Stop.** When the silence has lasted `PhraseResetMs` (default 2000 ms), the pattern stops: it releases the tones that are sounding and starts no new ones. It starts again on the next chord.
 - **The gate and level features.** Whether anything sounds, and how loud, is decided by E5-2 (gate, dynamics, chord character). The pattern decides only *when* tones start and stop. With the gate on, silence is silent at once.
 
+## Autoplay
+
+Decided with the owner in E7-2. With `Autoplay` on:
+
+- **The pattern does not stop.** After the first chord, the pattern keeps playing the current chord on the grid through any silence, however long, until a new note changes the chord or live mode is left; "Stop" above does not apply.
+  - **Arpeggio and Strum** go on stepping on the grid with the last chord, with the usual accent.
+  - **Held** keeps the chord sounding; it is not struck again.
+- **The gate does not silence the chords.** With the gate on, silence is not silent: the chord keeps playing. The gate still decides which notes reach the harmony, so noise below the gate does not change the chord.
+- **Level during silence.** With dynamics on, the chord keeps the strength the last note had at its strongest; with chord character on, it keeps the character (sparse, normal or full) it had then. A note fades before the gate closes, so its last buffer is quieter than the note itself. Both follow the level again from the next note.
+- **No new strike.** An onset in the silence (a breath, a click) does not strike the chord anew.
+- **The voicing goes on.** As the chord never stops, the next phrase's chord is led from the one playing, also after a phrase reset; it does not start in close voicing again.
+- **The phrase reset still happens.** After `PhraseResetMs` of silence the harmony forgets the previous chord and Blues and Jazz return to the menu's key (`docs/harmony.md`, rule 4); the chord that is playing keeps sounding, and the next note chooses as after a phrase reset.
+- **Before the first note** nothing plays; autoplay continues a chord, it does not start one.
+- **Leaving live mode** (`Esc`/`q`, `Ctrl+C`) fades out or stops as before.
+
+With `Autoplay` off, everything is as above, including R1–R12 and Jazz's own rule that its loop keeps the pattern playing.
+
 ## Latency
 
 The latency target (< 50 ms, `Constitution/Requirements-and-goal.md`) is input latency + analysis + output latency. The wait for the next step in Arpeggio and Strum is deliberate musical timing and is not part of it. Held has no wait, so with Held the chord is heard within the latency target; E6-1 checks the target with Held.
@@ -95,6 +113,19 @@ Unless a row says otherwise: 48 kHz, 90 BPM (one beat = 32000 samples, one eight
 | R10 | Strum, 120 BPM at 44.1 kHz | Beats at 0, 22050, 44100 …; E 441 and G 882 samples after each beat. | 10 ms = 441 samples at 44.1 kHz. |
 | R11 | Arpeggio; the last note ends at 100000 (gate off, no further note) | Steps keep playing until 196000 (100000 + 2000 ms); none starts at or after 196000. | The pattern stops after `PhraseResetMs` of silence. |
 | R12 | As R11, then a new chord at 300000 | Nothing between 196000 and 304000; at 304000 C. | The grid kept running through the stop: 304000 is the next eighth, step 3 of bar 3 (bar 3 starts at 256000), and 3 mod 3 = 0. |
+
+### Autoplay
+
+48 kHz, 90 BPM (one beat = 32000 samples, one eighth = 16000), 4/4, `Autoplay` on, the chord C major voiced C E G from sample 0, unless a row says otherwise.
+
+| # | Setup | Expected | Why |
+|---|---|---|---|
+| A1 | Arpeggio, gate off; the last note ends at 100000, then 10 s of silence | Steps go on every 16000 samples through 580000 and beyond, C E G C E G C E in each bar. | The pattern does not stop after `PhraseResetMs`. |
+| A2 | Strum, gate on; as A1 | A strike on every beat through the silence, full strength on downbeats, 0.8 on the others. | The gate does not silence the chords. |
+| A3 | Held, gate on; as A1 | The chord sounds without a new strike through the silence. | Held is not struck again. |
+| A4 | Arpeggio, gate on, dynamics on; the last note's strength is −6 dB at its strongest, and it fades before the gate closes | Every step during the silence plays at −6 dB (−8 dB on the non-downbeats). | The last note's strongest strength is kept. |
+| A5 | Strum, gate on; during the silence, noise below the gate with a detectable pitch (e.g. a quiet B) | The chord stays C. | Noise below the gate does not reach the harmony. |
+| A6 | Church C Ionian, Strum; B (G), silence 2500 ms, then A | G keeps playing through the silence; A chooses F. | The phrase reset still happens: A is chosen afresh (candidates F, Am → priority 4), not Am as V's successor in a remembered phrase. |
 
 Every position must be met within 1 ms (48 samples at 48 kHz), the acceptance criterion of E5-5; the rounding rule makes them exact.
 

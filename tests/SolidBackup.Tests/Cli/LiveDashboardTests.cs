@@ -12,8 +12,8 @@ namespace SolidBackup.Tests.Cli;
 
 public class LiveDashboardTests
 {
-    // Nine rows between the panel's top and bottom border, and the footer.
-    private const int Lines = 9 + 2 + 1;
+    // Ten rows between the panel's top and bottom border, and the footer.
+    private const int Lines = 10 + 2 + 1;
 
     private static readonly DashboardContext FromLive = new(ReturnsToMenu: false, OnSpeakers: false);
 
@@ -31,6 +31,7 @@ public class LiveDashboardTests
         Assert.Contains(lines, line => line.Contains("Nivå") && line.Contains("-24.0 dBFS · grind öppen") && line.Contains('│'));
         Assert.Contains(lines, line => line.Contains("Stil") && line.Contains("Kyrko · Pad · Arpeggio, 90 BPM, 4/4"));
         Assert.Contains(lines, line => line.Contains("Byten") && line.Contains("2 per takt, känslighet medel"));
+        Assert.Contains(lines, line => line.Contains("Autospel") && line.Contains("av"));
         Assert.Contains(lines, line => line.Contains("Funktioner") && line.Contains("grind ✓  ansättningar ✓  ackordkaraktär ✓  dynamik ✓"));
         Assert.Contains(lines, line => line.Contains("Latens") && line.Contains("42.8 ms ✓ mål 50 · in 6.0 · kedja 30.5 · överl. 1.3 · ut 5.0"));
         Assert.Contains(lines, line => line.Contains("Avbrott") && line.Contains('0'));
@@ -65,6 +66,14 @@ public class LiveDashboardTests
 
         Assert.DoesNotContain(lines, line => line.Contains("grind öppen"));
         Assert.Contains(lines, line => line.Contains("grind ✗"));
+    }
+
+    [Fact]
+    public void Autoplay_IsShownWhenOn()
+    {
+        string[] lines = Rendered(Playing with { Settings = Playing.Settings with { Autoplay = true } }, FromLive, 120);
+
+        Assert.Contains(lines, line => line.Contains("Autospel") && line.Contains("på"));
     }
 
     [Fact]

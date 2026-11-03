@@ -56,6 +56,15 @@ internal static class Chain
         return steps;
     }
 
+    /// <summary>Plays the analyses through a new chain, with every tone the synthesizer starts or releases recorded in <paramref name="run"/>.</summary>
+    public static ChainStep[] PlayRecorded(AppSettings settings, AnalysisFrame[] analyses, out PatternRun run)
+    {
+        Accompanist accompanist = new(settings);
+        run = new PatternRun();
+        accompanist.Synthesizer.Listener = run;
+        return PlayWith(accompanist, analyses);
+    }
+
     public static ChainStep[] Run(AppSettings settings, float[] samples)
     {
         return Play(settings, Analyze(settings, samples));

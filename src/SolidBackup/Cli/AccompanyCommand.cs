@@ -85,7 +85,7 @@ public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResu
         string on = string.Join(", ", LevelFeatures.NamesOn(settings));
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"Skrev {path} ({seconds:0.0} s, ljudet {settings.Sound}, nivåfunktioner: {(on.Length == 0 ? SettingOverrides.NoFeatures : on)}).");
+            $"Skrev {path} ({seconds:0.0} s, ljudet {settings.Sound}, nivåfunktioner: {(on.Length == 0 ? SettingOverrides.NoFeatures : on)}{(settings.Autoplay ? ", autospel på" : "")}).");
     }
 }
 

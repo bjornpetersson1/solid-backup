@@ -119,6 +119,7 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "CharacterFullAboveDbfs": -26 }""", "CharacterSparseBelowDbfs och CharacterFullAboveDbfs")]
     [InlineData("""{ "CharacterFullAboveDbfs": 0.5 }""", "CharacterFullAboveDbfs")]
     [InlineData("""{ "GateOn": "ja" }""", "GateOn")]
+    [InlineData("""{ "Autoplay": "ja" }""", "Autoplay")]
     [InlineData("""{ "RecordingFolder": "" }""", "RecordingFolder")]
     [InlineData("""{ "RhythmPattern": "Swing" }""", "RhythmPattern")]
     [InlineData("""{ "RhythmPattern": "held" }""", "RhythmPattern")]
@@ -194,6 +195,7 @@ public sealed class SettingsStoreTests : IDisposable
             RhythmPattern = "Strum",
             Bpm = 120,
             TimeSignature = "3/4",
+            Autoplay = true,
         };
 
         CreateStore().Save(saved);

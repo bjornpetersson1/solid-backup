@@ -35,7 +35,7 @@ public static class LiveDashboard
     // The level row's text after the meter at its widest, so the meter keeps its width as the level and gate change.
     private const string WidestLevelText = " -60.0 dBFS · grind stängd";
 
-    private static readonly string[] Labels = ["Ton", "Ackord", "Tonart", "Nivå", "Stil", "Byten", "Funktioner", "Latens", "Avbrott", "Varning"];
+    private static readonly string[] Labels = ["Ton", "Ackord", "Tonart", "Nivå", "Stil", "Byten", "Autospel", "Funktioner", "Latens", "Avbrott", "Varning"];
     private static readonly int LabelWidth = Labels.Max(label => label.Length);
 
     public static IRenderable Render(LiveSnapshot snapshot, DashboardContext context, int width)
@@ -48,6 +48,7 @@ public static class LiveDashboard
         AddRow(rows, "Nivå", Level(snapshot, meterWidth));
         AddRow(rows, "Stil", Markup.Escape(Style(snapshot)));
         AddRow(rows, "Byten", Markup.Escape(SettingTexts.ChordChanges(snapshot.Settings)));
+        AddRow(rows, "Autospel", SettingTexts.OnOff(snapshot.Settings.Autoplay));
         AddRow(rows, "Funktioner", Markup.Escape(Features(snapshot)));
         AddRow(rows, "Latens", Latency(snapshot));
         AddRow(rows, "Avbrott", Dropouts(snapshot));

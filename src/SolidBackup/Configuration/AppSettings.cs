@@ -107,6 +107,9 @@ public sealed record AppSettings
     /// <summary>The time signature: <c>4/4</c> or <c>3/4</c>.</summary>
     public required string TimeSignature { get; init; }
 
+    /// <summary>Whether the pattern keeps playing the last chord on the grid through silence, past the gate and <c>PhraseResetMs</c>.</summary>
+    public required bool Autoplay { get; init; }
+
     /// <summary>Where recordings go: a folder relative to the current directory, or an absolute path.</summary>
     public required string RecordingFolder { get; init; }
 

@@ -20,6 +20,7 @@ public sealed class MainMenuTests : IDisposable
     private static readonly int Rhythm = Item("Rytm");
     private static readonly int ChordChanges = Item("Ackordbyten");
     private static readonly int Features = Item("Nivåfunktioner");
+    private static readonly int Autoplay = Item("Autospel");
     private static readonly int Recording = Item("Inspelning");
     private static readonly int Quit = Item(MainMenu.QuitChoice);
 
@@ -49,6 +50,7 @@ public sealed class MainMenuTests : IDisposable
         Assert.Contains("Kyrko", console.Output);
         Assert.Contains("Held, 90 BPM, 4/4", console.Output);
         Assert.Contains("2 per takt, känslighet medel", console.Output);
+        Assert.Contains(console.Output.Split('\n'), line => line.Contains("Autospel") && line.Contains("av"));
         Assert.Contains("grind, ansättningar, ackordkaraktär, dynamik", console.Output);
         Assert.Empty(_started);
     }
@@ -103,6 +105,7 @@ public sealed class MainMenuTests : IDisposable
         Assert.Contains("Organ", next.Output);
         Assert.Contains("Strum, 120 BPM, 3/4", next.Output);
         Assert.Contains("varje slag, känslighet hög", next.Output);
+        Assert.Contains(next.Output.Split('\n'), line => line.Contains("Autospel") && line.Contains("på"));
         Assert.Contains("ansättningar, ackordkaraktär, dynamik", next.Output);
         Assert.Equal(Changed, Assert.Single(_started));
     }
@@ -328,6 +331,7 @@ public sealed class MainMenuTests : IDisposable
         ChordChangesPerBar = "Beat",
         ChordChangeSensitivity = "High",
         GateOn = false,
+        Autoplay = true,
         RecordOn = true,
     };
 
@@ -354,6 +358,9 @@ public sealed class MainMenuTests : IDisposable
         Choose(console, 1); // Low, Medium, High
         Choose(console, Features);
         console.Input.PushKey(ConsoleKey.Spacebar); // gate off
+        console.Input.PushKey(ConsoleKey.Enter);
+        Choose(console, Autoplay);
+        console.Input.PushKey(ConsoleKey.UpArrow); // på, [av]
         console.Input.PushKey(ConsoleKey.Enter);
         Choose(console, Recording);
         console.Input.PushKey(ConsoleKey.UpArrow); // på, [av]
