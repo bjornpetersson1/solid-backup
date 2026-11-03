@@ -28,7 +28,7 @@ public class AutoplayTests
         PatternRun run = Play("Arpeggio", [], NoteThenSilence);
 
         int[] tones = [C3, E3, G3];
-        Assert.Equal(Every(16_000).Select(sample => (sample, tones[(int)(sample / 16_000 % 8 % 3)])), run.Starts.Select(tone => (tone.Sample, tone.Note)));
+        Assert.Equal(Chain.Steps(0, End, 16_000).Select(sample => (sample, tones[(int)(sample / 16_000 % 8 % 3)])), run.Starts.Select(tone => (tone.Sample, tone.Note)));
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class AutoplayTests
     {
         PatternRun run = Play("Strum", ["gate"], NoteThenSilence);
 
-        Assert.Equal(Every(32_000), run.Starts.Where(tone => tone.Note == C3).Select(tone => tone.Sample));
+        Assert.Equal(Chain.Steps(0, End, 32_000), run.Starts.Where(tone => tone.Note == C3).Select(tone => tone.Sample));
         Assert.All(run.Starts, tone => Assert.Equal(tone.Sample / 32_000 % 4 == 0 ? 1 : Accent.OffBeat, tone.Strength));
     }
 
@@ -154,15 +154,6 @@ public class AutoplayTests
             return open ? frame with { LevelDbfs = level, SmoothedLevelDbfs = level } : frame with { GateOpen = false, LevelDbfs = -90, SmoothedLevelDbfs = -90 };
         })];
         return Chain.PlayRecorded(settings, gated, out run);
-    }
-
-    // The samples from 0 up to End, every <paramref name="step"/>.
-    private static IEnumerable<long> Every(long step)
-    {
-        for (long sample = 0; sample < End; sample += step)
-        {
-            yield return sample;
-        }
     }
 
     private sealed record Part(int Midi, long Samples, bool GateOpen = true, double? LevelDbfs = null);

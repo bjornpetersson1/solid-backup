@@ -5,6 +5,7 @@
 - **Phase:** 4. Harmony
 - **Depends on:** E4-2 (#12); builds on E4-3 (#13) and E4-5 (#43)
 - **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 521 tests passed)
+- **Superseded:** E7-4 (#73) replaced Free's chords and rules: every three-tone chord instead of seventh chords with tensions, and a root rule. This spec describes Free before E7-4.
 
 ## Summary
 The Free harmony style from `docs/harmony.md` as a rule set in E4-2's engine: no key, seventh chords with tensions on every root, chosen by common tones and voice leading from the previous chord.

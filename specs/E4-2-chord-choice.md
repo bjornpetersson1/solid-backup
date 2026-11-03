@@ -5,6 +5,7 @@
 - **Phase:** 4. Harmony
 - **Depends on:** E4-1 (#11), E3-2 (#9)
 - **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 403 tests passed)
+- **Superseded in part:** E7-1 (#70) extends rule 2: with `ChordChangesPerBar` (default `2`) a ready note waits for an allowed beat of the tempo grid, and `ChordChangeSensitivity` scales both hold times. The behaviour below is `ChordChangesPerBar` `Off` with `Medium`.
 
 ## Summary
 The harmony engine from `docs/harmony.md`: a buffer-based, allocation-free component that turns E3-2's pitch estimates into the current chord, following the common rules (candidates, keep, natural step, priority, hold times, phrase reset), with the styles Church (all seven modes), Campfire and Drone, their settings, and a command that prints the chord timeline for a WAV file.

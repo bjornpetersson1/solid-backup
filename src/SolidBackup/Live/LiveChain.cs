@@ -34,10 +34,8 @@ public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
 
     // Set from any thread; read by the output's.
     private volatile bool _fading;
+    // Set by StopMonitoring from any thread, and by the output's thread once the fade has been mixed in.
     private volatile bool _monitorStopped;
-
-    // The output's side: whether the monitor's fade has been played.
-    private bool _monitorFaded;
 
     // Set by the output's thread after each buffer.
     private volatile bool _silent = true;
@@ -87,10 +85,17 @@ public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
             _recorder?.OnOutput(output);
         }
 
-        if (_monitor is not null && !_monitorStopped && !_monitorFaded)
+        // Read once, so the buffer that plays the fade is also the one that ends the monitoring.
+        bool fading = _fading;
+        if (_monitor is not null && !_monitorStopped)
         {
-            _monitorFaded = _fading;
-            _monitor.MixInto(output, fadeOut: _fading);
+            _monitor.MixInto(output, fadeOut: fading);
+
+            // Only ever set here, so a StopMonitoring from another thread is never undone.
+            if (fading)
+            {
+                _monitorStopped = true;
+            }
         }
     }
 

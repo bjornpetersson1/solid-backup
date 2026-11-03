@@ -5,6 +5,7 @@
 - **Phase:** 6. Live mode
 - **Depends on:** E6-1 (#19)
 - **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 979 tests passed); readability on the owner's terminal and an hour with the dashboard on are manual checks for the owner
+- **Superseded in part:** E7-1, E7-2 and E7-3 (#70–#72) add the rows Byten, Autospel and Medhörning, and a note above the panel when monitoring is off because the output is not safe.
 
 ## Summary
 The live view while playing: one Swedish panel, redrawn about five times a second from E6-1's lock-free snapshot, showing the note and cents, a level meter, the chord, the key, the style, sound and rhythm, the level features that are on, the measured latency and a dropout counter. It replaces E6-1's status line in live mode, from `--live` and from the menu (E6-2).

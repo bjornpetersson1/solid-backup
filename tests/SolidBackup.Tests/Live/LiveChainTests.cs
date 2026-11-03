@@ -102,9 +102,7 @@ public class LiveChainTests
     public void WithAutoplay_TenSecondsOfSilenceAfterAMelody_NeverFallSilent(string pattern, bool gateOn)
     {
         AppSettings settings = Chain.Settings() with { RhythmPattern = pattern, GateOn = gateOn, Autoplay = true };
-        Accompanist accompanist = new(settings);
-        PatternRun run = new();
-        accompanist.Synthesizer.Listener = run;
+        Accompanist accompanist = Chain.Recorded(settings, out PatternRun run);
 
         float[] output = Live(MelodyThenSilence(10), accompanist, settings);
 
@@ -126,10 +124,10 @@ public class LiveChainTests
                 Assert.DoesNotContain(run.Releases, tone => tone.Sample >= silence);
                 break;
             case "Arpeggio":
-                Assert.Equal(Steps(silence, output.Length, 16_000), inSilence.Select(tone => tone.Sample));
+                Assert.Equal(Chain.Steps(silence, output.Length, 16_000), inSilence.Select(tone => tone.Sample));
                 break;
             default:
-                Assert.Equal(Steps(silence, output.Length, 32_000), inSilence.Where(tone => tone.Note == chord[0]).Select(tone => tone.Sample));
+                Assert.Equal(Chain.Steps(silence, output.Length, 32_000), inSilence.Where(tone => tone.Note == chord[0]).Select(tone => tone.Sample));
                 break;
         }
     }
@@ -278,15 +276,6 @@ public class LiveChainTests
     private static float[] MelodyThenSilence(double silenceSeconds)
     {
         return Chain.Join(Chain.Tone(60, -20, 0.5), Chain.Tone(64, -20, 0.5), TestSignal.Silence(silenceSeconds));
-    }
-
-    // The grid's steps from one sample up to another, every step samples (a whole number of samples at 90 BPM).
-    private static IEnumerable<long> Steps(long from, long to, long step)
-    {
-        for (long sample = (from + step - 1) / step * step; sample < to; sample += step)
-        {
-            yield return sample;
-        }
     }
 
     // Runs the voice once to settle, then once more measuring this thread's allocations.

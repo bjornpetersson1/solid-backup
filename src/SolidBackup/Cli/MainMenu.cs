@@ -50,7 +50,7 @@ public sealed class MainMenu(
     public static IReadOnlyList<string> Choices { get; } =
         [StartChoice, InputChoice, OutputChoice, KeyChoice, StyleChoice, SoundChoice, RhythmChoice, ChordChangesChoice, FeaturesChoice, AutoplayChoice, MonitorChoice, RecordingChoice, QuitChoice];
 
-    public static string MonitorLevelMessage => $"Ange en nivå mellan {MonitorLevels.Min} och {MonitorLevels.Max} %.";
+    public static string MonitorLevelMessage => $"Ange en nivå mellan {MonitorSettings.MinLevelPercent} och {MonitorSettings.MaxLevelPercent} %.";
 
     public static string BpmRangeMessage => $"Ange ett tempo mellan {RhythmSettings.MinBpm} och {RhythmSettings.MaxBpm} BPM.";
 
@@ -167,8 +167,9 @@ public sealed class MainMenu(
     private void CheckSpeakers(AppSettings settings)
     {
         AudioDeviceInfo? output = DeviceSelector.Find(_devices, settings.OutputDevice, AudioDirection.Output);
-        _speakerWarning = output is null ? null : preflight.SpeakerProblem(output.Name);
-        _outputSafe = output is not null && preflight.IsSafeForMonitoring(output.Name);
+        OutputCheck check = output is null ? default : preflight.CheckOutput(output.Name);
+        _speakerWarning = check.SpeakerWarning;
+        _outputSafe = check.SafeForMonitoring;
     }
 
     private void ShowChoices(AppSettings settings)
@@ -191,7 +192,7 @@ public sealed class MainMenu(
             ConsoleMessages.Warning(console, warning);
         }
 
-        if (settings.MonitorOn && !_outputSafe)
+        if (settings.MonitorOn && !InputMonitor.Monitors(settings, _outputSafe))
         {
             ConsoleMessages.Warning(console, SettingTexts.MonitorOffUnsafeOutput);
         }
@@ -304,7 +305,7 @@ public sealed class MainMenu(
             return settings with { MonitorOn = false };
         }
 
-        int level = AskInRange("Medhörningsnivå (%):", settings.MonitorLevelPercent, MonitorLevels.Min, MonitorLevels.Max, MonitorLevelMessage);
+        int level = AskInRange("Medhörningsnivå (%):", settings.MonitorLevelPercent, MonitorSettings.MinLevelPercent, MonitorSettings.MaxLevelPercent, MonitorLevelMessage);
         return settings with { MonitorOn = true, MonitorLevelPercent = level };
     }
 
