@@ -8,7 +8,8 @@ namespace SolidBackup.Audio.MacOS;
 
 /// <summary>
 /// Reads an output device's transport type and current data source from CoreAudio, finding the
-/// device by the same name PortAudio reports. The devices are read once per instance, on first use.
+/// device by the same name PortAudio reports. The devices are read anew on every call, so a headphone plugged in or
+/// out since the last call is seen (monitoring depends on it).
 /// </summary>
 public sealed class CoreAudioRouteSource : IOutputRouteSource
 {
@@ -24,11 +25,9 @@ public sealed class CoreAudioRouteSource : IOutputRouteSource
     private static readonly uint GlobalScope = FourCharCode("glob");
     private static readonly uint OutputScope = FourCharCode("outp");
 
-    private readonly Lazy<Dictionary<string, OutputRoute>> _routes = new(ReadRoutes);
-
     public OutputRoute? Route(string deviceName)
     {
-        return _routes.Value.GetValueOrDefault(deviceName);
+        return ReadRoutes().GetValueOrDefault(deviceName);
     }
 
     private static Dictionary<string, OutputRoute> ReadRoutes()

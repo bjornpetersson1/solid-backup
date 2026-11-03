@@ -158,6 +158,8 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `RhythmPattern` | `Held` | How the chord is played: `Held`, `Arpeggio` or `Strum` (see [`docs/rhythm.md`](docs/rhythm.md)) |
 | `Bpm` | `90` | Tempo for Arpeggio and Strum, a whole number from 40 to 240 |
 | `TimeSignature` | `4/4` | `4/4` or `3/4` |
+| `MonitorOn` | `false` | Whether live mode mixes the microphone into the output with the chords, so you hear yourself in the headphones. Only to an output whose route is known not to be the built-in speakers (an unreadable route counts as unsafe), checked again twice a second during live mode, which stops the monitoring for the session if a headphone is pulled out. The menu's Medhörning choice |
+| `MonitorLevelPercent` | `70` | The monitored microphone's level, 0–100 % of the input |
 | `Autoplay` | `false` | Whether the pattern keeps playing the last chord on the grid through silence, however long: the gate does not silence it and it does not stop after `PhraseResetMs` (the harmony still resets). The menu's Autospel choice |
 | `RecordingFolder` | `recordings` | Where `--record` puts its WAV files: a folder relative to the current directory, or an absolute path; created if missing |
 | `RecordOn` | `false` | Whether live mode records the session; the menu's Inspelning choice. `--live --record` records for one run also when it is off |

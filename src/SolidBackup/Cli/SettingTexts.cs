@@ -69,6 +69,21 @@ public static class SettingTexts
         return on.Length == 0 ? "inga" : string.Join(", ", on);
     }
 
+    /// <summary>Why live mode does not monitor although <c>MonitorOn</c> is on.</summary>
+    public const string MonitorOffUnsafeOutput =
+        "Medhörningen är avstängd: utgången är de inbyggda högtalarna eller kunde inte kontrolleras, och mikrofonen skulle kunna höra sig själv. Använd hörlurar.";
+
+    /// <summary>Monitoring as the menu and the dashboard show it: "på, 70 %", "av", or off because the output is not safe.</summary>
+    public static string Monitor(AppSettings settings, bool monitoring)
+    {
+        if (!settings.MonitorOn)
+        {
+            return OnOff(on: false);
+        }
+
+        return monitoring ? $"{OnOff(on: true)}, {settings.MonitorLevelPercent} %" : "av (osäker utgång)";
+    }
+
     public static string OnOff(bool on)
     {
         return on ? "på" : "av";

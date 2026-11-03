@@ -290,7 +290,7 @@ public class LiveChainTests
     }
 
     // Runs the voice once to settle, then once more measuring this thread's allocations.
-    private static void AssertAllocatesNothing(LiveChain chain, float[] voice, AppSettings settings)
+    internal static void AssertAllocatesNothing(LiveChain chain, float[] voice, AppSettings settings)
     {
         float[] output = new float[settings.BufferSize];
         Run(chain, voice, output);
@@ -303,7 +303,7 @@ public class LiveChainTests
     }
 
     // A plain loop: the allocation test measures this thread, so the loop itself must not allocate.
-    private static void Run(LiveChain chain, float[] voice, float[] output)
+    internal static void Run(LiveChain chain, float[] voice, float[] output)
     {
         for (int start = 0; start + output.Length <= voice.Length; start += output.Length)
         {

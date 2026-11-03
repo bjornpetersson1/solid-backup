@@ -45,6 +45,8 @@ internal static class TestSettings
         Bpm = 90,
         TimeSignature = "4/4",
         Autoplay = false,
+        MonitorOn = false,
+        MonitorLevelPercent = 70,
     };
 
     /// <summary>

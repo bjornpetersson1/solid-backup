@@ -113,6 +113,12 @@ public sealed record AppSettings
     /// <summary>Whether the pattern keeps playing the last chord on the grid through silence, past the gate and <c>PhraseResetMs</c>.</summary>
     public required bool Autoplay { get; init; }
 
+    /// <summary>Whether live mode mixes the microphone into the output with the chords (never to the built-in speakers).</summary>
+    public required bool MonitorOn { get; init; }
+
+    /// <summary>The monitored microphone's level, 0–100 % of the input.</summary>
+    public required int MonitorLevelPercent { get; init; }
+
     /// <summary>Where recordings go: a folder relative to the current directory, or an absolute path.</summary>
     public required string RecordingFolder { get; init; }
 

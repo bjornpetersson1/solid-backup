@@ -77,7 +77,7 @@ internal sealed class AudioSession(
             Console.CancelKeyPress += onCtrlC;
             try
             {
-                AudioStart start = new(devices, recording?.Recorder, speakerWarning);
+                AudioStart start = new(devices, recording?.Recorder, speakerWarning, () => preflight.IsSafeForMonitoring(devices.OutputDeviceName));
                 return RunStarted(activity, start, recording, () => Volatile.Write(ref running, true), interrupt.Token);
             }
             finally
@@ -127,8 +127,11 @@ internal sealed class AudioSession(
     }
 }
 
-/// <summary>What an activity starts with: the opened devices, the recorder when recording, and the speaker warning when the output is the built-in speakers.</summary>
-internal sealed record AudioStart(IAudioDevices Devices, SessionRecorder? Recorder, string? SpeakerWarning);
+/// <summary>
+/// What an activity starts with: the opened devices, the recorder when recording, the speaker warning when the output
+/// is the built-in speakers, and a check, read anew on each call, of whether the output is safe for monitoring.
+/// </summary>
+internal sealed record AudioStart(IAudioDevices Devices, SessionRecorder? Recorder, string? SpeakerWarning, Func<bool> OutputSafeForMonitoring);
 
 /// <summary>The audio an <see cref="AudioSession"/> runs.</summary>
 internal interface IAudioActivity

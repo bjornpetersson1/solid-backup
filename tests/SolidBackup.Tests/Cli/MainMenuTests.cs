@@ -21,6 +21,7 @@ public sealed class MainMenuTests : IDisposable
     private static readonly int ChordChanges = Item("Ackordbyten");
     private static readonly int Features = Item("Nivåfunktioner");
     private static readonly int Autoplay = Item("Autospel");
+    private static readonly int Monitor = Item("Medhörning");
     private static readonly int Recording = Item("Inspelning");
     private static readonly int Quit = Item(MainMenu.QuitChoice);
 
@@ -106,6 +107,7 @@ public sealed class MainMenuTests : IDisposable
         Assert.Contains("Strum, 120 BPM, 3/4", next.Output);
         Assert.Contains("varje slag, känslighet hög", next.Output);
         Assert.Contains(next.Output.Split('\n'), line => line.Contains("Autospel") && line.Contains("på"));
+        Assert.Contains(next.Output.Split('\n'), line => line.Contains("Medhörning") && line.Contains("på, 35 %"));
         Assert.Contains("ansättningar, ackordkaraktär, dynamik", next.Output);
         Assert.Equal(Changed, Assert.Single(_started));
     }
@@ -126,6 +128,55 @@ public sealed class MainMenuTests : IDisposable
 
         Assert.Contains(MainMenu.BpmRangeMessage, console.Output);
         Assert.Equal(100, Assert.Single(_started).Bpm);
+    }
+
+    [Fact]
+    public void AMonitorLevelOutOfRange_IsAskedAgainInSwedish()
+    {
+        TestConsole console = TestConsoles.Wide();
+        Choose(console, Monitor);
+        console.Input.PushKey(ConsoleKey.UpArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter("150");
+        console.Input.PushTextWithEnter("40");
+        Choose(console, Start);
+        Choose(console, Quit);
+
+        Menu(console).Run();
+
+        Assert.Contains(MainMenu.MonitorLevelMessage, console.Output);
+        Assert.Equal((true, 40), (Assert.Single(_started).MonitorOn, _started[0].MonitorLevelPercent));
+    }
+
+    [Fact]
+    public void MonitoringWithTheBuiltInSpeakers_IsNotedNextToTheSpeakerWarning()
+    {
+        TestConsole console = TestConsoles.Wide();
+        Choose(console, Monitor);
+        console.Input.PushKey(ConsoleKey.UpArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter("70");
+        Choose(console, Quit);
+
+        Menu(console, TestPreflight.Create(routes: new FakeRoutes(TestPreflight.Speakers))).Run();
+
+        Assert.Contains(SettingTexts.MonitorOffUnsafeOutput, console.Output);
+        Assert.Contains(console.Output.Split('\n'), line => line.Contains("Medhörning") && line.Contains("av (osäker utgång)"));
+    }
+
+    [Fact]
+    public void MonitoringWithAnOutputWhoseRouteCannotBeRead_IsNotedAsOff()
+    {
+        TestConsole console = TestConsoles.Wide();
+        Choose(console, Monitor);
+        console.Input.PushKey(ConsoleKey.UpArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter("70");
+        Choose(console, Quit);
+
+        Menu(console, TestPreflight.Create(routes: new FakeRoutes((OutputRoute?)null))).Run();
+
+        Assert.Contains(SettingTexts.MonitorOffUnsafeOutput, console.Output);
     }
 
     [Fact]
@@ -332,6 +383,8 @@ public sealed class MainMenuTests : IDisposable
         ChordChangeSensitivity = "High",
         GateOn = false,
         Autoplay = true,
+        MonitorOn = true,
+        MonitorLevelPercent = 35,
         RecordOn = true,
     };
 
@@ -362,6 +415,10 @@ public sealed class MainMenuTests : IDisposable
         Choose(console, Autoplay);
         console.Input.PushKey(ConsoleKey.UpArrow); // på, [av]
         console.Input.PushKey(ConsoleKey.Enter);
+        Choose(console, Monitor);
+        console.Input.PushKey(ConsoleKey.UpArrow); // på, [av]
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter("35");
         Choose(console, Recording);
         console.Input.PushKey(ConsoleKey.UpArrow); // på, [av]
         console.Input.PushKey(ConsoleKey.Enter);

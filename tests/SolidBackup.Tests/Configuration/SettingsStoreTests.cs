@@ -120,6 +120,9 @@ public sealed class SettingsStoreTests : IDisposable
     [InlineData("""{ "CharacterFullAboveDbfs": 0.5 }""", "CharacterFullAboveDbfs")]
     [InlineData("""{ "GateOn": "ja" }""", "GateOn")]
     [InlineData("""{ "Autoplay": "ja" }""", "Autoplay")]
+    [InlineData("""{ "MonitorOn": "ja" }""", "MonitorOn")]
+    [InlineData("""{ "MonitorLevelPercent": -1 }""", "MonitorLevelPercent")]
+    [InlineData("""{ "MonitorLevelPercent": 101 }""", "MonitorLevelPercent")]
     [InlineData("""{ "RecordingFolder": "" }""", "RecordingFolder")]
     [InlineData("""{ "RhythmPattern": "Swing" }""", "RhythmPattern")]
     [InlineData("""{ "RhythmPattern": "held" }""", "RhythmPattern")]
@@ -196,6 +199,8 @@ public sealed class SettingsStoreTests : IDisposable
             Bpm = 120,
             TimeSignature = "3/4",
             Autoplay = true,
+            MonitorOn = true,
+            MonitorLevelPercent = 35,
         };
 
         CreateStore().Save(saved);

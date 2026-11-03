@@ -12,8 +12,8 @@ namespace SolidBackup.Tests.Cli;
 
 public class LiveDashboardTests
 {
-    // Ten rows between the panel's top and bottom border, and the footer.
-    private const int Lines = 10 + 2 + 1;
+    // Eleven rows between the panel's top and bottom border, and the footer.
+    private const int Lines = 11 + 2 + 1;
 
     private static readonly DashboardContext FromLive = new(ReturnsToMenu: false, OnSpeakers: false);
 
@@ -32,6 +32,7 @@ public class LiveDashboardTests
         Assert.Contains(lines, line => line.Contains("Stil") && line.Contains("Kyrko · Pad · Arpeggio, 90 BPM, 4/4"));
         Assert.Contains(lines, line => line.Contains("Byten") && line.Contains("2 per takt, känslighet medel"));
         Assert.Contains(lines, line => line.Contains("Autospel") && line.Contains("av"));
+        Assert.Contains(lines, line => line.Contains("Medhörning") && line.Contains("av"));
         Assert.Contains(lines, line => line.Contains("Funktioner") && line.Contains("grind ✓  ansättningar ✓  ackordkaraktär ✓  dynamik ✓"));
         Assert.Contains(lines, line => line.Contains("Latens") && line.Contains("42.8 ms ✓ mål 50 · in 6.0 · kedja 30.5 · överl. 1.3 · ut 5.0"));
         Assert.Contains(lines, line => line.Contains("Avbrott") && line.Contains('0'));
@@ -74,6 +75,17 @@ public class LiveDashboardTests
         string[] lines = Rendered(Playing with { Settings = Playing.Settings with { Autoplay = true } }, FromLive, 120);
 
         Assert.Contains(lines, line => line.Contains("Autospel") && line.Contains("på"));
+    }
+
+    [Theory]
+    [InlineData(true, true, "på, 70 %")]
+    [InlineData(true, false, "av (osäker utgång)")]
+    [InlineData(false, false, "av")]
+    public void Monitoring_IsShownWithItsLevel_OrOffBecauseTheOutputIsNotSafe(bool monitorOn, bool monitoring, string shown)
+    {
+        string[] lines = Rendered(Playing with { Settings = Playing.Settings with { MonitorOn = monitorOn } }, new DashboardContext(false, OnSpeakers: false, monitoring), 120);
+
+        Assert.Contains(lines, line => line.Contains("Medhörning") && line.Contains(shown));
     }
 
     [Fact]
@@ -123,7 +135,7 @@ public class LiveDashboardTests
         string widestStyle = Enum.GetValues<HarmonyStyle>().MaxBy(style => HarmonyNames.Style(style).Length).ToString();
         LiveSnapshot widest = new(
             new LiveState(new PitchEstimate(0, HasNote: true, 9649, Confidence: 1), -0.1, GateOpen: true, widestChord, widestKey),
-            TestSettings.Default with { HarmonyStyle = widestStyle, Sound = "Organ", RhythmPattern = "Arpeggio", Bpm = 240, TimeSignature = "3/4", Key = HarmonySettings.AutoKey, ChordChangesPerBar = "Beat" },
+            TestSettings.Default with { HarmonyStyle = widestStyle, Sound = "Organ", RhythmPattern = "Arpeggio", Bpm = 240, TimeSignature = "3/4", Key = HarmonySettings.AutoKey, ChordChangesPerBar = "Beat", MonitorOn = true, MonitorLevelPercent = 100 },
             new LiveLatency(12345.6, 12345.6, 12345.6, 12345.6),
             new AudioCounters(9_999_999, 0, 0, 0, 0),
             new RecordingStatus(5999, 9_999_999));

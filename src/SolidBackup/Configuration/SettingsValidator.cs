@@ -91,6 +91,11 @@ public static class SettingsValidator
             return new(nameof(AppSettings.LatencyTargetMs), $"{settings.LatencyTargetMs} ms måste vara större än 0");
         }
 
+        if (settings.MonitorLevelPercent is < MonitorLevels.Min or > MonitorLevels.Max)
+        {
+            return new(nameof(AppSettings.MonitorLevelPercent), $"{settings.MonitorLevelPercent} % måste vara mellan {MonitorLevels.Min} och {MonitorLevels.Max} %");
+        }
+
         if (string.IsNullOrWhiteSpace(settings.RecordingFolder))
         {
             return new(nameof(AppSettings.RecordingFolder), "en mapp krävs, t.ex. \"recordings\"");
