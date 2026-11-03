@@ -147,7 +147,7 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `KeyChangeSeconds` | `4` | With `auto`, a modulation is followed within this many seconds (above 0) |
 | `KeyFirstSeconds` | `2` | With `auto`, no key (and no chord) until at least this many seconds of notes have been heard (above 0) |
 | `Sound` | `Pad` | The synthesizer's sound: `Pad`, `Organ` or `Pluck` |
-| `GateOn` | `true` | Level feature: notes count, and the chord sounds, only while the noise gate is open; off, the chord keeps sounding through silence until `PhraseResetMs` |
+| `GateOn` | `true` | Level feature: notes count, and the chord sounds, only while the noise gate is open; off, the chord keeps sounding through silence until `PhraseResetMs`. With `Autoplay` on, the chord keeps sounding through silence; the gate still decides which notes count |
 | `DynamicsOn` | `true` | Level feature: the chord's strength follows the input level |
 | `ChordCharacterOn` | `true` | Level feature: soft singing gives a sparse chord (root and fifth), loud singing a full one (with the root an octave down) |
 | `OnsetsOn` | `true` | Level feature: an articulated note is ready without the hold times (it changes the chord at once with `ChordChangesPerBar` `Off`, otherwise on the next allowed beat) and strikes the chord anew |

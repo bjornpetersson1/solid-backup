@@ -71,7 +71,10 @@ public sealed record AppSettings
     /// <summary>The synthesizer's sound: <c>Pad</c>, <c>Organ</c> or <c>Pluck</c>.</summary>
     public required string Sound { get; init; }
 
-    /// <summary>Level feature: notes reach the harmony, and the chord sounds, only while the noise gate is open.</summary>
+    /// <summary>
+    /// Level feature: notes reach the harmony, and the chord sounds, only while the noise gate is open; with
+    /// <see cref="Autoplay"/> the chord keeps sounding through silence, and the gate still decides which notes count.
+    /// </summary>
     public required bool GateOn { get; init; }
 
     /// <summary>Level feature: the chord's strength follows the input level.</summary>

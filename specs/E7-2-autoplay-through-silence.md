@@ -105,5 +105,7 @@ With `Autoplay` off, everything is as before, including the examples R1–R12 an
   - **`--accompany`** reports "autospel på" in its message when the saved setting is on, as it lists the level features; a per-run flag is not added (not in the spec).
   - **Chord character's hysteresis during the silence** (finding declined): the feature follows the silence level as it does after any silence without autoplay, so the next phrase starts from the same state either way; only the frame it plays in the silence is kept.
 
+- **PR review fixes:** the README's `GateOn` row and its doc comment in `AppSettings` say that with `Autoplay` the chord keeps sounding through silence and the gate still decides which notes count.
+
 ## Open Questions
 - None.
