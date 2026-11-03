@@ -50,9 +50,28 @@ public sealed class AudioPreflight(IMicrophonePermissionSource permission, IOutp
         return routes.Route(outputDeviceName)?.IsBuiltInSpeakers ?? false;
     }
 
+    /// <summary>The speaker warning and whether the output is safe for monitoring, from one reading of its route.</summary>
+    public OutputCheck CheckOutput(string outputDeviceName)
+    {
+        OutputRoute? route = routes.Route(outputDeviceName);
+        return new OutputCheck(route?.IsBuiltInSpeakers == true ? SpeakerWarning : null, route is { IsBuiltInSpeakers: false });
+    }
+
+    /// <summary>
+    /// Whether the microphone may be played to the output: only when its route can be read and is not the built-in
+    /// speakers. Unlike the warning, it fails closed, as a microphone in the speakers would howl.
+    /// </summary>
+    public bool IsSafeForMonitoring(string outputDeviceName)
+    {
+        return CheckOutput(outputDeviceName).SafeForMonitoring;
+    }
+
     /// <summary>The speaker warning when the output is the built-in speakers; null otherwise.</summary>
     public string? SpeakerProblem(string outputDeviceName)
     {
-        return IsBuiltInSpeakers(outputDeviceName) ? SpeakerWarning : null;
+        return CheckOutput(outputDeviceName).SpeakerWarning;
     }
 }
+
+/// <summary>What one reading of the output's route says: the speaker warning, or null, and whether the microphone may be monitored there.</summary>
+public readonly record struct OutputCheck(string? SpeakerWarning, bool SafeForMonitoring);

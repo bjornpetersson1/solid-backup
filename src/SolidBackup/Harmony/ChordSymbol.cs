@@ -1,7 +1,8 @@
 namespace SolidBackup.Harmony;
 
 /// <summary>
-/// Reads chord symbols as <c>docs/harmony.md</c> spells them, e.g. "Am", "G7" or "Cmaj7(#11)". A tension that is
+/// Reads chord symbols as <c>docs/harmony.md</c> spells them, e.g. "Am", "G7(11)" or "C7(no5)", and the other tensions
+/// a seventh chord or triad may take, e.g. "Cmaj7(#11)". A tension that is
 /// already a tone of the chord, such as "Cadd9(9)", is not a chord.
 /// </summary>
 public static class ChordSymbol
@@ -23,7 +24,7 @@ public static class ChordSymbol
             {
                 foreach (int tension in Chord.Tensions)
                 {
-                    if (tension != Chord.NoTension && Chord.Intervals(quality).Contains(tension))
+                    if (tension != Chord.NoTension && (!TakesTensions(quality) || Chord.Intervals(quality).Contains(tension)))
                     {
                         continue;
                     }
@@ -35,5 +36,16 @@ public static class ChordSymbol
         }
 
         return symbols;
+    }
+
+    // Free's three-tone shapes are named whole, and C5 with a tension would read as one of them (C5(b9), C5(#11)).
+    private static bool TakesTensions(ChordQuality quality)
+    {
+        return quality is not ChordQuality.Power && !IsFreeShape(quality);
+    }
+
+    private static bool IsFreeShape(ChordQuality quality)
+    {
+        return quality >= ChordQuality.Dominant7No5;
     }
 }

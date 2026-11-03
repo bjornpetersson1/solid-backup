@@ -28,14 +28,24 @@ public sealed class LiveMode
     private LiveState _lastState;
 
     /// <param name="chainDelayMs">The chain's delay from <see cref="ChainDelay.MeasureMs"/>, measured before the devices open.</param>
-    public LiveMode(IAudioDevices devices, AppSettings settings, double? chainDelayMs, SessionRecorder? recorder = null)
+    /// <param name="outputSafe">The output is known not to be the built-in speakers, so <c>MonitorOn</c> may monitor.</param>
+    public LiveMode(IAudioDevices devices, AppSettings settings, double? chainDelayMs, SessionRecorder? recorder = null, bool outputSafe = false)
     {
         _devices = devices;
-        _chain = new LiveChain(new Accompanist(settings), recorder);
+        _chain = new LiveChain(new Accompanist(settings), recorder, InputMonitor.FromSettings(settings, outputSafe));
         _chainDelayMs = chainDelayMs;
         _bufferMs = settings.BufferSize * 1000.0 / settings.SampleRate;
         _settings = settings;
         _recorder = recorder;
+    }
+
+    /// <summary>Whether the input is mixed into the output.</summary>
+    public bool Monitoring => _chain.Monitoring;
+
+    /// <summary>Stops the monitoring for the rest of the session, e.g. when the output turns out to be the speakers.</summary>
+    public void StopMonitoring()
+    {
+        _chain.StopMonitoring();
     }
 
     /// <summary>The latency parts; the device latencies are known once <see cref="Start"/> has opened the streams.</summary>

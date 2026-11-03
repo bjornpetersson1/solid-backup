@@ -65,21 +65,93 @@ public class LiveChainTests
     }
 
     [Theory]
-    [MemberData(nameof(Patterns))]
-    public void BothSides_AllocateNothingPerCallback(string pattern)
+    [InlineData("Held", "2", "Medium")]
+    [InlineData("Arpeggio", "2", "Medium")]
+    [InlineData("Strum", "2", "Medium")]
+    [InlineData("Held", "Beat", "High")]
+    [InlineData("Arpeggio", "1", "Low")]
+    [InlineData("Strum", "Off", "High")]
+    public void BothSides_AllocateNothingPerCallback(string pattern, string chordChangesPerBar, string sensitivity)
     {
         float[] voice = Singing.Samples[..(2 * Singing.SampleRate)];
-        AppSettings settings = TestSettings.Default with { SampleRate = Singing.SampleRate, RhythmPattern = pattern };
+        AppSettings settings = TestSettings.Default with
+        {
+            SampleRate = Singing.SampleRate,
+            RhythmPattern = pattern,
+            ChordChangesPerBar = chordChangesPerBar,
+            ChordChangeSensitivity = sensitivity,
+        };
         using SessionRecorder recorder = new(new KeptStream(), settings.SampleRate, settings.BufferSize);
-        LiveChain chain = new(new Accompanist(settings), recorder);
-        float[] output = new float[settings.BufferSize];
-        Run(chain, voice, output);
+        AssertAllocatesNothing(new LiveChain(new Accompanist(settings), recorder), voice, settings);
+    }
 
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        Run(chain, voice, output);
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+    public static TheoryData<string, bool> PatternsWithTheGateOnAndOff()
+    {
+        TheoryData<string, bool> data = [];
+        foreach (string pattern in Patterns)
+        {
+            data.Add(pattern, true);
+            data.Add(pattern, false);
+        }
 
-        Assert.Equal(0, allocated);
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(PatternsWithTheGateOnAndOff))]
+    public void WithAutoplay_TenSecondsOfSilenceAfterAMelody_NeverFallSilent(string pattern, bool gateOn)
+    {
+        AppSettings settings = Chain.Settings() with { RhythmPattern = pattern, GateOn = gateOn, Autoplay = true };
+        Accompanist accompanist = Chain.Recorded(settings, out PatternRun run);
+
+        float[] output = Live(MelodyThenSilence(10), accompanist, settings);
+
+        int window = settings.SampleRate / 10;
+        for (int start = settings.SampleRate; start + window <= output.Length; start += window)
+        {
+            Assert.Contains(output[start..(start + window)], sample => Math.Abs(sample) > 1e-3);
+        }
+
+        // The last chord, C (C3 E3 G3), on every step of the grid (90 BPM: an eighth is 16000 samples) through the silence.
+        int[] chord = [48, 52, 55];
+        long silence = settings.SampleRate;
+        List<ToneEvent> inSilence = [.. run.Starts.Where(tone => tone.Sample >= silence)];
+        Assert.All(inSilence, tone => Assert.Contains(tone.Note, chord));
+        switch (pattern)
+        {
+            case "Held":
+                Assert.Empty(inSilence);
+                Assert.DoesNotContain(run.Releases, tone => tone.Sample >= silence);
+                break;
+            case "Arpeggio":
+                Assert.Equal(Chain.Steps(silence, output.Length, 16_000), inSilence.Select(tone => tone.Sample));
+                break;
+            default:
+                Assert.Equal(Chain.Steps(silence, output.Length, 32_000), inSilence.Where(tone => tone.Note == chord[0]).Select(tone => tone.Sample));
+                break;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(PatternsWithTheGateOnAndOff))]
+    public void WithoutAutoplay_TheSilenceEndsInSilence(string pattern, bool gateOn)
+    {
+        // PhraseResetMs (2 s) and the release have passed well before the last second.
+        AppSettings settings = Chain.Settings() with { RhythmPattern = pattern, GateOn = gateOn, Autoplay = false };
+
+        float[] output = Live(MelodyThenSilence(4), settings);
+
+        Assert.All(output[^settings.SampleRate..], sample => Assert.Equal(0, sample));
+    }
+
+    [Theory]
+    [MemberData(nameof(Patterns))]
+    public void WithAutoplay_BothSidesAllocateNothingPerCallback_ThroughTheSilence(string pattern)
+    {
+        // Every level feature on, in a fixed key so the short melody gives a chord.
+        AppSettings settings = TestSettings.Default with { RhythmPattern = pattern, Key = "C", Autoplay = true };
+
+        AssertAllocatesNothing(new LiveChain(new Accompanist(settings)), MelodyThenSilence(3), settings);
     }
 
     [Fact]
@@ -186,8 +258,13 @@ public class LiveChainTests
     // The input and the output alternate buffer by buffer, as the two callbacks do with no jitter.
     private static float[] Live(float[] voice, AppSettings settings)
     {
+        return Live(voice, new Accompanist(settings), settings);
+    }
+
+    private static float[] Live(float[] voice, Accompanist accompanist, AppSettings settings)
+    {
         int buffers = (voice.Length + settings.BufferSize - 1) / settings.BufferSize;
-        LiveChain chain = new(new Accompanist(settings));
+        LiveChain chain = new(accompanist);
         using MemoryAudioInput input = new(voice, settings.SampleRate, settings.BufferSize);
         using MemoryAudioOutput output = new(settings.SampleRate, settings.BufferSize, buffers * settings.BufferSize);
         output.Start(chain);
@@ -195,8 +272,27 @@ public class LiveChainTests
         return output.Samples[..voice.Length].ToArray();
     }
 
+    // C4 and E4 for half a second each, then silence.
+    private static float[] MelodyThenSilence(double silenceSeconds)
+    {
+        return Chain.Join(Chain.Tone(60, -20, 0.5), Chain.Tone(64, -20, 0.5), TestSignal.Silence(silenceSeconds));
+    }
+
+    // Runs the voice once to settle, then once more measuring this thread's allocations.
+    internal static void AssertAllocatesNothing(LiveChain chain, float[] voice, AppSettings settings)
+    {
+        float[] output = new float[settings.BufferSize];
+        Run(chain, voice, output);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        Run(chain, voice, output);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+    }
+
     // A plain loop: the allocation test measures this thread, so the loop itself must not allocate.
-    private static void Run(LiveChain chain, float[] voice, float[] output)
+    internal static void Run(LiveChain chain, float[] voice, float[] output)
     {
         for (int start = 0; start + output.Length <= voice.Length; start += output.Length)
         {

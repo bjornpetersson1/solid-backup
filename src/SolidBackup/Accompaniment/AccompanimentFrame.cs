@@ -10,6 +10,9 @@ namespace SolidBackup.Accompaniment;
 /// </summary>
 public record struct AccompanimentFrame(Chord? Chord, bool Sounding, bool Strike, ChordShape Shape, double Strength)
 {
+    /// <summary>A ready note waits for its beat in the harmony, so the onsets' strike waits for it too.</summary>
+    public bool ChangeAwaitsBeat { get; init; }
+
     public static AccompanimentFrame Neutral(Chord? chord, bool sounding)
     {
         return new AccompanimentFrame(chord, sounding, Strike: false, ChordShape.Whole, Strength: 1);

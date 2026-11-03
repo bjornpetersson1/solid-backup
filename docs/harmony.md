@@ -18,7 +18,7 @@ The user picks a **harmony style** in the menu. Each style is a separate rule se
 | Modal | `Modal` | Tonic pedal with the mode's character chord | E4-4 |
 | Blues | `Blues` | I7, IV7, V7, blue notes, moves key on foreign notes | E4-5 |
 | Jazz | `Jazz` | Diatonic seventh chords, secondary dominants, II–V–I into a new key, a tonic loop that never stands still | E5-6 |
-| Fri | `Free` | No key; seventh chords with tensions, chosen by voice leading from the previous chord | E4-6 |
+| Fri | `Free` | No key; every three-tone chord, chosen by voice leading from the previous chord, with a new root at least every other change | E4-6, E7-4 |
 
 The melody's direction (up or down) plays no part in any style.
 
@@ -31,26 +31,33 @@ The harmony is a pure, deterministic function, called whenever the analysis repo
 - **State:** the current chord (or none), when it last changed, when the current note started, when the last note ended, and for Blues the current blues key.
 - **Output:** the current chord, or none before the first note. A chord is a root pitch class, a quality, its pitch classes and a symbol (e.g. `Am7`), plus the *current key* that the dashboard shows. Voicing, register, sparse or full chords and whether anything sounds at all are decided in E5 (synth, level features, gate), not here.
 
-Root names are always spelled `C Db D Eb E F F# G Ab A Bb B`. Symbols: `C` major, `Cm` minor, `Cdim` diminished, `C5` root and fifth, `C7`, `Cmaj7`, `Cm7`, `Cm7b5`, `Cdim7`, `Cadd9`, `Cmadd9`, `Csus4`, and tensions in brackets, e.g. `Cmaj7(#11)`, `C7(b9)`, `Cm7(11)`.
+Root names are always spelled `C Db D Eb E F F# G Ab A Bb B`. Symbols: `C` major, `Cm` minor, `Cdim` diminished, `C5` root and fifth, `C7`, `Cmaj7`, `Cm7`, `Cm7b5`, `Cdim7`, `Cadd9`, `Cmadd9`, `Csus4`, Free's three-tone shapes (`Caug`, `C7(no5)`, `C5(b9)`, … in its table), and tensions in brackets, e.g. `G7(11)`.
 
 ## Common rules (all styles)
 
 ### When the chord may change
 
-Three settings in `appsettings.json` (validated, with Swedish errors, listed in the README):
+Five settings in `appsettings.json` (validated, with Swedish errors, listed in the README); the last two are chosen in the menu (E7-1):
 
 | Setting | Default | Meaning |
 |---|---|---|
 | `MinNoteForChangeMs` | 120 | While singing, a new note must have lasted this long before it may change the chord. |
 | `MinChordDurationMs` | 250 | While singing, a chord change comes no earlier than this long after the previous change. |
 | `PhraseResetMs` | 2000 | After a silence this long, the previous chord is forgotten. |
+| `ChordChangesPerBar` | `2` | While singing, the most chord changes per bar, each on an allowed beat: `1`, `2`, `Beat` or `Off`. Menu: Ackordbyten, first question (Av, 1, 2, Varje slag). |
+| `ChordChangeSensitivity` | `Medium` | How easily a new note changes the chord: `Low`, `Medium` or `High`. Menu: Ackordbyten, second question (Låg, Medel, Hög). |
 
-1. **After silence, at once.** The first note after "no note" (or at start) chooses a chord immediately, so the first chord is within the latency target. Neither hold time applies.
-2. **While singing, after the hold times.** When the note changes without silence in between, the new note is evaluated once it has lasted `MinNoteForChangeMs` *and* `MinChordDurationMs` has passed since the last change, whichever is later, provided the note is still sounding. A shorter passing note changes nothing.
+- **Sensitivity** multiplies both hold times, `MinNoteForChangeMs` and `MinChordDurationMs`: Low ×2, Medium ×1, High ×0.5. With the defaults that is 240/500 ms, 120/250 ms and 60/125 ms. "The hold times" below are the scaled ones.
+- **Allowed beats** are counted on the tempo grid of `docs/rhythm.md` from the start of live mode (`Bpm`, `TimeSignature`), beat 1 of each bar being its downbeat: `1` allows beat 1 of each bar; `2` beats 1 and 3, in 4/4 and in 3/4 alike; `Beat` every beat; `Off` uses no grid.
+
+1. **After silence, at once.** The first note after "no note" (or at start) chooses a chord immediately, so the first chord is within the latency target. Neither hold time applies, it does not wait for a beat, and it is not counted against `ChordChangesPerBar`.
+2. **While singing, after the hold times, on an allowed beat.** When the note changes without silence in between, the new note becomes *ready* once it has lasted `MinNoteForChangeMs` *and* `MinChordDurationMs` has passed since the last change, whichever is later. With `ChordChangesPerBar` `Off`, a ready note is evaluated at once. Otherwise it is evaluated on the first allowed beat at or after it became ready, if it is still the sounding note then; the change takes effect on that beat. A shorter passing note changes nothing, and a ready note that has ended before its beat changes nothing either (rule 3). A new note that starts before the beat must become ready on its own.
 3. **Silence keeps the chord.** "No note" does not change the chord; the harmony keeps its state. Whether the chord keeps sounding is up to E5.
-4. **Phrase reset.** If the silence before a note lasted at least `PhraseResetMs`, that note chooses as if there were no previous chord, and Blues returns to the menu's key.
+4. **Phrase reset.** If the silence before a note lasted at least `PhraseResetMs`, that note chooses as if there were no previous chord, and Blues returns to the menu's key. With `Autoplay` on (E7-2, `docs/rhythm.md`) the reset still happens; only the sound goes on with the last chord.
 
-An onset (E3-3) is not a phrase start. With the onsets level feature on (E5-2), a new note right after an onset is evaluated at once, without the hold times, and its chord is struck anew.
+An onset (E3-3) is not a phrase start. With the onsets level feature on (E5-2), a new note right after an onset is ready at once, without the hold times, and is evaluated at once with `Off` or on the next allowed beat otherwise; its chord is struck anew.
+
+Jazz's tonic loop and a modulation's II – V – I change on their own beats; they are neither limited by `ChordChangesPerBar` nor counted against it. Jazz changes caused by the melody follow rule 2.
 
 ### Choosing among candidates (key-based styles)
 
@@ -151,28 +158,44 @@ The default priority order is **1, 5, 4, 6, 2, 3, 7**; a style may give its own.
 
 ### Free (Fri)
 
-- **No key.** The style only looks at the note and the previous chord.
-- **Chords:** every root with the qualities below, each with the tensions it allows:
+Changed with the owner in E7-4 (three-tone chords instead of seventh chords with tensions).
 
-  | Quality | Tones (semitones above root) | Tensions |
-  |---|---|---|
-  | `maj7` | 0 4 7 11 | 9 (2), #11 (6) |
-  | `m7` | 0 3 7 10 | 9 (2), 11 (5) |
-  | `7` | 0 4 7 10 | b9 (1), 9 (2), #11 (6) |
-  | `m7b5` | 0 3 6 10 | 11 (5) |
-  | `dim7` | 0 3 6 9 | — |
+- **No key.** The style only looks at the note and the current chord.
+- **Chords:** every set of three pitch classes. Each set has exactly one name and one root, from the first shape in this list it matches (the shape's first tone is the root):
 
+  | # | Shape (semitones above the root) | On C | Symbol |
+  |---|---|---|---|
+  | 1 | 0 4 7 | C E G | `C` |
+  | 2 | 0 3 7 | C Eb G | `Cm` |
+  | 3 | 0 5 7 | C F G | `Csus4` |
+  | 4 | 0 4 10 | C E Bb | `C7(no5)` |
+  | 5 | 0 3 10 | C Eb Bb | `Cm7(no5)` |
+  | 6 | 0 4 11 | C E B | `Cmaj7(no5)` |
+  | 7 | 0 2 4 | C D E | `Cadd9(no5)` |
+  | 8 | 0 2 3 | C D Eb | `Cmadd9(no5)` |
+  | 9 | 0 3 6 | C Eb Gb | `Cdim` |
+  | 10 | 0 4 8 | C E G# | `Caug` |
+  | 11 | 0 7 10 | C G Bb | `C7(no3)` |
+  | 12 | 0 7 11 | C G B | `Cmaj7(no3)` |
+  | 13 | 0 4 6 | C E F# | `C(#11,no5)` |
+  | 14 | 0 3 4 | C Eb E | `C(#9,no5)` |
+  | 15 | 0 3 11 | C Eb B | `Cm(maj7,no5)` |
+  | 16 | 0 1 3 | C Db Eb | `Cm(b9,no5)` |
+  | 17 | 0 1 7 | C Db G | `C5(b9)` |
+  | 18 | 0 6 7 | C F# G | `C5(#11)` |
+  | 19 | 0 1 2 | C Db D | `C(b9,9)` |
+
+  These are the 19 shapes of three pitch classes up to transposition, so every set has one. Sus2 and quartal chords are the same sets as sus4 and are named sus4 (C D G is `Gsus4`, C F Bb is `Fsus4`). The augmented triad is the same set on three roots; as a candidate its root is the note (the last tie-break below).
 - **Choice:**
-  1. After silence with no previous chord: the note as the root of a `maj7`.
-  2. **Keep:** if the note is a tone or an allowed tension of the current chord, it stays; when the note is a tension, the chord takes it as its tension (so it always contains the note).
-  3. Otherwise, among all chords that have the note as a tone or a tension, take the one with, in order:
-     1. the most pitch classes in common with the previous chord's four tones;
-     2. the least movement: the sum, over the candidate's four tones, of each tone's distance in semitones (0–6) to the nearest tone of the previous chord;
-     3. quality in the order `maj7`, `m7`, `7`, `m7b5`, `dim7`;
-     4. the note as a chord tone rather than a tension;
-     5. the smallest interval from the root up to the note.
-  4. When the note is a tension, the chord includes it (`Cmaj7(#11)`).
-- **Contains the note:** always, as a tone or a tension; the tensions give the dissonance.
+  1. After silence with no previous chord (at start or after a phrase reset): the note as the root of a major triad.
+  2. **Keep:** if the note is in the current chord, it stays. A keep is not a chord change.
+  3. Otherwise the candidates are all the chords that contain the note. **Root rule:** if the last chord change kept the root (a change to a chord with the same root as the one before it), candidates with the current chord's root are left out. Among the candidates, take the one with, in order:
+     1. the most pitch classes in common with the current chord;
+     2. the least movement: the sum, over the candidate's three tones, of each tone's distance in semitones (0–6) to the nearest tone of the current chord;
+     3. the earliest shape in the list;
+     4. the root by the smallest interval from the root up to the note.
+  - The root rule's memory starts afresh with the first chord after silence with no previous chord; the first note after a short silence (with a previous chord) is a chord change like any other.
+- **Contains the note:** always.
 
 ### Jazz
 
@@ -199,7 +222,7 @@ Decided with the owner in E5-6. Jazz uses the tempo grid from `docs/rhythm.md` (
 
 ## Examples
 
-Unless a row says otherwise, each note lasts 500 ms, the notes follow without silence, and the settings are the defaults, so every note passes the hold times. "Chord" is the chord in effect while that note sounds, after its hold time.
+Unless a row says otherwise, each note lasts 500 ms, the notes follow without silence, and the settings are the defaults with `ChordChangesPerBar` `Off` (and `ChordChangeSensitivity` `Medium`), so every note passes the hold times; the change-rate examples (C) say their own. "Chord" is the chord in effect while that note sounds, after its hold time.
 
 ### Timing (Church, C Ionian)
 
@@ -211,6 +234,22 @@ Unless a row says otherwise, each note lasts 500 ms, the notes follow without si
 | T4 | C 0–50, B 50–500 | C at 0, G at 250 | The hold time is met at 170, but `MinChordDurationMs` holds the change until 250. |
 | T5 | B 0–500, A 500–1000, silence 1000–1800, C 1800–2300 | G, Am, Am | 800 ms silence: Am remembered and contains C. |
 | T6 | B 0–500, A 500–1000, silence 1000–3500, C 3500–4000 | G, Am, C | 2500 ms silence ≥ `PhraseResetMs`: chosen afresh, priority gives I. |
+
+### Change rate (Church, C Ionian)
+
+120 BPM in 4/4 (one beat = 500 ms, one bar = 2000 ms), times in ms from the start of live mode, Medium sensitivity, onsets off, unless a row says otherwise.
+
+| # | Setup | Notes (start–end, ms) | Chords | Why |
+|---|---|---|---|---|
+| C1 | `2` | C 0–500, B 500–1500 | C at 0, G at 1000 | B is ready at 620; the next allowed beat is beat 3 at 1000. |
+| C2 | `1` | C 0–500, B 500–2500 | C at 0, G at 2000 | Only beat 1 is allowed; the next one is at 2000. |
+| C3 | `2` | C 0–500, A 500–1200 | C at 0, F at 1000 | A is ready at 620 and still sounds at 1000; candidates F, Am → priority 4. |
+| C4 | `2` | C 0–500, B 500–900, silence 900–1100, A 1100–1600 | C at 0, F at 1100 | B is ready at 620 but has ended before 1000; A is the first note after a short silence and chooses at once. |
+| C5 | `Beat`, High | C 0–200, B 200–700 | C at 0, G at 500 | Ready at 260 (60 ms note, 125 ms chord); the next beat is 500. |
+| C6 | `Off`, Low | C 0–500, B 500–1000 | C at 0, G at 740 | No grid; ready at 500 + 240 (compare T3, G at 620). |
+| C7 | `2`, 3/4 | C 0–500, B 500–1300, A 1300–2000 | C at 0, G at 1000, Am at 1500 | 3/4: allowed beats 0, 1000, 1500, 2500 …; A is ready at 1420, beat 1 of bar 2 is at 1500. |
+| C8 | `2`, onsets on | C 0–500, B with an onset 500–1500 | C at 0, G at 1000 | The onset makes B ready at once; it still waits for 1000. |
+| C9 | `2`, Jazz, C major | C 0–4000 | Cmaj7 at 0, Am7 at 1000, Dm7 at 2000, G7(11) at 3000 | J1 unchanged: the loop is not limited. |
 
 ### Church
 
@@ -271,9 +310,13 @@ Unless a row says otherwise, each note lasts 500 ms, the notes follow without si
 
 | # | Notes | Chords | Why |
 |---|---|---|---|
-| F1 | C A | Cmaj7 Am7 | A: Am7 and Em7(11) both share 3 tones and move 2 semitones, are both `m7`; A is a chord tone in Am7. |
-| F2 | C A F# | Cmaj7 Am7 Cmaj7(#11) | F#: Cmaj7(#11), C7(#11) and F#m7b5 share 3 tones and move 1 → `maj7` first. |
-| F3 | C A E | Cmaj7 Am7 Am7 | E is in Am7. |
+| F1 | C A | C Am | A: Am, Am7(no5) and A7(no3) share 2 tones and move 2 semitones; minor is the earliest shape. |
+| F2 | C F | C Csus4 | F: Csus4, Fmaj7(no3) and Em(b9,no5) share 2 tones and move 1; sus4 is earliest. |
+| F3 | C F B | C Csus4 G7(no5) | C → Csus4 kept the root, so root C is left out; G7(no5) and F5(#11) share 2 and move 1; shape 4 before 18. |
+| F4 | C F B C | C Csus4 G7(no5) Csus4 | C: Csus4, Cmaj7(no3) and F5(#11) share 2 and move 1; sus4 is earliest. G → C is a new root. |
+| F5 | C Eb F | C Cm Ebadd9(no5) | Eb: Cm (same root). F: Csus4 would win (shape 3) but C → Cm kept the root; Ebadd9(no5) and F7(no3) share 2 and move 2; shape 7 before 11. |
+| F6 | C E G | C C C | Keep: every note is in C; no change. |
+| F7 | D, silence 2500 ms, F# | D F# | The phrase reset forgets the chord, so there is none to keep; F# is the root of a major triad. |
 
 ### Jazz
 

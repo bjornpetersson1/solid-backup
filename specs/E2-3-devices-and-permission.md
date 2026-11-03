@@ -5,6 +5,7 @@
 - **Phase:** 2. Audio
 - **Depends on:** E2-2 (#6)
 - **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 129 tests passed; `--devices`, AVFoundation status and CoreAudio routes checked on the owner's Mac); a denied permission, headphones and named devices in a real terminal are manual checks for the owner
+- **Superseded in part:** E7-3 (#72) reads CoreAudio's routes anew on every lookup (monitoring needs a headphone pulled out to be seen), instead of once per route source as the clean-code decision below says.
 
 ## Summary
 List the audio devices, choose input and output by name through settings and flags, stop with Swedish instructions when the microphone permission is denied, and warn when the output goes to the built-in speakers. Until the menu arrives in E6-2, this is reachable through `--devices`, `--input`, `--output` and the `--passthrough` flag from E2-2.

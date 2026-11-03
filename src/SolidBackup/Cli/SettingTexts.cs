@@ -26,11 +26,62 @@ public static class SettingTexts
         return $"{settings.RhythmPattern}, {settings.Bpm} BPM, {settings.TimeSignature}";
     }
 
+    /// <summary>How often the chord may change, e.g. "2 per takt, känslighet medel".</summary>
+    public static string ChordChanges(AppSettings settings)
+    {
+        string perBar = ChordChangeSettings.TryParsePerBar(settings.ChordChangesPerBar, out ChordChangesPerBar parsed)
+            ? parsed is ChordChangesPerBar.One or ChordChangesPerBar.Two ? $"{ChangesPerBar(parsed)} per takt" : ChangesPerBar(parsed).ToLowerInvariant()
+            : settings.ChordChangesPerBar;
+        string sensitivity = SettingNames.TryParse(settings.ChordChangeSensitivity, out ChordChangeSensitivity value)
+            ? Sensitivity(value).ToLowerInvariant()
+            : settings.ChordChangeSensitivity;
+        return $"{perBar}, känslighet {sensitivity}";
+    }
+
+    /// <summary>The menu's name for a value of <c>ChordChangesPerBar</c>: Av, 1, 2 or Varje slag.</summary>
+    public static string ChangesPerBar(ChordChangesPerBar perBar)
+    {
+        return perBar switch
+        {
+            ChordChangesPerBar.Off => "Av",
+            ChordChangesPerBar.One => "1",
+            ChordChangesPerBar.Two => "2",
+            ChordChangesPerBar.Beat => "Varje slag",
+            _ => perBar.ToString(),
+        };
+    }
+
+    public static string Sensitivity(ChordChangeSensitivity sensitivity)
+    {
+        return sensitivity switch
+        {
+            ChordChangeSensitivity.Low => "Låg",
+            ChordChangeSensitivity.Medium => "Medel",
+            ChordChangeSensitivity.High => "Hög",
+            _ => sensitivity.ToString(),
+        };
+    }
+
     /// <summary>The level features that are on, by their Swedish names, or "inga".</summary>
     public static string Features(AppSettings settings)
     {
         string[] on = [.. LevelFeatures.All.Where(entry => entry.IsOn(settings)).Select(entry => entry.DisplayName)];
         return on.Length == 0 ? "inga" : string.Join(", ", on);
+    }
+
+    /// <summary>Why live mode does not monitor although <c>MonitorOn</c> is on.</summary>
+    public const string MonitorOffUnsafeOutput =
+        "Medhörningen är avstängd: utgången är de inbyggda högtalarna eller kunde inte kontrolleras, och mikrofonen skulle kunna höra sig själv. Använd hörlurar.";
+
+    /// <summary>Monitoring as the menu and the dashboard show it: "på, 70 %", "av", or off because the output is not safe.</summary>
+    public static string Monitor(AppSettings settings, bool monitoring)
+    {
+        if (!settings.MonitorOn)
+        {
+            return OnOff(on: false);
+        }
+
+        return monitoring ? $"{OnOff(on: true)}, {settings.MonitorLevelPercent} %" : $"{OnOff(on: false)} (osäker utgång)";
     }
 
     public static string OnOff(bool on)

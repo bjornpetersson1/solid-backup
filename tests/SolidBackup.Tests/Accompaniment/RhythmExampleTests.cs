@@ -144,9 +144,6 @@ public class RhythmExampleTests
     private static ChainStep[] ThroughTheChain(out PatternRun run, (int Midi, long Samples)[] parts)
     {
         AppSettings settings = Chain.Settings() with { RhythmPattern = "Arpeggio", BufferSize = PatternRun.BufferSize };
-        Accompanist accompanist = new(settings);
-        run = new PatternRun();
-        accompanist.Synthesizer.Listener = run;
-        return Chain.PlayWith(accompanist, Chain.Notes(settings, -30, [.. parts.Select(part => (part.Midi, part.Samples * 1000.0 / settings.SampleRate))]));
+        return Chain.PlayRecorded(settings, Chain.Notes(settings, -30, [.. parts.Select(part => (part.Midi, part.Samples * 1000.0 / settings.SampleRate))]), out run);
     }
 }

@@ -1,8 +1,9 @@
 namespace SolidBackup.Accompaniment;
 
 /// <summary>
-/// Onsets: after an onset, the next new note within <see cref="NoteWaitMs"/> is evaluated by the harmony at once,
-/// without its hold times, and the chord it gives, new or the same, is struck anew. If no new note comes in that
+/// Onsets: after an onset, the next new note within <see cref="NoteWaitMs"/> is ready for the harmony at once,
+/// without its hold times, and the chord it gives, new or the same, is struck anew: at once, or, while the harmony
+/// waits for the note's beat (a change-rate grid), on that beat; nothing is struck if the note ends or changes first. If no new note comes in that
 /// time, the current chord is struck anew when it runs out. A note is new when it differs from the note before the
 /// onset's buffer, so a note the detector already reports in that buffer counts. The detector's own note hold makes
 /// its notes stable, so a passing pitch does not count. An onset is not a phrase start.
@@ -18,6 +19,7 @@ public sealed class OnsetFeature : ILevelFeature
     private int _pitchClassBefore = NoNote;
     private int _pitchClassAtOnset = NoNote;
     private bool _strike;
+    private int _strikeNote = NoNote;
 
     public void BeforeHarmony(in AnalysisFrame analysis, ref HarmonyInput input)
     {
@@ -29,15 +31,25 @@ public sealed class OnsetFeature : ILevelFeature
         }
 
         _pitchClassBefore = pitchClass;
+        if (pitchClass != _strikeNote)
+        {
+            _strikeNote = NoNote;
+        }
+
         if (double.IsNegativeInfinity(_waitUntilMs))
         {
             return;
         }
 
         bool newNote = pitchClass != NoNote && pitchClass != _pitchClassAtOnset;
-        if (newNote || analysis.TimeMs >= _waitUntilMs)
+        if (newNote)
         {
-            input.Immediate = newNote;
+            input.Immediate = true;
+            _strikeNote = pitchClass;
+            _waitUntilMs = double.NegativeInfinity;
+        }
+        else if (analysis.TimeMs >= _waitUntilMs)
+        {
             _strike = true;
             _waitUntilMs = double.NegativeInfinity;
         }
@@ -45,7 +57,12 @@ public sealed class OnsetFeature : ILevelFeature
 
     public void AfterHarmony(in AnalysisFrame analysis, ref AccompanimentFrame frame)
     {
-        frame.Strike = _strike;
+        bool chosen = _strikeNote != NoNote && !frame.ChangeAwaitsBeat;
+        frame.Strike = _strike || chosen;
         _strike = false;
+        if (chosen)
+        {
+            _strikeNote = NoNote;
+        }
     }
 }

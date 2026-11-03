@@ -91,6 +91,11 @@ public static class SettingsValidator
             return new(nameof(AppSettings.LatencyTargetMs), $"{settings.LatencyTargetMs} ms måste vara större än 0");
         }
 
+        if (settings.MonitorLevelPercent is < MonitorSettings.MinLevelPercent or > MonitorSettings.MaxLevelPercent)
+        {
+            return new(nameof(AppSettings.MonitorLevelPercent), $"{settings.MonitorLevelPercent} % måste vara mellan {MonitorSettings.MinLevelPercent} och {MonitorSettings.MaxLevelPercent} %");
+        }
+
         if (string.IsNullOrWhiteSpace(settings.RecordingFolder))
         {
             return new(nameof(AppSettings.RecordingFolder), "en mapp krävs, t.ex. \"recordings\"");
@@ -182,6 +187,16 @@ public static class SettingsValidator
         if (NotPositive(settings.MinChordDurationMs))
         {
             return new(nameof(AppSettings.MinChordDurationMs), $"{settings.MinChordDurationMs} ms måste vara större än 0");
+        }
+
+        if (!ChordChangeSettings.TryParsePerBar(settings.ChordChangesPerBar, out _))
+        {
+            return new(nameof(AppSettings.ChordChangesPerBar), $"\"{settings.ChordChangesPerBar}\" är inget giltigt antal ackordbyten per takt; välj {string.Join(", ", ChordChangeSettings.AllPerBar)}");
+        }
+
+        if (!SettingNames.TryParse<ChordChangeSensitivity>(settings.ChordChangeSensitivity, out _))
+        {
+            return new(nameof(AppSettings.ChordChangeSensitivity), $"\"{settings.ChordChangeSensitivity}\" är ingen känd känslighet; välj {string.Join(", ", Enum.GetNames<ChordChangeSensitivity>())}");
         }
 
         if (NotPositive(settings.PhraseResetMs))

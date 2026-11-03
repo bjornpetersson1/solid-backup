@@ -40,9 +40,9 @@ The experiment should show whether a local console app can follow a single live 
 
 | Point | Assumption in the spec | Needs confirmation |
 | --- | --- | --- |
-| Chord choice (music theory) | The detected note is mapped to a chord by the chosen harmony style. In the styles whose rules say so (Church, Campfire, Pop, Jazz) the chord contains the note and fits the key; Drone and Modal work as a pedal, Blues keeps the chord on blue notes, and Free has no key and adds tensions. The rules, including how the previous chord matters and how often the chord may change, are in `docs/harmony.md`. | Decided in E4-1 |
+| Chord choice (music theory) | The detected note is mapped to a chord by the chosen harmony style. In the styles whose rules say so (Church, Campfire, Pop, Jazz) the chord contains the note and fits the key; Drone and Modal work as a pedal, Blues keeps the chord on blue notes, and Free has no key and chooses among all three-tone chords, moving the root at least every other change. The rules, including how the previous chord matters and how often the chord may change, are in `docs/harmony.md`. | Decided in E4-1 |
 | Tempo source | A fixed BPM (40–240) and time signature (4/4 or 3/4) chosen in the menu. The grid starts with live mode and onsets do not move it. Arpeggio and Strum use a new chord from their next step; Held changes at once. The rules are in `docs/rhythm.md`. | Decided in E5-4 |
-| Feedback | The chords are played in headphones. If the output device is the built-in speakers, the app shows a warning in the menu and on the dashboard. There is no echo cancellation. | None |
+| Feedback | The chords are played in headphones. If the output device is the built-in speakers, the app shows a warning in the menu and on the dashboard. There is no echo cancellation. Monitoring (E7-3), when on, plays the microphone only to an output known not to be the built-in speakers, and live mode stops it for the session if the output changes to them. | None |
 | Platform | macOS on Intel and Apple Silicon. PortAudio's CoreAudio backend through `PortAudioSharp2`, which ships the native library for `osx-x64` and `osx-arm64`, so no Homebrew step. macOS asks for microphone access on behalf of the terminal app that runs the process. Verified in E2-1 on an Intel Mac; the findings are in the README ("Audio on macOS"). | Apple Silicon is a manual check (E2-1) |
 | Latency | Under 50 ms from the sound reaching the microphone until the chord is heard: input latency + analysis + output latency, where the device latencies are those PortAudio reports. Pitch detection needs about two periods of the lowest note, so the lowest supported note sets a floor: E2 (82 Hz) needs ~25 ms of audio. E2-1 found that a duplex stream across two devices adds a large hidden buffer, so input and output run as two streams with a lock-free hand-over, at 48 kHz with 64 frames by default (~53 ms reported in total). The built-in MacBook Pro microphone alone reports ~45 ms, so with it the target is missed before any analysis; meeting it needs a lower-latency microphone. The figures are in the README ("Audio on macOS"). | Measured in E2-1. In E6-1 the chain's own delay measured 34 ms (Pad; ~31 ms Organ and Pluck), and the built-in microphone with the speakers reported 89.9 ms in total; the target with a low-latency microphone and headphones is the owner's check |
 | Pitch range | E2 to C7 (82–2093 Hz) by default, configurable. Covers singing voices, whistling and most wind instruments. | Confirmed by the owner (2026-10-30); the top raised from C6 to C7 by the owner in E3-1 (2026-10-31), since whistling reaches about C7 |
@@ -85,7 +85,7 @@ The system has three flows: setup, live play and measurement.
 
 ## Parts and issues
 
-Six parts (E1–E6). Each item is meant to be one issue that takes roughly half a day to a full day, and "Done when" is its acceptance criterion.
+Seven parts (E1–E7). Each item is meant to be one issue that takes roughly half a day to a full day, and "Done when" is its acceptance criterion.
 
 ### E1 Project foundation
 
@@ -155,6 +155,19 @@ Six parts (E1–E6). Each item is meant to be one issue that takes roughly half 
 - [ ] **E6-3 Live dashboard**: note and cents, level meter, chord, key, features on, measured latency and a dropout counter, updated a few times per second.
   - Done when: the dashboard is readable at 120 characters width, and updating it causes no dropouts.
 
+### E7 Playtest
+
+The owner's feedback from playing live after E6 (Nov 2, 2026).
+
+- [ ] **E7-1 Chord change rate**: a maximum number of chord changes per bar on the tempo grid's beats, and a sensitivity for the hold times, in the menu.
+  - Done when: with a maximum of N changes per bar a melody never gives more than N changes in a bar, each on a beat; higher sensitivity gives more changes than lower; both are in the menu and remembered; and `docs/harmony.md`'s new examples are tests that pass.
+- [ ] **E7-2 Autoplay through silence**: the pattern keeps playing the last chord on the grid through silence.
+  - Done when: with autoplay on, 10 s of silence after a melody keep the pattern playing; with it off nothing changes; with the gate on, silence is not silent and noise below the gate does not change the chord; the switch is in the menu, remembered, and 0 bytes are allocated per callback.
+- [ ] **E7-3 Input monitoring**: the microphone in the headphones with the chords, on or off, at a level.
+  - Done when: the output is the input mixed with the chords at the level, within full scale; the setting is in the menu, remembered, and 0 bytes are allocated per callback; never to the built-in speakers.
+- [ ] **E7-4 Free style with three-tone chords**: Free chooses among every three-tone chord and moves the root at least every other change.
+  - Done when: every Free chord has three pitch classes and contains the note, no two changes in a row keep the root, and the new Free examples in `docs/harmony.md` are tests that pass.
+
 ## Order and dependencies
 
 Verify the audio stack first, because everything else assumes that PortAudio works with low latency from .NET on macOS. The music theory discussion (E4-1) can be held in parallel with E2 and E3.
@@ -167,6 +180,7 @@ Verify the audio stack first, because everything else assumes that PortAudio wor
 | 4. Harmony | E4-1 to E4-6 | E3-2 (E4-2, E4-3); E4-2 (E4-4 to E4-6) | A melody gives chords that follow the rules in `docs/harmony.md` |
 | 5. Sound | E5-1 to E5-6 | E4-2; E5-4 (E5-6) | Chords are heard with the chosen sound, dynamics and pattern |
 | 6. Live mode | E6-1 to E6-3 | Phase 5 | The demo can be run from the menu |
+| 7. Playtest | E7-1 to E7-4 | Phase 6 | The owner's playtest feedback is in the menu and the rules: calmer chord changes, autoplay, monitoring and a more varied Free |
 
 ## Measurement
 

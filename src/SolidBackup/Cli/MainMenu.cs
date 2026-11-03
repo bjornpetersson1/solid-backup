@@ -3,6 +3,7 @@ using SolidBackup.Audio;
 using SolidBackup.Audio.Devices;
 using SolidBackup.Configuration;
 using SolidBackup.Harmony;
+using SolidBackup.Live;
 using SolidBackup.Rhythm;
 using SolidBackup.Synthesis;
 
@@ -34,16 +35,22 @@ public sealed class MainMenu(
     private const string StyleChoice = "Stil";
     private const string SoundChoice = "Ljud";
     private const string RhythmChoice = "Rytm";
+    private const string ChordChangesChoice = "Ackordbyten";
     private const string FeaturesChoice = "Nivåfunktioner";
+    private const string AutoplayChoice = "Autospel";
+    private const string MonitorChoice = "Medhörning";
     private const string RecordingChoice = "Inspelning";
     private const string SystemDefault = "Systemets standard";
 
     private IReadOnlyList<AudioDeviceInfo> _devices = [];
     private string? _speakerWarning;
+    private bool _outputSafe;
 
     /// <summary>The menu's items, in the order shown; the first is preselected.</summary>
     public static IReadOnlyList<string> Choices { get; } =
-        [StartChoice, InputChoice, OutputChoice, KeyChoice, StyleChoice, SoundChoice, RhythmChoice, FeaturesChoice, RecordingChoice, QuitChoice];
+        [StartChoice, InputChoice, OutputChoice, KeyChoice, StyleChoice, SoundChoice, RhythmChoice, ChordChangesChoice, FeaturesChoice, AutoplayChoice, MonitorChoice, RecordingChoice, QuitChoice];
+
+    public static string MonitorLevelMessage => $"Ange en nivå mellan {MonitorSettings.MinLevelPercent} och {MonitorSettings.MaxLevelPercent} %.";
 
     public static string BpmRangeMessage => $"Ange ett tempo mellan {RhythmSettings.MinBpm} och {RhythmSettings.MaxBpm} BPM.";
 
@@ -159,9 +166,10 @@ public sealed class MainMenu(
 
     private void CheckSpeakers(AppSettings settings)
     {
-        _speakerWarning = DeviceSelector.Find(_devices, settings.OutputDevice, AudioDirection.Output) is { } output
-            ? preflight.SpeakerProblem(output.Name)
-            : null;
+        AudioDeviceInfo? output = DeviceSelector.Find(_devices, settings.OutputDevice, AudioDirection.Output);
+        OutputCheck check = output is null ? default : preflight.CheckOutput(output.Name);
+        _speakerWarning = check.SpeakerWarning;
+        _outputSafe = check.SafeForMonitoring;
     }
 
     private void ShowChoices(AppSettings settings)
@@ -173,12 +181,20 @@ public sealed class MainMenu(
         table.AddRow(StyleChoice, Markup.Escape(SettingTexts.Style(settings)));
         table.AddRow(SoundChoice, Markup.Escape(settings.Sound));
         table.AddRow(RhythmChoice, Markup.Escape(SettingTexts.Rhythm(settings)));
+        table.AddRow(ChordChangesChoice, Markup.Escape(SettingTexts.ChordChanges(settings)));
         table.AddRow(FeaturesChoice, Markup.Escape(SettingTexts.Features(settings)));
+        table.AddRow(AutoplayChoice, SettingTexts.OnOff(settings.Autoplay));
+        table.AddRow(MonitorChoice, Markup.Escape(SettingTexts.Monitor(settings, InputMonitor.Monitors(settings, _outputSafe))));
         table.AddRow(RecordingChoice, SettingTexts.OnOff(settings.RecordOn));
         console.Write(table);
         if (_speakerWarning is { } warning)
         {
             ConsoleMessages.Warning(console, warning);
+        }
+
+        if (settings.MonitorOn && !InputMonitor.Monitors(settings, _outputSafe))
+        {
+            ConsoleMessages.Warning(console, SettingTexts.MonitorOffUnsafeOutput);
         }
     }
 
@@ -199,8 +215,11 @@ public sealed class MainMenu(
             StyleChoice => settings with { HarmonyStyle = AskName<HarmonyStyle>("Vilken stil?", settings.HarmonyStyle, HarmonyNames.Style) },
             SoundChoice => settings with { Sound = AskName<Sound>("Vilket ljud?", settings.Sound) },
             RhythmChoice => AskRhythm(settings),
+            ChordChangesChoice => AskChordChanges(settings),
             FeaturesChoice => AskFeatures(settings),
-            RecordingChoice => settings with { RecordOn = AskRecording(settings.RecordOn) },
+            AutoplayChoice => settings with { Autoplay = AskOnOff("Spela vidare i tystnad?", settings.Autoplay) },
+            MonitorChoice => AskMonitor(settings),
+            RecordingChoice => settings with { RecordOn = AskOnOff("Spela in live-läget?", settings.RecordOn) },
             _ => settings,
         };
     }
@@ -243,15 +262,23 @@ public sealed class MainMenu(
     private AppSettings AskRhythm(AppSettings settings)
     {
         string pattern = AskName<RhythmPatternName>("Vilket rytmmönster?", settings.RhythmPattern);
-        int bpm = console.Prompt(new TextPrompt<int>("Tempo (BPM):")
-            .DefaultValue(settings.Bpm)
-            .ValidationErrorMessage($"[red]{BpmRangeMessage}[/]")
-            .Validate(value => value is >= RhythmSettings.MinBpm and <= RhythmSettings.MaxBpm, $"[red]{BpmRangeMessage}[/]"));
+        int bpm = AskInRange("Tempo (BPM):", settings.Bpm, RhythmSettings.MinBpm, RhythmSettings.MaxBpm, BpmRangeMessage);
         string timeSignature = console.Prompt(new SelectionPrompt<string>()
             .Title("Vilken taktart?")
             .AddChoices(RhythmSettings.AllTimeSignatures)
             .DefaultValue(settings.TimeSignature));
         return settings with { RhythmPattern = pattern, Bpm = bpm, TimeSignature = timeSignature };
+    }
+
+    private AppSettings AskChordChanges(AppSettings settings)
+    {
+        string perBar = console.Prompt(new SelectionPrompt<string>()
+            .Title("Hur många ackordbyten per takt?")
+            .AddChoices(ChordChangeSettings.AllPerBar)
+            .DefaultValue(settings.ChordChangesPerBar)
+            .UseConverter(value => ChordChangeSettings.TryParsePerBar(value, out ChordChangesPerBar parsed) ? SettingTexts.ChangesPerBar(parsed) : value));
+        string sensitivity = AskName<ChordChangeSensitivity>("Hur känsligt för nya toner?", settings.ChordChangeSensitivity, SettingTexts.Sensitivity);
+        return settings with { ChordChangesPerBar = perBar, ChordChangeSensitivity = sensitivity };
     }
 
     private AppSettings AskFeatures(AppSettings settings)
@@ -270,10 +297,32 @@ public sealed class MainMenu(
         return LevelFeatures.All.Aggregate(settings, (switched, entry) => entry.Switch(switched, chosen.Contains(entry)));
     }
 
-    private bool AskRecording(bool current)
+    private AppSettings AskMonitor(AppSettings settings)
+    {
+        bool on = AskOnOff("Höra mikrofonen i hörlurarna?", settings.MonitorOn);
+        if (!on)
+        {
+            return settings with { MonitorOn = false };
+        }
+
+        int level = AskInRange("Medhörningsnivå (%):", settings.MonitorLevelPercent, MonitorSettings.MinLevelPercent, MonitorSettings.MaxLevelPercent, MonitorLevelMessage);
+        return settings with { MonitorOn = true, MonitorLevelPercent = level };
+    }
+
+    // A whole number from minimum to maximum, starting on the current one; a value out of range is asked again.
+    private int AskInRange(string title, int current, int minimum, int maximum, string outOfRange)
+    {
+        string error = $"[red]{outOfRange}[/]";
+        return console.Prompt(new TextPrompt<int>(title)
+            .DefaultValue(current)
+            .ValidationErrorMessage(error)
+            .Validate(value => value >= minimum && value <= maximum, error));
+    }
+
+    private bool AskOnOff(string title, bool current)
     {
         return console.Prompt(new SelectionPrompt<bool>()
-            .Title("Spela in live-läget?")
+            .Title(title)
             .AddChoices(true, false)
             .DefaultValue(current)
             .UseConverter(SettingTexts.OnOff));

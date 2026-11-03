@@ -14,7 +14,8 @@ internal static class Chain
     /// <summary>Default settings in a fixed key (C Ionian, Church), with only the named features on.</summary>
     public static AppSettings Settings(params string[] features)
     {
-        AppSettings settings = TestSettings.Default with { Key = "C", Mode = "Ionian", HarmonyStyle = "Church" };
+        // Without a change-rate grid, so a chord changes once its hold times have passed (docs/harmony.md's examples).
+        AppSettings settings = TestSettings.Examples with { Key = "C", Mode = "Ionian", HarmonyStyle = "Church" };
         Assert.True(LevelFeatures.TrySwitchOnly(settings, features, LevelFeatures.All, out AppSettings switched));
         return switched;
     }
@@ -53,6 +54,30 @@ internal static class Chain
         }
 
         return steps;
+    }
+
+    /// <summary>A new chain whose synthesizer records every tone it starts or releases in <paramref name="run"/>.</summary>
+    public static Accompanist Recorded(AppSettings settings, out PatternRun run)
+    {
+        Accompanist accompanist = new(settings);
+        run = new PatternRun();
+        accompanist.Synthesizer.Listener = run;
+        return accompanist;
+    }
+
+    /// <summary>Plays the analyses through a new chain, with every tone the synthesizer starts or releases recorded in <paramref name="run"/>.</summary>
+    public static ChainStep[] PlayRecorded(AppSettings settings, AnalysisFrame[] analyses, out PatternRun run)
+    {
+        return PlayWith(Recorded(settings, out run), analyses);
+    }
+
+    /// <summary>The samples of a grid's steps from <paramref name="from"/> up to <paramref name="to"/>, every <paramref name="step"/> samples (a whole number).</summary>
+    public static IEnumerable<long> Steps(long from, long to, long step)
+    {
+        for (long sample = (from + step - 1) / step * step; sample < to; sample += step)
+        {
+            yield return sample;
+        }
     }
 
     public static ChainStep[] Run(AppSettings settings, float[] samples)

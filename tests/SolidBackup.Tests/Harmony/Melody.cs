@@ -1,6 +1,7 @@
 using SolidBackup.Analysis;
 using SolidBackup.Configuration;
 using SolidBackup.Harmony;
+using SolidBackup.Rhythm;
 
 namespace SolidBackup.Tests.Harmony;
 
@@ -41,13 +42,16 @@ internal static class Melody
         return Changes(harmonizer, Estimates(notes, sampleRate, bufferSize));
     }
 
-    /// <summary>Every chord change over the estimates, with the time of the estimate that made it.</summary>
-    public static List<(double TimeMs, Chord Chord)> Changes(Harmonizer harmonizer, PitchEstimate[] estimates)
+    /// <summary>
+    /// Every chord change over the estimates, with the time of the estimate that made it; the estimate at
+    /// <paramref name="immediateAtMs"/> comes right after an onset (E5-2).
+    /// </summary>
+    public static List<(double TimeMs, Chord Chord)> Changes(Harmonizer harmonizer, PitchEstimate[] estimates, double immediateAtMs = double.NaN)
     {
         List<(double, Chord)> changes = [];
         foreach (PitchEstimate estimate in estimates)
         {
-            if (harmonizer.Process(estimate))
+            if (harmonizer.Process(estimate, immediate: estimate.TimeMs == immediateAtMs))
             {
                 changes.Add((estimate.TimeMs, harmonizer.Chord ?? throw new InvalidOperationException("A change without a chord.")));
             }
@@ -82,7 +86,7 @@ internal static class Melody
     public static Harmonizer Harmonizer(IChordRules rules, string tonic, Mode mode = Mode.Ionian)
     {
         Assert.True(PitchClass.TryParse(tonic, out int pitchClass));
-        return new Harmonizer(rules, new Key(pitchClass, mode), HarmonyTiming.FromSettings(TestSettings.Default));
+        return new Harmonizer(rules, new Key(pitchClass, mode), HarmonyTiming.FromSettings(TestSettings.Examples, TempoGrid.FromSettings(TestSettings.Examples)));
     }
 
     private static int Midi(string name)

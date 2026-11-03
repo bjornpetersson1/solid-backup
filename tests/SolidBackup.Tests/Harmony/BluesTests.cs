@@ -90,7 +90,7 @@ public sealed class BluesTests
     [Fact]
     public void ChangeOfTheAutoEstimate_ReturnsTheBluesKey()
     {
-        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Default with { HarmonyStyle = "Blues" });
+        Harmonizer harmonizer = Harmonizer.FromSettings(TestSettings.Examples with { HarmonyStyle = "Blues" });
         Key g = new(7, Mode.Ionian);
         foreach (PitchEstimate estimate in KeyMelodies.Estimates(KeyMelodies.Clip("generated-melody-c-to-g-major")))
         {

@@ -30,6 +30,9 @@ public sealed class LiveCommand(
 {
     public const string NotInteractiveMessage = "Live-läget kräver en interaktiv terminal.";
 
+    /// <summary>How often live mode checks again that the output is safe for monitoring, while it monitors.</summary>
+    public static readonly TimeSpan MonitorCheckInterval = TimeSpan.FromMilliseconds(500);
+
     /// <summary>How often the dashboard is redrawn: a few times a second.</summary>
     public static readonly TimeSpan RedrawInterval = TimeSpan.FromMilliseconds(200);
 
@@ -88,13 +91,15 @@ public sealed class LiveCommand(
     {
         private LiveMode? _mode;
         private bool _onSpeakers;
+        private Func<bool> _outputSafe = () => false;
 
         public bool Interrupted { get; private set; }
 
         public void Start(AudioStart start)
         {
             _onSpeakers = start.SpeakerWarning is not null;
-            _mode = new LiveMode(start.Devices, settings, chainDelayMs, start.Recorder);
+            _outputSafe = start.OutputSafeForMonitoring;
+            _mode = new LiveMode(start.Devices, settings, chainDelayMs, start.Recorder, start.OutputSafe);
             _mode.Start();
         }
 
@@ -102,8 +107,14 @@ public sealed class LiveCommand(
         // the fade and the stop.
         public void WaitForStop(IAnsiConsole console, CancellationToken cancellation)
         {
+            if (settings.MonitorOn && _mode is { Monitoring: false })
+            {
+                ConsoleMessages.Warning(console, SettingTexts.MonitorOffUnsafeOutput);
+            }
+
             Stopwatch clock = Stopwatch.StartNew();
             RedrawPacer pacer = new(RedrawInterval, () => clock.Elapsed);
+            MonitorGuard guard = new(_mode, _outputSafe, new RedrawPacer(MonitorCheckInterval, () => clock.Elapsed));
             StopReason reason = StopReason.Interrupted;
             console.Live(Dashboard(console)).Start(live =>
             {
@@ -111,6 +122,7 @@ public sealed class LiveCommand(
                     console,
                     () =>
                     {
+                        guard.Check();
                         if (pacer.Due())
                         {
                             live.UpdateTarget(Dashboard(console));
@@ -142,7 +154,7 @@ public sealed class LiveCommand(
 
         private IRenderable Dashboard(IAnsiConsole console)
         {
-            return LiveDashboard.Render(Snapshot(), new DashboardContext(returnsToMenu, _onSpeakers), console.Profile.Width);
+            return LiveDashboard.Render(Snapshot(), new DashboardContext(returnsToMenu, _onSpeakers, _mode?.Monitoring ?? false), console.Profile.Width);
         }
 
         private LiveSnapshot Snapshot()

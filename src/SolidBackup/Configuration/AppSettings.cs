@@ -50,6 +50,15 @@ public sealed record AppSettings
     /// <summary>While singing, the shortest time between two chord changes.</summary>
     public required double MinChordDurationMs { get; init; }
 
+    /// <summary>
+    /// While singing, the most chord changes per bar, each on an allowed beat of the tempo grid: <c>Off</c>, <c>1</c>,
+    /// <c>2</c> or <c>Beat</c>; see <c>docs/harmony.md</c>.
+    /// </summary>
+    public required string ChordChangesPerBar { get; init; }
+
+    /// <summary>How easily a new note changes the chord: <c>Low</c>, <c>Medium</c> or <c>High</c>, a factor of 2, 1 or 0.5 on both hold times.</summary>
+    public required string ChordChangeSensitivity { get; init; }
+
     /// <summary>After a silence this long, the previous chord is forgotten.</summary>
     public required double PhraseResetMs { get; init; }
 
@@ -62,7 +71,10 @@ public sealed record AppSettings
     /// <summary>The synthesizer's sound: <c>Pad</c>, <c>Organ</c> or <c>Pluck</c>.</summary>
     public required string Sound { get; init; }
 
-    /// <summary>Level feature: notes reach the harmony, and the chord sounds, only while the noise gate is open.</summary>
+    /// <summary>
+    /// Level feature: notes reach the harmony, and the chord sounds, only while the noise gate is open; with
+    /// <see cref="Autoplay"/> the chord keeps sounding through silence, and the gate still decides which notes count.
+    /// </summary>
     public required bool GateOn { get; init; }
 
     /// <summary>Level feature: the chord's strength follows the input level.</summary>
@@ -71,7 +83,10 @@ public sealed record AppSettings
     /// <summary>Level feature: soft singing gives a sparse chord, loud singing a full one.</summary>
     public required bool ChordCharacterOn { get; init; }
 
-    /// <summary>Level feature: an articulated note changes the chord without the hold times and strikes it anew.</summary>
+    /// <summary>
+    /// Level feature: an articulated note is ready without the hold times, changes the chord at once or on the next
+    /// allowed beat, and strikes it anew.
+    /// </summary>
     public required bool OnsetsOn { get; init; }
 
     /// <summary>Dynamics: the level that plays 24 dB below full strength, and below.</summary>
@@ -94,6 +109,15 @@ public sealed record AppSettings
 
     /// <summary>The time signature: <c>4/4</c> or <c>3/4</c>.</summary>
     public required string TimeSignature { get; init; }
+
+    /// <summary>Whether the pattern keeps playing the last chord on the grid through silence, past the gate and <c>PhraseResetMs</c>.</summary>
+    public required bool Autoplay { get; init; }
+
+    /// <summary>Whether live mode mixes the microphone into the output with the chords (never to the built-in speakers).</summary>
+    public required bool MonitorOn { get; init; }
+
+    /// <summary>The monitored microphone's level, 0–100 % of the input.</summary>
+    public required int MonitorLevelPercent { get; init; }
 
     /// <summary>Where recordings go: a folder relative to the current directory, or an absolute path.</summary>
     public required string RecordingFolder { get; init; }

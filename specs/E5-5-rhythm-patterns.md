@@ -5,6 +5,7 @@
 - **Phase:** 5. Sound
 - **Depends on:** E5-4 (#17), E5-1 (#14); builds on E5-2 (#15)
 - **Status:** Implemented — all acceptance criteria verified (format, build with 0 warnings, 860 tests passed); listening to the patterns against a metronome is a manual check for the owner; CI on Ubuntu is checked on the PR
+- **Superseded in part:** with `Autoplay` on (E7-2, #71) the pattern does not stop after `PhraseResetMs` and the gate does not silence it; with it off, as below.
 
 ## Summary
 The tempo grid and the three patterns from `docs/rhythm.md` (Held, Arpeggio, Strum) between E5-2's level features and E5-1's synthesizer, with the settings `RhythmPattern`, `Bpm` and `TimeSignature`, and the examples R1–R12 as tests.
