@@ -117,5 +117,7 @@ The Free style chooses among every chord of three pitch classes that contains th
 
 - **Verification:** `--harmonize`'s Free test now expects `C` then `Em` for C4, B4 (the first chord is a major triad; B is not in C and Em shares two tones and moves one semitone).
 
+- **PR review fix:** `ChordSymbol`'s summary takes its examples from what `docs/harmony.md` now spells (`G7(11)`, `C7(no5)`), with `Cmaj7(#11)` as a symbol still read.
+
 ## Open Questions
 - None.

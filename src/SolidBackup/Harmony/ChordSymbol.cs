@@ -1,7 +1,8 @@
 namespace SolidBackup.Harmony;
 
 /// <summary>
-/// Reads chord symbols as <c>docs/harmony.md</c> spells them, e.g. "Am", "G7" or "Cmaj7(#11)". A tension that is
+/// Reads chord symbols as <c>docs/harmony.md</c> spells them, e.g. "Am", "G7(11)" or "C7(no5)", and the other tensions
+/// a seventh chord or triad may take, e.g. "Cmaj7(#11)". A tension that is
 /// already a tone of the chord, such as "Cadd9(9)", is not a chord.
 /// </summary>
 public static class ChordSymbol
