@@ -9,7 +9,8 @@ namespace SolidBackup.Accompaniment;
 /// <summary>
 /// The whole chain for one buffer: analysis (pitch, level, gate, onsets), the level features that are on, the
 /// harmony, the rhythm pattern (<see cref="RhythmPatterns"/>) and the synthesizer. Without the gate, the chord keeps sounding through
-/// silence until <c>PhraseResetMs</c> has passed (<c>docs/rhythm.md</c>). Everything is built in the constructor,
+/// silence until <c>PhraseResetMs</c> has passed (<c>docs/rhythm.md</c>); with <see cref="Autoplay"/> it keeps sounding
+/// through any silence. Everything is built in the constructor,
 /// so a buffer allocates nothing; the chain is deterministic, so a recording always gives the same output.
 /// Live, <see cref="Analyze"/> and <see cref="Decide"/> run on the input's thread and <see cref="Perform"/> on the
 /// output's: the two halves share no state.
@@ -23,6 +24,7 @@ public sealed class Accompanist : IAudioProcessor
     private readonly ILevelFeature[] _features;
     private readonly IRhythmPattern _pattern;
     private readonly LevelSmoother _smoother;
+    private readonly Autoplay? _autoplay;
     private readonly int _sampleRate;
     private readonly long _followSamples;
     private long _position;
@@ -40,6 +42,7 @@ public sealed class Accompanist : IAudioProcessor
         _followSamples = 2L * _level.WindowLength;
         _onsets = new OnsetDetector(settings.SampleRate, settings.OnsetThresholdDb, settings.OnsetMinIntervalMs, _level.WindowLength);
         _features = [.. (registry ?? LevelFeatures.All).Where(entry => entry.IsOn(settings)).Select(entry => entry.Create(settings))];
+        _autoplay = settings.Autoplay ? new Autoplay() : null;
         Harmonizer = Harmonizer.FromSettings(settings);
         _pattern = RhythmPatterns.Create(settings);
         Synthesizer = Synthesizer.FromSettings(settings);
@@ -90,7 +93,7 @@ public sealed class Accompanist : IAudioProcessor
         Perform(analysis, frame, output);
     }
 
-    /// <summary>What to play for one analysed buffer: the features before the harmony, the harmony and the features after it.</summary>
+    /// <summary>What to play for one analysed buffer: the features before the harmony, the harmony, the features after it and autoplay.</summary>
     public AccompanimentFrame Decide(in AnalysisFrame analysis)
     {
         HarmonyInput harmonyInput = new(analysis.Estimate, Immediate: false);
@@ -110,6 +113,7 @@ public sealed class Accompanist : IAudioProcessor
             feature.AfterHarmony(analysis, ref frame);
         }
 
+        _autoplay?.Apply(harmonyInput.Estimate, ref frame);
         Frame = frame;
         return frame;
     }

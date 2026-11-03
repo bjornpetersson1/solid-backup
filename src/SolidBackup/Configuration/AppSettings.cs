@@ -71,7 +71,10 @@ public sealed record AppSettings
     /// <summary>The synthesizer's sound: <c>Pad</c>, <c>Organ</c> or <c>Pluck</c>.</summary>
     public required string Sound { get; init; }
 
-    /// <summary>Level feature: notes reach the harmony, and the chord sounds, only while the noise gate is open.</summary>
+    /// <summary>
+    /// Level feature: notes reach the harmony, and the chord sounds, only while the noise gate is open; with
+    /// <see cref="Autoplay"/> the chord keeps sounding through silence, and the gate still decides which notes count.
+    /// </summary>
     public required bool GateOn { get; init; }
 
     /// <summary>Level feature: the chord's strength follows the input level.</summary>
@@ -106,6 +109,9 @@ public sealed record AppSettings
 
     /// <summary>The time signature: <c>4/4</c> or <c>3/4</c>.</summary>
     public required string TimeSignature { get; init; }
+
+    /// <summary>Whether the pattern keeps playing the last chord on the grid through silence, past the gate and <c>PhraseResetMs</c>.</summary>
+    public required bool Autoplay { get; init; }
 
     /// <summary>Where recordings go: a folder relative to the current directory, or an absolute path.</summary>
     public required string RecordingFolder { get; init; }

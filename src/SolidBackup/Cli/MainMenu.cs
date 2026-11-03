@@ -36,6 +36,7 @@ public sealed class MainMenu(
     private const string RhythmChoice = "Rytm";
     private const string ChordChangesChoice = "Ackordbyten";
     private const string FeaturesChoice = "Nivåfunktioner";
+    private const string AutoplayChoice = "Autospel";
     private const string RecordingChoice = "Inspelning";
     private const string SystemDefault = "Systemets standard";
 
@@ -44,7 +45,7 @@ public sealed class MainMenu(
 
     /// <summary>The menu's items, in the order shown; the first is preselected.</summary>
     public static IReadOnlyList<string> Choices { get; } =
-        [StartChoice, InputChoice, OutputChoice, KeyChoice, StyleChoice, SoundChoice, RhythmChoice, ChordChangesChoice, FeaturesChoice, RecordingChoice, QuitChoice];
+        [StartChoice, InputChoice, OutputChoice, KeyChoice, StyleChoice, SoundChoice, RhythmChoice, ChordChangesChoice, FeaturesChoice, AutoplayChoice, RecordingChoice, QuitChoice];
 
     public static string BpmRangeMessage => $"Ange ett tempo mellan {RhythmSettings.MinBpm} och {RhythmSettings.MaxBpm} BPM.";
 
@@ -176,6 +177,7 @@ public sealed class MainMenu(
         table.AddRow(RhythmChoice, Markup.Escape(SettingTexts.Rhythm(settings)));
         table.AddRow(ChordChangesChoice, Markup.Escape(SettingTexts.ChordChanges(settings)));
         table.AddRow(FeaturesChoice, Markup.Escape(SettingTexts.Features(settings)));
+        table.AddRow(AutoplayChoice, SettingTexts.OnOff(settings.Autoplay));
         table.AddRow(RecordingChoice, SettingTexts.OnOff(settings.RecordOn));
         console.Write(table);
         if (_speakerWarning is { } warning)
@@ -203,7 +205,8 @@ public sealed class MainMenu(
             RhythmChoice => AskRhythm(settings),
             ChordChangesChoice => AskChordChanges(settings),
             FeaturesChoice => AskFeatures(settings),
-            RecordingChoice => settings with { RecordOn = AskRecording(settings.RecordOn) },
+            AutoplayChoice => settings with { Autoplay = AskOnOff("Spela vidare i tystnad?", settings.Autoplay) },
+            RecordingChoice => settings with { RecordOn = AskOnOff("Spela in live-läget?", settings.RecordOn) },
             _ => settings,
         };
     }
@@ -284,10 +287,10 @@ public sealed class MainMenu(
         return LevelFeatures.All.Aggregate(settings, (switched, entry) => entry.Switch(switched, chosen.Contains(entry)));
     }
 
-    private bool AskRecording(bool current)
+    private bool AskOnOff(string title, bool current)
     {
         return console.Prompt(new SelectionPrompt<bool>()
-            .Title("Spela in live-läget?")
+            .Title(title)
             .AddChoices(true, false)
             .DefaultValue(current)
             .UseConverter(SettingTexts.OnOff));

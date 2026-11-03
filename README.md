@@ -147,7 +147,7 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `KeyChangeSeconds` | `4` | With `auto`, a modulation is followed within this many seconds (above 0) |
 | `KeyFirstSeconds` | `2` | With `auto`, no key (and no chord) until at least this many seconds of notes have been heard (above 0) |
 | `Sound` | `Pad` | The synthesizer's sound: `Pad`, `Organ` or `Pluck` |
-| `GateOn` | `true` | Level feature: notes count, and the chord sounds, only while the noise gate is open; off, the chord keeps sounding through silence until `PhraseResetMs` |
+| `GateOn` | `true` | Level feature: notes count, and the chord sounds, only while the noise gate is open; off, the chord keeps sounding through silence until `PhraseResetMs`. With `Autoplay` on, the chord keeps sounding through silence; the gate still decides which notes count |
 | `DynamicsOn` | `true` | Level feature: the chord's strength follows the input level |
 | `ChordCharacterOn` | `true` | Level feature: soft singing gives a sparse chord (root and fifth), loud singing a full one (with the root an octave down) |
 | `OnsetsOn` | `true` | Level feature: an articulated note is ready without the hold times (it changes the chord at once with `ChordChangesPerBar` `Off`, otherwise on the next allowed beat) and strikes the chord anew |
@@ -158,6 +158,7 @@ Defaults are in `src/SolidBackup/appsettings.json`:
 | `RhythmPattern` | `Held` | How the chord is played: `Held`, `Arpeggio` or `Strum` (see [`docs/rhythm.md`](docs/rhythm.md)) |
 | `Bpm` | `90` | Tempo for Arpeggio and Strum, a whole number from 40 to 240 |
 | `TimeSignature` | `4/4` | `4/4` or `3/4` |
+| `Autoplay` | `false` | Whether the pattern keeps playing the last chord on the grid through silence, however long: the gate does not silence it and it does not stop after `PhraseResetMs` (the harmony still resets). The menu's Autospel choice |
 | `RecordingFolder` | `recordings` | Where `--record` puts its WAV files: a folder relative to the current directory, or an absolute path; created if missing |
 | `RecordOn` | `false` | Whether live mode records the session; the menu's Inspelning choice. `--live --record` records for one run also when it is off |
 

@@ -4,7 +4,7 @@
 - **Labels:** `E7 Playtest`
 - **Phase:** 7. Playtest
 - **Depends on:** none open (builds on E5-2 (#15), E5-5 (#18), E6-1 (#19), E6-2 (#20), E6-3 (#21); written after E7-1 (#70))
-- **Status:** Approved
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 1078 tests passed); the groove through pauses live is a manual check for the owner
 
 ## Summary
 A switch `Autoplay`: when it is on, the rhythm pattern keeps playing the last chord on the tempo grid through silence, so the groove goes on between phrases. The owner asked for it in the E6 playtest.
@@ -35,7 +35,8 @@ With `Autoplay` on:
   - **Arpeggio and Strum** go on stepping on the grid with the last chord, with the usual accent.
   - **Held** keeps the chord sounding; it is not struck again.
 - **The gate does not silence the chords.** With the gate on, silence is not silent: the chord keeps playing. The gate still decides which notes reach the harmony, so noise below the gate does not change the chord.
-- **Level during silence.** With dynamics on, the chord keeps the strength it had on the last buffer in which a note reached the harmony; with chord character on, it keeps that buffer's character (sparse, normal or full). Both follow the level again from the next note.
+- **Level during silence.** With dynamics on, the chord keeps the strength the last note had at its strongest; with chord character on, it keeps the character (sparse, normal or full) it had then. Both follow the level again from the next note. (Changed during implementation, owner's choice; see Decisions.)
+- **No new strike** from an onset in the silence; **the voicing goes on** from the chord playing, also after a phrase reset.
 - **Phrase reset still happens.** After `PhraseResetMs` of silence the harmony forgets the previous chord and Blues and Jazz return to the menu's key, as in `docs/harmony.md` rule 4; the chord that is playing keeps sounding, and the next note chooses as after a phrase reset. The dashboard shows the key the harmony is in.
 - **Before the first note** nothing plays; autoplay continues a chord, it does not start one.
 - **Leaving live mode** (`Esc`/`q`, `Ctrl+C`) fades out or stops as in E6-2.
@@ -73,11 +74,11 @@ With `Autoplay` off, everything is as before, including the examples R1–R12 an
 6. **Manual check (owner):** pauses between phrases keep the groove going. Added to `docs/manual-testing.md`.
 
 ## Tasks
-- [ ] `Autoplay` in `AppSettings`, `appsettings.json`, validation and the README.
-- [ ] The chain keeps the pattern playing through silence with autoplay on: the phrase no longer ends the pattern, the gate no longer silences, dynamics and chord character hold their last values.
-- [ ] Menu item, settings table row, dashboard text (Swedish).
-- [ ] Update `docs/rhythm.md`, `docs/harmony.md` and `docs/manual-testing.md`.
-- [ ] Tests: A1–A6, the 10 s chain test for each pattern with the gate on and off, unchanged behaviour with it off, menu, dashboard, validation, allocation.
+- [x] `Autoplay` in `AppSettings`, `appsettings.json`, validation and the README.
+- [x] The chain keeps the pattern playing through silence with autoplay on: the phrase no longer ends the pattern, the gate no longer silences, dynamics and chord character hold their last values.
+- [x] Menu item, settings table row, dashboard text (Swedish).
+- [x] Update `docs/rhythm.md`, `docs/harmony.md` and `docs/manual-testing.md`.
+- [x] Tests: A1–A6, the 10 s chain test for each pattern with the gate on and off, unchanged behaviour with it off, menu, dashboard, validation, allocation.
 
 ## Decisions
 - **Level during silence is the last level** (owner's choice): strength and chord character are kept from the last buffer with a note, so the groove goes on as it was.
@@ -88,6 +89,23 @@ With `Autoplay` off, everything is as before, including the examples R1–R12 an
 - **The recording** (default): the recorded output is what is played, so it includes the autoplayed chords.
 - **Before the first note nothing plays** (default): the issue speaks of keeping the last chord going.
 - **Builds on E7-1** (default): chord changes after silence follow E7-1's rules unchanged — the first note after silence chooses at once.
+
+- **Where it lives** (implementation): `Accompaniment.Autoplay`, built by the `Accompanist` when `Autoplay` is on, runs after the level features. On a buffer in which no note reached the harmony (past the gate), it keeps the chord sounding with the strength and shape of the last buffer in which one did. The gate, dynamics and chord character are unchanged; their decision is overridden only during silence. Before the first chord it does nothing.
+- **Menu and dashboard** (implementation): the menu item Autospel (på/av) shares the on/off prompt with Inspelning; the dashboard has a row Autospel.
+- **Tests** (implementation): A1–A6 run through the whole chain on analyses as the detector gives them (`AutoplayTests`); the 10-second chain test runs generated tones through `MemoryAudioInput` and `MemoryAudioOutput` for each pattern with the gate on and off (`LiveChainTests`), and the same input without autoplay ends in silence.
+
+- **Clean code:** the tests share `Chain.PlayRecorded` (with the rhythm examples), build the analyses with one `Chain.Notes` call, use `TestSignal.Silence` and one allocation helper; the silence without autoplay is 4 s, enough for `PhraseResetMs` and the release.
+- **Autoplay stays one component after the features** (clean-code finding declined): making the gate, dynamics and chord character each read a "keep sounding" input, and joining it with Jazz's `KeepsPlaying`, would change three level features and Jazz's documented rule that the gate still silences its loop in silence (E5-6). One component that is on or off, as the spec decided (autoplay is not a level feature), keeps the features as they are.
+
+- **Code review fixes:**
+  - **The kept level is the last note's strongest** (owner's choice, asked during the code review): a note fades before the gate closes, so its last buffer was quiet and often sparse, and the groove went on thinner than the note. `Autoplay` now keeps the strength and shape of the last note's strongest buffer (a new note starts over). A4 has the note fade before the gate closes.
+  - **No strike in the silence:** an onset with no note (a breath) set the onsets' strike, which made Held strike the autoplayed chord anew; autoplay clears the strike on the buffers it keeps sounding (test).
+  - **Voicing:** with autoplay the chord never stops, so the next chord is voice-led from it, also after a phrase reset. This is written down in `docs/rhythm.md` rather than changed: nothing stops, so nothing starts in close voicing.
+  - **The 10-second chain test** now also checks the grid: Arpeggio and Strum start the last chord's tones on every step through the silence, and Held keeps them without a release or a new start.
+  - **`--accompany`** reports "autospel på" in its message when the saved setting is on, as it lists the level features; a per-run flag is not added (not in the spec).
+  - **Chord character's hysteresis during the silence** (finding declined): the feature follows the silence level as it does after any silence without autoplay, so the next phrase starts from the same state either way; only the frame it plays in the silence is kept.
+
+- **PR review fixes:** the README's `GateOn` row and its doc comment in `AppSettings` say that with `Autoplay` the chord keeps sounding through silence and the gate still decides which notes count.
 
 ## Open Questions
 - None.
