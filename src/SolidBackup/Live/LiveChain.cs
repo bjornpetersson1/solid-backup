@@ -11,13 +11,15 @@ namespace SolidBackup.Live;
 /// <see cref="SnapshotSlot{T}"/>, so input jitter and clock drift can delay a chord by a buffer but never cut the
 /// sound. A strike is counted, not just flagged, so one decided between two output buffers is still played. The
 /// pattern's grid counts the output's samples. A recording of the output starts with the first output buffer after
-/// the input's first, so the two channels start together. <see cref="FadeOut"/> lets the chord ring out before the
-/// audio stops. Neither side allocates, locks or does I/O.
+/// the input's first, so the two channels start together, and holds the chords only. With an <see cref="InputMonitor"/>
+/// the input is mixed into the output after that. <see cref="FadeOut"/> lets the chord ring out before the audio stops
+/// and stops the monitoring. Neither side allocates, locks or does I/O.
 /// </summary>
 public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
 {
     private readonly Accompanist _accompanist;
     private readonly SessionRecorder? _recorder;
+    private readonly InputMonitor? _monitor;
     private readonly SnapshotSlot<Decision> _decisions = new();
     private readonly SnapshotSlot<LiveState> _state = new();
 
@@ -32,15 +34,21 @@ public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
 
     // Set from any thread; read by the output's.
     private volatile bool _fading;
+    private volatile bool _monitorStopped;
+
+    // The output's side: whether the monitor's fade has been played.
+    private bool _monitorFaded;
 
     // Set by the output's thread after each buffer.
     private volatile bool _silent = true;
 
     /// <param name="recorder">Records the input from the input's thread and the output from the output's.</param>
-    public LiveChain(Accompanist accompanist, SessionRecorder? recorder = null)
+    /// <param name="monitor">Mixes the input into the output; null for none.</param>
+    public LiveChain(Accompanist accompanist, SessionRecorder? recorder = null, InputMonitor? monitor = null)
     {
         _accompanist = accompanist;
         _recorder = recorder;
+        _monitor = monitor;
     }
 
     public void OnBuffer(ReadOnlySpan<float> samples)
@@ -56,6 +64,7 @@ public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
         _state.Publish(new LiveState(
             analysis.Estimate, analysis.LevelDbfs, analysis.GateOpen, frame.Sounding ? frame.Chord : null, _accompanist.Harmonizer.CurrentKey));
         _recorder?.OnInput(samples);
+        _monitor?.Write(samples);
     }
 
     public void Render(Span<float> output)
@@ -77,6 +86,21 @@ public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
         {
             _recorder?.OnOutput(output);
         }
+
+        if (_monitor is not null && !_monitorStopped && !_monitorFaded)
+        {
+            _monitorFaded = _fading;
+            _monitor.MixInto(output, fadeOut: _fading);
+        }
+    }
+
+    /// <summary>Whether the input is mixed into the output: there is a monitor and it has not been stopped.</summary>
+    public bool Monitoring => _monitor is not null && !_monitorStopped;
+
+    /// <summary>From the next output buffer on the input is not mixed in, for good (the output became unsafe).</summary>
+    public void StopMonitoring()
+    {
+        _monitorStopped = true;
     }
 
     /// <summary>True when the last output buffer ended in silence (or none has been played).</summary>

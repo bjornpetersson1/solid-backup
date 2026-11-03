@@ -9,8 +9,11 @@ using Spectre.Console.Rendering;
 
 namespace SolidBackup.Cli;
 
-/// <summary>What the dashboard shows besides the snapshot: where q and Esc lead, and whether the output is the built-in speakers.</summary>
-public sealed record DashboardContext(bool ReturnsToMenu, bool OnSpeakers);
+/// <summary>
+/// What the dashboard shows besides the snapshot: where q and Esc lead, whether the output is the built-in speakers,
+/// and whether live mode monitors the input.
+/// </summary>
+public sealed record DashboardContext(bool ReturnsToMenu, bool OnSpeakers, bool Monitoring = false);
 
 /// <summary>
 /// The live dashboard: one panel of labelled rows built from a <see cref="LiveSnapshot"/>, in Swedish, with how to
@@ -35,7 +38,7 @@ public static class LiveDashboard
     // The level row's text after the meter at its widest, so the meter keeps its width as the level and gate change.
     private const string WidestLevelText = " -60.0 dBFS · grind stängd";
 
-    private static readonly string[] Labels = ["Ton", "Ackord", "Tonart", "Nivå", "Stil", "Byten", "Autospel", "Funktioner", "Latens", "Avbrott", "Varning"];
+    private static readonly string[] Labels = ["Ton", "Ackord", "Tonart", "Nivå", "Stil", "Byten", "Autospel", "Medhörning", "Funktioner", "Latens", "Avbrott", "Varning"];
     private static readonly int LabelWidth = Labels.Max(label => label.Length);
 
     public static IRenderable Render(LiveSnapshot snapshot, DashboardContext context, int width)
@@ -49,6 +52,7 @@ public static class LiveDashboard
         AddRow(rows, "Stil", Markup.Escape(Style(snapshot)));
         AddRow(rows, "Byten", Markup.Escape(SettingTexts.ChordChanges(snapshot.Settings)));
         AddRow(rows, "Autospel", SettingTexts.OnOff(snapshot.Settings.Autoplay));
+        AddRow(rows, "Medhörning", Markup.Escape(SettingTexts.Monitor(snapshot.Settings, context.Monitoring)));
         AddRow(rows, "Funktioner", Markup.Escape(Features(snapshot)));
         AddRow(rows, "Latens", Latency(snapshot));
         AddRow(rows, "Avbrott", Dropouts(snapshot));

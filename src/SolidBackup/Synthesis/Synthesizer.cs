@@ -197,7 +197,8 @@ public sealed class Synthesizer
         _eventCount = remaining;
     }
 
-    private static double Saturate(double sample)
+    /// <summary>The soft limit: unchanged up to <see cref="SaturationStart"/>, then bent smoothly towards full scale, never reaching it.</summary>
+    public static double Saturate(double sample)
     {
         double magnitude = Math.Abs(sample);
         if (magnitude <= SaturationStart)

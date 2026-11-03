@@ -179,6 +179,19 @@ public class LiveCommandTests
     }
 
     [Fact]
+    public void BuiltInSpeakersWithMonitoringOn_SaysTheMonitoringIsOff()
+    {
+        TestConsole console = TestConsoles.Wide();
+        console.Input.PushKey(ConsoleKey.Escape);
+        AudioPreflight preflight = TestPreflight.Create(routes: new FakeRoutes(TestPreflight.Speakers));
+
+        int exitCode = new LiveCommand(console, () => new(Settings with { MonitorOn = true }, null), _ => new FakeDevices(), preflight).Run(new SettingOverrides());
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains(SettingTexts.MonitorOffUnsafeOutput, console.Output);
+    }
+
+    [Fact]
     public void Record_WritesTheInputAndTheOutput()
     {
         TestConsole console = TestConsoles.Wide();

@@ -50,6 +50,15 @@ public sealed class AudioPreflight(IMicrophonePermissionSource permission, IOutp
         return routes.Route(outputDeviceName)?.IsBuiltInSpeakers ?? false;
     }
 
+    /// <summary>
+    /// Whether the microphone may be played to the output: only when its route can be read and is not the built-in
+    /// speakers. Unlike the warning, it fails closed, as a microphone in the speakers would howl.
+    /// </summary>
+    public bool IsSafeForMonitoring(string outputDeviceName)
+    {
+        return routes.Route(outputDeviceName) is { IsBuiltInSpeakers: false };
+    }
+
     /// <summary>The speaker warning when the output is the built-in speakers; null otherwise.</summary>
     public string? SpeakerProblem(string outputDeviceName)
     {
