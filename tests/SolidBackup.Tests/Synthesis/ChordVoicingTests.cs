@@ -26,6 +26,23 @@ public class ChordVoicingTests
     }
 
     [Fact]
+    public void Sparse_EveryFreeShapeKeepsTwoTones_TheClusterItsRootAndTheNextTone()
+    {
+        Span<int> voiced = stackalloc int[ChordVoicing.MaxTones];
+        Span<int> shaped = stackalloc int[ChordVoicing.MaxShapedTones];
+        foreach (ChordQuality quality in FreeRules.Shapes)
+        {
+            int count = ChordVoicing.Voice(new Chord(0, quality), voiced);
+
+            Assert.Equal(2, ChordVoicing.Shape(new Chord(0, quality), voiced[..count], ChordShape.Sparse, shaped));
+        }
+
+        int clusterCount = ChordVoicing.Voice(new Chord(0, ChordQuality.Cluster), voiced);
+        ChordVoicing.Shape(new Chord(0, ChordQuality.Cluster), voiced[..clusterCount], ChordShape.Sparse, shaped);
+        Assert.Equal([48, 49], shaped[..2].ToArray());
+    }
+
+    [Fact]
     public void Voice_EveryChordStaysWithinC3ToC5()
     {
         Span<int> notes = stackalloc int[ChordVoicing.MaxTones];

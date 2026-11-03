@@ -88,6 +88,19 @@ public class LiveDashboardTests
         Assert.Contains(lines, line => line.Contains("Medhörning") && line.Contains(shown));
     }
 
+    [Theory]
+    [InlineData(ChordQuality.MinorMajor7No5, "F#m(maj7,no5)")]
+    [InlineData(ChordQuality.Cluster, "F#(b9,9)")]
+    [InlineData(ChordQuality.Dominant7No3, "F#7(no3)")]
+    public void FreesThreeToneChords_AreNamedOnTheChordRow(ChordQuality quality, string symbol)
+    {
+        LiveSnapshot free = Playing with { State = Playing.State with { Chord = new Chord(6, quality), Key = null } };
+
+        string[] lines = Rendered(free, FromLive, 80);
+
+        Assert.Contains(lines, line => line.Contains("Ackord") && line.Contains(symbol));
+    }
+
     [Fact]
     public void LatencyOverTheTarget_IsMarked()
     {
