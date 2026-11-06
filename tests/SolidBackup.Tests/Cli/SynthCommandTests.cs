@@ -258,6 +258,14 @@ public sealed class SynthCommandTests : IDisposable
 
         public bool IsFinished => Finishes;
 
+        public int Position => 0;
+
+        public bool Paused { get; set; }
+
+        public void Seek(int position)
+        {
+        }
+
         public void Start(float[] samples)
         {
             Samples = samples;

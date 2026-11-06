@@ -81,6 +81,44 @@ public class WavReaderTests
         Assert.Throws<InvalidDataException>(() => Read(wav));
     }
 
+    [Theory]
+    [InlineData(WavChannel.Mixed, 0.125f)]
+    [InlineData(WavChannel.Left, 0.5f)]
+    [InlineData(WavChannel.Right, -0.25f)]
+    public void Read_AStereoFile_GivesTheChosenChannel(WavChannel channel, float expected)
+    {
+        byte[] wav = TestWav.Float32(48_000, 2, 0.5f, -0.25f, 0.5f, -0.25f);
+
+        using MemoryStream stream = new(wav);
+        WavAudio audio = WavReader.Read(stream, channel);
+
+        Assert.Equal([expected, expected], audio.Samples);
+    }
+
+    [Fact]
+    public void Read_AMonoFile_GivesItsOneChannelWhicheverIsChosen()
+    {
+        using MemoryStream stream = new(TestWav.Float32(48_000, 1, 0.5f, 0.25f));
+
+        Assert.Equal([0.5f, 0.25f], WavReader.Read(stream, WavChannel.Right).Samples);
+    }
+
+    [Fact]
+    public void ReadInfo_GivesTheFormatAndLength()
+    {
+        string path = TestWav.WriteTemp(TestWav.Pcm16(22_050, 2, new float[2 * 44_100]));
+        try
+        {
+            WavInfo info = WavReader.ReadInfo(path);
+
+            Assert.Equal(new WavInfo(22_050, 2, 44_100), info);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static WavAudio Read(byte[] wav)
     {
         using MemoryStream stream = new(wav);

@@ -3,6 +3,18 @@ using System.Text;
 
 namespace SolidBackup.Audio;
 
+/// <summary>Which channel of a stereo WAV file to read; a mono file has only the one.</summary>
+public enum WavChannel
+{
+    /// <summary>Both channels averaged.</summary>
+    Mixed,
+    Left,
+    Right,
+}
+
+/// <summary>A WAV file's format and length, read from its header without decoding the audio.</summary>
+public sealed record WavInfo(int SampleRate, int Channels, long Frames);
+
 /// <summary>Reads 16-bit PCM and 32-bit IEEE float WAV files, mono or stereo.</summary>
 public static class WavReader
 {
@@ -12,13 +24,26 @@ public static class WavReader
     private const int BasicFormatSize = 16;
     private const int ExtensibleFormatSize = 40;
 
-    public static WavAudio Read(string path)
+    public static WavAudio Read(string path, WavChannel channel = WavChannel.Mixed)
     {
         using FileStream stream = File.OpenRead(path);
-        return Read(stream);
+        return Read(stream, channel);
     }
 
-    public static WavAudio Read(Stream stream)
+    public static WavAudio Read(Stream stream, WavChannel channel = WavChannel.Mixed)
+    {
+        return ReadHeader(stream, (reader, format, size) => Decode(reader.ReadBytes(DataLength(reader.BaseStream, size)), format, channel));
+    }
+
+    /// <summary>The file's format and length, without reading its audio.</summary>
+    public static WavInfo ReadInfo(string path)
+    {
+        using FileStream stream = File.OpenRead(path);
+        return ReadHeader(stream, (reader, format, size) => new WavInfo(format.SampleRate, format.Channels, DataBytes(reader.BaseStream, size) / format.BlockAlign));
+    }
+
+    // Reads up to the data chunk and hands it over with its format.
+    private static T ReadHeader<T>(Stream stream, Func<BinaryReader, WavFormat, uint, T> data)
     {
         using BinaryReader reader = new(stream, Encoding.ASCII, leaveOpen: true);
         try
@@ -26,7 +51,7 @@ public static class WavReader
             ExpectId(reader, "RIFF");
             reader.ReadUInt32();
             ExpectId(reader, "WAVE");
-            return ReadChunks(reader);
+            return ReadChunks(reader, data);
         }
         catch (EndOfStreamException exception)
         {
@@ -34,7 +59,7 @@ public static class WavReader
         }
     }
 
-    private static WavAudio ReadChunks(BinaryReader reader)
+    private static T ReadChunks<T>(BinaryReader reader, Func<BinaryReader, WavFormat, uint, T> data)
     {
         WavFormat? format = null;
         while (true)
@@ -49,7 +74,7 @@ public static class WavReader
                 case "data" when format is null:
                     throw new InvalidDataException("WAV-filen har ljuddata före formatbeskrivningen.");
                 case "data":
-                    return Decode(reader.ReadBytes(DataLength(reader.BaseStream, size)), format);
+                    return data(reader, format, size);
                 default:
                     Skip(reader, size + (size & 1));
                     break;
@@ -106,14 +131,15 @@ public static class WavReader
         }
     }
 
-    private static WavAudio Decode(byte[] data, WavFormat format)
+    private static WavAudio Decode(byte[] data, WavFormat format, WavChannel wanted)
     {
         int bytesPerSample = format.BitsPerSample / 8;
         float[] samples = new float[data.Length / format.BlockAlign];
+        (int first, int count) = format.Channels == 1 || wanted == WavChannel.Mixed ? (0, format.Channels) : (wanted == WavChannel.Left ? 0 : 1, 1);
         for (int frame = 0; frame < samples.Length; frame++)
         {
             float sum = 0;
-            for (int channel = 0; channel < format.Channels; channel++)
+            for (int channel = first; channel < first + count; channel++)
             {
                 ReadOnlySpan<byte> bytes = data.AsSpan((frame * format.BlockAlign) + (channel * bytesPerSample), bytesPerSample);
                 sum += format.FormatTag == PcmFormat
@@ -121,7 +147,7 @@ public static class WavReader
                     : BinaryPrimitives.ReadSingleLittleEndian(bytes);
             }
 
-            samples[frame] = sum / format.Channels;
+            samples[frame] = sum / count;
         }
 
         return new WavAudio(format.SampleRate, samples);
@@ -130,10 +156,15 @@ public static class WavReader
     // Streaming writers leave the size as 0xFFFFFFFF; the data then runs to the end of the file.
     private static int DataLength(Stream stream, uint size)
     {
-        long length = stream.CanSeek ? Math.Min(size, stream.Length - stream.Position) : size;
+        long length = DataBytes(stream, size);
         return length <= Array.MaxLength
             ? (int)length
             : throw new InvalidDataException("WAV-filens ljuddata är för stor eller har okänd längd.");
+    }
+
+    private static long DataBytes(Stream stream, uint size)
+    {
+        return stream.CanSeek ? Math.Min(size, stream.Length - stream.Position) : size;
     }
 
     private static void Skip(BinaryReader reader, long count)

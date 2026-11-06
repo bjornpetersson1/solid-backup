@@ -4,7 +4,7 @@
 - **Labels:** `E8 Playtest 2`
 - **Phase:** 8. Playtest 2
 - **Depends on:** none open (builds on E5-3 (#16), E6-2 (#20))
-- **Status:** Approved
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 1200 tests passed); finding, hearing, pausing, seeking, renaming and deleting a live recording from the menu is a manual check for the owner
 
 ## Summary
 A menu item, **Inspelningar**, lists the recordings in the recordings folder. From it you can listen to a recording (choosing the microphone, the chords or both, with pause and seeking), rename it or delete it, all without leaving the app.
@@ -62,13 +62,13 @@ A menu item, **Inspelningar**, lists the recordings in the recordings folder. Fr
 6. **Manual check (owner):** a recording made live can be found in **Inspelningar**, heard with each channel choice, paused, seeked, renamed and deleted from the menu.
 
 ## Tasks
-- [ ] A recordings list for `RecordingFolder`: name, date, length, unreadable files, sorted newest first.
-- [ ] Read one channel or the average of a stereo WAV file (`WavReader` today averages to mono only).
-- [ ] Extend playback with pause, a position and seeking: `IAudioPlayback` and `PortAudioPlayback`, plus an in-memory playback for tests. `synth --play` keeps working.
-- [ ] A playback screen: position line, keys (space, ←/→, q/Esc), end of file.
-- [ ] Delete with confirmation and rename with checks, with the Swedish texts.
-- [ ] The **Inspelningar** item in the main menu.
-- [ ] README: the menu paragraph mentions **Inspelningar**.
+- [x] A recordings list for `RecordingFolder`: name, date, length, unreadable files, sorted newest first.
+- [x] Read one channel or the average of a stereo WAV file (`WavReader` today averages to mono only).
+- [x] Extend playback with pause, a position and seeking: `IAudioPlayback` and `PortAudioPlayback`, plus an in-memory playback for tests. `synth --play` keeps working.
+- [x] A playback screen: position line, keys (space, ←/→, q/Esc), end of file.
+- [x] Delete with confirmation and rename with checks, with the Swedish texts.
+- [x] The **Inspelningar** item in the main menu.
+- [x] README: the menu paragraph mentions **Inspelningar**.
 
 ## Decisions
 - **Choose channels at playback** (owner, recommended): both mixed to the middle by default, which sounds like live. The microphone or the chords alone are there for listening for faults (e.g. E8-2's crackle).
@@ -78,6 +78,23 @@ A menu item, **Inspelningar**, lists the recordings in the recordings folder. Fr
 - **The date is the file's last write time** (default): it also works for renamed files and files not named by the recorder.
 - **Playback to the chosen output, also the built-in speakers** (default): playing a file feeds no microphone, so the speaker warning for live mode does not apply.
 - **Delete without a trash can** (default): the file is removed with `File.Delete` after the confirmation. Moving it to the macOS trash would need a native call. It goes in Non-goals unless the owner wants it.
+
+- **Where it lives** (implementation): `Recording.RecordingLibrary` lists, renames and deletes, and returns Swedish messages instead of throwing. `Cli.RecordingsMenu` is the sub-menu and `Cli.PlaybackScreen` the player with its position line. `MainMenu` takes how to open it (`Action<AppSettings>`, like its other seams) and shows **Inspelningar** after Inspelning.
+- **Reading** (implementation): `WavReader.Read(path, WavChannel)` reads the left or the right channel, or both averaged. `WavReader.ReadInfo` gives the format and length from the header, so the list does not decode each file.
+- **Playback** (implementation): `IAudioPlayback` has `Position`, `Paused` and `Seek`. Both `PortAudioPlayback` and the tests' `MemoryPlayback` play through `Audio.PlaybackCursor`. The cursor takes up a pause, a resume or a seek at the next buffer with a crossfade over it, so none of them clicks; a click from the player could otherwise not be told from crackle in the file. Seeks not yet taken up count in its position, so several in a row add up. Forward past the end does nothing. It allocates nothing (tested).
+- **Renaming reads its own line** (code review): Spectre's text prompt has no Esc, and it reads its default value as markup, so a name with `[` crashed. Byt namn shows the current name escaped, then reads the new name key by key. Esc cancels, as does an empty answer or the same name.
+- **Clean code:** reading a recording reuses `RecordingFiles.Read`, now with a channel, so its errors are the commands' (`Filen <path> kunde inte läsas…`). q stops the player by the character typed, as `StopKeys` does, and the key help is built from `SeekSeconds`. The player's poll interval can be set, so the tests do not wait.
+- **Code review fixes:**
+  - After listening, the recording's choices come back (as criterion 2 says), so another channel can be heard straight away. After renaming or deleting, the list comes back.
+  - A recordings folder that cannot be read is a Swedish error (`Inspelningsmappen <mapp> kunde inte läsas.`).
+  - The channel choices are an ordered list, with Båda first.
+  - The stop keys are `StopKeys.IsStopKey`, shared with `synth --play`.
+- **CI fix:** a taken name is found by comparing the folder's recordings ignoring case, rather than by `File.Exists`. That behaves as macOS's file system does on CI's case-sensitive Linux too.
+- **Declined code review findings:**
+  - The name is checked twice when renaming, once in the menu to ask again and once in `RecordingLibrary.Rename`. `Rename` is public and must not move a file to a bad name on its own.
+  - A recording is decoded whole before playing, as `WavReader` does everywhere. A recording of more than about 3 hours (2 GB of audio) is listed but gives the reader's Swedish error when played. Streaming playback is out of this issue's scope.
+- **Ctrl+C** (implementation): in **Inspelningar**, as in the rest of the menu, Ctrl+C ends the app. Nothing is open that needs saving, and the playback closes with the process.
+- **Ta bort asks `Ta bort <namn>? [j/n] (n)`** (implementation): Spectre's confirmation prompt with j and n, "no" as the default.
 
 ## Open Questions
 - None.

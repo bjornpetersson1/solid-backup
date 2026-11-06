@@ -13,7 +13,7 @@ public static class RecordingFiles
     }
 
     /// <summary>The recording, or null after an error has been shown.</summary>
-    public static WavAudio? Read(IAnsiConsole console, string path)
+    public static WavAudio? Read(IAnsiConsole console, string path, WavChannel channel = WavChannel.Mixed)
     {
         if (!File.Exists(path))
         {
@@ -23,7 +23,7 @@ public static class RecordingFiles
 
         try
         {
-            return WavReader.Read(path);
+            return WavReader.Read(path, channel);
         }
         catch (InvalidDataException exception)
         {

@@ -21,7 +21,7 @@ public sealed class PortAudioPlayback : IAudioPlayback
     private readonly int _tailFrames;
     private float[] _samples = [];
     private PaStream? _stream;
-    private int _position;
+    private PlaybackCursor _cursor = new();
     private long _underflows;
 
     private PortAudioPlayback(PortAudioSession session, AudioDeviceInfo device, AppSettings settings)
@@ -39,9 +39,17 @@ public sealed class PortAudioPlayback : IAudioPlayback
     public string OutputDeviceName => _device.Name;
 
     /// <summary>True once the samples, and a short silence after them, have been handed to the device, so stopping cuts none of the sound.</summary>
-    public bool IsFinished => Volatile.Read(ref _position) >= _samples.Length + _tailFrames;
+    public bool IsFinished => _cursor.Position >= _samples.Length + _tailFrames;
 
     public long Underflows => Interlocked.Read(ref _underflows);
+
+    public int Position => Math.Min(_cursor.Position, _samples.Length);
+
+    public bool Paused
+    {
+        get => _cursor.Paused;
+        set => _cursor.Paused = value;
+    }
 
     public static PortAudioPlayback Open(AppSettings settings)
     {
@@ -65,9 +73,14 @@ public sealed class PortAudioPlayback : IAudioPlayback
         }
 
         _samples = samples;
-        _position = 0;
+        _cursor = new PlaybackCursor();
         _stream = PortAudioStreams.Open(
             null, PortAudioStreams.Parameters(_device, AudioDirection.Output, _channels), _sampleRate, _bufferSize, OnAudio, PortAudioOutput.DeviceName);
+    }
+
+    public void Seek(int position)
+    {
+        _cursor.Seek(position, _samples.Length);
     }
 
     public void Stop()
@@ -95,10 +108,7 @@ public sealed class PortAudioPlayback : IAudioPlayback
             Interlocked.Increment(ref _underflows);
         }
 
-        int position = _position;
-        int frames = Math.Clamp(_samples.Length - position, 0, (int)frameCount);
-        PortAudioStreams.FanOut(_samples.AsSpan(position, frames), new Span<float>((void*)output, (int)frameCount * _channels), _channels);
-        Volatile.Write(ref _position, position + (int)frameCount);
+        _cursor.Fill(_samples, new Span<float>((void*)output, (int)frameCount * _channels), _channels);
         return StreamCallbackResult.Continue;
     }
 }

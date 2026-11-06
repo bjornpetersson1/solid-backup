@@ -292,7 +292,8 @@ public static class AppCommand
     {
         AudioPreflight preflight = CreatePreflight();
         LiveCommand live = new(console, LoadSettings, PortAudioDevices.Open, preflight, returnsToMenu: true);
-        return new MainMenu(console, CreateStore(), PortAudioSession.Open, preflight, settings => live.Play(settings, settings.RecordOn));
+        RecordingsMenu recordings = new(console, PortAudioPlayback.Open);
+        return new MainMenu(console, CreateStore(), PortAudioSession.Open, preflight, settings => live.Play(settings, settings.RecordOn), recordings.Run);
     }
 
     private static SettingsLoadResult LoadSettings()

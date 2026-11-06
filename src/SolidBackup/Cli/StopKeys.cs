@@ -60,11 +60,17 @@ internal static class StopKeys
         }
     }
 
+    /// <summary>q (by the character typed, so it follows the keyboard layout) or Esc.</summary>
+    public static bool IsStopKey(ConsoleKeyInfo key)
+    {
+        return key.Key == ConsoleKey.Escape || char.ToLowerInvariant(key.KeyChar) == 'q';
+    }
+
     private static bool Pressed(IAnsiConsole console)
     {
         while (console.Input.IsKeyAvailable())
         {
-            if (console.Input.ReadKey(intercept: true) is { } key && (key.Key == ConsoleKey.Escape || char.ToLowerInvariant(key.KeyChar) == 'q'))
+            if (console.Input.ReadKey(intercept: true) is { } key && IsStopKey(key))
             {
                 return true;
             }
