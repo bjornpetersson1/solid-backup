@@ -47,9 +47,12 @@ public static class RecordingLibrary
             return $"Namnet {trimmed} går inte att använda som filnamn; undvik / \\ : och . eller .. ensamma.";
         }
 
-        string target = Target(entry, trimmed);
-        bool sameFile = string.Equals(target, entry.Path, StringComparison.OrdinalIgnoreCase);
-        return !sameFile && File.Exists(target) ? $"Det finns redan en inspelning som heter {trimmed}." : null;
+        // Ignoring case, as macOS's file system does, so a name never differs from another only in case.
+        string folder = Path.GetDirectoryName(entry.Path) ?? string.Empty;
+        bool taken = Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*" + Extension)
+            .Where(path => !string.Equals(path, entry.Path, StringComparison.Ordinal))
+            .Any(path => string.Equals(Path.GetFileNameWithoutExtension(path), trimmed, StringComparison.OrdinalIgnoreCase));
+        return taken ? $"Det finns redan en inspelning som heter {trimmed}." : null;
     }
 
     /// <summary>Renames the recording to <paramref name="name"/> plus <c>.wav</c>; null when done, else why not.</summary>

@@ -89,6 +89,7 @@ A menu item, **Inspelningar**, lists the recordings in the recordings folder. Fr
   - A recordings folder that cannot be read is a Swedish error (`Inspelningsmappen <mapp> kunde inte läsas.`).
   - The channel choices are an ordered list, with Båda first.
   - The stop keys are `StopKeys.IsStopKey`, shared with `synth --play`.
+- **CI fix:** a taken name is found by comparing the folder's recordings ignoring case, rather than by `File.Exists`. That behaves as macOS's file system does on CI's case-sensitive Linux too.
 - **Declined code review findings:**
   - The name is checked twice when renaming, once in the menu to ask again and once in `RecordingLibrary.Rename`. `Rename` is public and must not move a file to a bad name on its own.
   - A recording is decoded whole before playing, as `WavReader` does everywhere. A recording of more than about 3 hours (2 GB of audio) is listed but gives the reader's Swedish error when played. Streaming playback is out of this issue's scope.
