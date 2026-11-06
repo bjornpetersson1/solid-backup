@@ -27,13 +27,13 @@ public static class ClipImporter
     {
         if (!File.Exists(path))
         {
-            throw new ImportFailedException($"Filen {path} finns inte.");
+            throw new ImportFailedException(WavFileMessages.Missing(path));
         }
 
         string extension = Path.GetExtension(path).ToLowerInvariant();
         WavAudio audio = extension switch
         {
-            WavExtension when SettingsValidator.SupportedSampleRates.Contains(Info(path).SampleRate) => Read(path, path),
+            WavExtension when AtTheAppsRate(Info(path)) => Read(path, path),
             WavExtension => Convert(path, sampleRate, converter, cancellation),
             _ when ConvertedExtensions.Contains(extension) => Convert(path, sampleRate, converter, cancellation),
             _ => throw new ImportFailedException(
@@ -62,12 +62,18 @@ public static class ClipImporter
 
         try
         {
-            return !SettingsValidator.SupportedSampleRates.Contains(WavReader.ReadInfo(path).SampleRate);
+            return !AtTheAppsRate(WavReader.ReadInfo(path));
         }
         catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException)
         {
             return false;
         }
+    }
+
+    // A WAV at a rate the app runs at is read as it is; any other is converted.
+    private static bool AtTheAppsRate(WavInfo info)
+    {
+        return SettingsValidator.SupportedSampleRates.Contains(info.SampleRate);
     }
 
     private static void CheckLength(long frames, int sampleRate)
@@ -126,11 +132,11 @@ public static class ClipImporter
         }
         catch (InvalidDataException exception)
         {
-            throw new ImportFailedException($"Filen {chosen} kunde inte läsas: {exception.Message}", exception);
+            throw new ImportFailedException(WavFileMessages.Unreadable(chosen, exception.Message), exception);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            throw new ImportFailedException($"Filen {chosen} kunde inte läsas.", exception);
+            throw new ImportFailedException(WavFileMessages.Unreadable(chosen), exception);
         }
     }
 }

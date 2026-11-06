@@ -66,7 +66,7 @@ public sealed class InputMonitor
         _startFill = bufferSize + _targetMargin;
 
         // Started at the peak of a burst, the oldest input would wait too long until the first correction.
-        _startMost = Math.Max(Math.Max(Duration.Samples(MaxDelayMs, sampleRate), 3 * bufferSize) - _highMargin, _startFill);
+        _startMost = Math.Max(MaxDelay(bufferSize, sampleRate) - _highMargin, _startFill);
         int crossfade = Crossfade.Length(sampleRate);
         _ring = new SplicingRing((int)Math.Max(bufferSize * RingBuffers, 4 * (bufferSize + _highMargin + crossfade)), crossfade);
         _window = new FillWindow((int)Duration.Samples(WindowMs, sampleRate));
@@ -77,6 +77,12 @@ public sealed class InputMonitor
         Waiting,
         Playing,
         FadingOut,
+    }
+
+    /// <summary>The longest the monitored input should wait, in samples: max(5 ms, 3 × the buffer size).</summary>
+    public static long MaxDelay(int bufferSize, int sampleRate)
+    {
+        return Math.Max(Duration.Samples(MaxDelayMs, sampleRate), 3 * bufferSize);
     }
 
     /// <summary>Times the input ran dry while it was being monitored, so the monitored signal faded out.</summary>

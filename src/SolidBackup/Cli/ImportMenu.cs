@@ -21,14 +21,10 @@ public sealed class ImportMenu(
 {
     public const string RunChoice = "Kör";
     public const string CancelChoice = "Avbryt";
-    public const string ListenChoice = "Lyssna";
-    public const string BackChoice = "Tillbaka";
     public const string CancelledMessage = "Avbrutet; inget sparades.";
 
-    private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(50);
-
     private readonly SettingPrompts _prompts = new(console);
-    private readonly TimeSpan _pollInterval = pollInterval ?? DefaultPollInterval;
+    private readonly TimeSpan _pollInterval = pollInterval ?? StopKeys.PollInterval;
 
     /// <summary>The run menu's items, in the order shown.</summary>
     public static IReadOnlyList<string> RunChoices { get; } = [RunChoice, .. SettingPrompts.MusicChoices, CancelChoice];
@@ -59,20 +55,8 @@ public sealed class ImportMenu(
         }
 
         using CancellationTokenSource interrupt = new();
-        ConsoleCancelEventHandler cancelOnCtrlC = (_, args) =>
-        {
-            args.Cancel = true;
-            interrupt.Cancel();
-        };
-        Console.CancelKeyPress += cancelOnCtrlC;
-        try
-        {
-            Import(ClipPath.Parse(typed), saved, interrupt.Token);
-        }
-        finally
-        {
-            Console.CancelKeyPress -= cancelOnCtrlC;
-        }
+        using IDisposable ctrlC = StopKeys.CancelOnCtrlC(interrupt);
+        Import(ClipPath.Parse(typed), saved, interrupt.Token);
     }
 
     private void Import(string path, AppSettings saved, CancellationToken interrupt)
@@ -126,7 +110,7 @@ public sealed class ImportMenu(
     {
         while (true)
         {
-            Table table = new Table().AddColumn("Inställning").AddColumn("Val").Title(Markup.Escape($"{clip.Name} ({PlaybackScreen.Time(clip.Audio.Samples.Length, clip.Audio.SampleRate)})"));
+            Table table = new Table().AddColumn("Inställning").AddColumn("Val").Title(Markup.Escape($"{clip.Name} ({SettingTexts.Duration(clip.Audio.Samples.Length, clip.Audio.SampleRate)})"));
             SettingPrompts.AddMusicRows(table, settings);
             console.Write(table);
             string choice = console.Prompt(new SelectionPrompt<string>().Title("Ändra för den här körningen, eller kör:").AddChoices(RunChoices));
@@ -206,7 +190,7 @@ public sealed class ImportMenu(
     private void OfferListening(string path, AppSettings settings)
     {
         RecordingEntry entry = RecordingLibrary.Entry(path);
-        while (console.Prompt(new SelectionPrompt<string>().Title("Vill du lyssna?").AddChoices(ListenChoice, BackChoice)) == ListenChoice)
+        while (console.Prompt(new SelectionPrompt<string>().Title("Vill du lyssna?").AddChoices(RecordingsMenu.ListenChoice, RecordingsMenu.BackChoice)) == RecordingsMenu.ListenChoice)
         {
             recordings.Listen(entry, settings);
         }

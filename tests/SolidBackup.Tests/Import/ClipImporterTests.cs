@@ -188,8 +188,8 @@ public sealed class ClipImporterTests : IDisposable
         {
             "pcm16" => TestWav.Pcm16(sampleRate, channels, interleaved),
             "float32" => TestWav.Float32(sampleRate, channels, interleaved),
-            "pcm24" => TestWav.Build(TestWav.Pcm, sampleRate, channels, 24, [.. interleaved.SelectMany(sample => BitConverter.GetBytes((int)(sample * 8388607)).Take(3))]),
-            _ => TestWav.Build(TestWav.Pcm, sampleRate, channels, 32, [.. interleaved.SelectMany(sample => BitConverter.GetBytes((int)(sample * 2147483647.0)))]),
+            "pcm24" => TestWav.Pcm24(sampleRate, channels, interleaved),
+            _ => TestWav.Pcm32(sampleRate, channels, interleaved),
         };
     }
 

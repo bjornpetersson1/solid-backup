@@ -44,7 +44,6 @@ public sealed class MainMenu(
     public static IReadOnlyList<string> Choices { get; } =
         [StartChoice, InputChoice, OutputChoice, .. SettingPrompts.MusicChoices, MonitorChoice, RecordingChoice, RecordingsChoice, ImportChoice, QuitChoice];
 
-
     /// <summary>Shows the menu until Avsluta or Ctrl+C.</summary>
     public int Run()
     {

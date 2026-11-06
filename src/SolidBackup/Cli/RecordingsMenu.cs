@@ -14,11 +14,12 @@ namespace SolidBackup.Cli;
 /// <param name="pollInterval">How often the player looks at the keys; 50 ms when not given.</param>
 public sealed class RecordingsMenu(IAnsiConsole console, Func<AppSettings, IAudioPlayback> openPlayback, TimeSpan? pollInterval = null)
 {
+    public const string ListenChoice = "Lyssna";
     public const string BackChoice = "Tillbaka";
     public const string MicrophoneOnly = "Bara mikrofonen";
     public const string UnreadableLength = "oläsbar";
 
-    private const string ListenChoice = "Lyssna";
+
     private const string RenameChoice = "Byt namn";
     private const string DeleteChoice = "Ta bort";
     private const string BothChannels = "Båda";
@@ -41,7 +42,7 @@ public sealed class RecordingsMenu(IAnsiConsole console, Func<AppSettings, IAudi
     /// <summary>A recording's row in the list: its name, when it was written and how long it is.</summary>
     public static string Row(RecordingEntry entry)
     {
-        string length = entry.Info is { } info ? PlaybackScreen.Time(info.Frames, info.SampleRate) : UnreadableLength;
+        string length = entry.Info is { } info ? SettingTexts.Duration(info.Frames, info.SampleRate) : UnreadableLength;
         return $"{entry.Name}  {entry.Written:yyyy-MM-dd HH:mm}  {length}";
     }
 
