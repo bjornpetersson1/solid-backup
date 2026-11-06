@@ -22,7 +22,8 @@ public sealed class MainMenu(
     SettingsStore store,
     Func<IAudioDeviceCatalog> openCatalog,
     AudioPreflight preflight,
-    Func<AppSettings, LiveExit> startLive)
+    Func<AppSettings, LiveExit> startLive,
+    Action<AppSettings> openRecordings)
 {
     public const string Title = "solid-backup";
     public const string StartChoice = "Starta live";
@@ -40,6 +41,7 @@ public sealed class MainMenu(
     private const string AutoplayChoice = "Autospel";
     private const string MonitorChoice = "Medhörning";
     private const string RecordingChoice = "Inspelning";
+    private const string RecordingsChoice = "Inspelningar";
     private const string SystemDefault = "Systemets standard";
 
     private IReadOnlyList<AudioDeviceInfo> _devices = [];
@@ -48,7 +50,7 @@ public sealed class MainMenu(
 
     /// <summary>The menu's items, in the order shown; the first is preselected.</summary>
     public static IReadOnlyList<string> Choices { get; } =
-        [StartChoice, InputChoice, OutputChoice, KeyChoice, StyleChoice, SoundChoice, RhythmChoice, ChordChangesChoice, FeaturesChoice, AutoplayChoice, MonitorChoice, RecordingChoice, QuitChoice];
+        [StartChoice, InputChoice, OutputChoice, KeyChoice, StyleChoice, SoundChoice, RhythmChoice, ChordChangesChoice, FeaturesChoice, AutoplayChoice, MonitorChoice, RecordingChoice, RecordingsChoice, QuitChoice];
 
     public static string MonitorLevelMessage => $"Ange en nivå mellan {MonitorSettings.MinLevelPercent} och {MonitorSettings.MaxLevelPercent} %.";
 
@@ -89,6 +91,12 @@ public sealed class MainMenu(
                     }
 
                     ReadDevices(settings);
+                    continue;
+                }
+
+                if (choice == RecordingsChoice)
+                {
+                    openRecordings(settings);
                     continue;
                 }
 
