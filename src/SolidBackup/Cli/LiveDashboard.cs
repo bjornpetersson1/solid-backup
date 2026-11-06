@@ -52,7 +52,7 @@ public static class LiveDashboard
         AddRow(rows, "Stil", Markup.Escape(Style(snapshot)));
         AddRow(rows, "Byten", Markup.Escape(SettingTexts.ChordChanges(snapshot.Settings)));
         AddRow(rows, "Autospel", SettingTexts.OnOff(snapshot.Settings.Autoplay));
-        AddRow(rows, "Medhörning", Markup.Escape(SettingTexts.Monitor(snapshot.Settings, context.Monitoring)));
+        AddRow(rows, "Medhörning", Markup.Escape(Monitor(snapshot, context)));
         AddRow(rows, "Funktioner", Markup.Escape(Features(snapshot)));
         AddRow(rows, "Latens", Latency(snapshot));
         AddRow(rows, "Avbrott", Dropouts(snapshot));
@@ -63,6 +63,13 @@ public static class LiveDashboard
 
         Panel panel = new Panel(rows).Header(Title).Border(BoxBorder.Rounded).Expand();
         return new Rows(panel, new Text(Footer(context)));
+    }
+
+    /// <summary>Monitoring as the menu shows it, and while it runs how often it was interrupted, e.g. "på, 70 % · avbrott 0".</summary>
+    public static string Monitor(LiveSnapshot snapshot, DashboardContext context)
+    {
+        string shown = SettingTexts.Monitor(snapshot.Settings, context.Monitoring);
+        return snapshot.MonitorInterruptions is { } interruptions ? $"{shown} · avbrott {interruptions}" : shown;
     }
 
     /// <summary>The line under the panel: how to leave live mode.</summary>
