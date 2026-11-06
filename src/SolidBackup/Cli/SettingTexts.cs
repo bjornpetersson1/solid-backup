@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using SolidBackup.Accompaniment;
 using SolidBackup.Configuration;
 using SolidBackup.Harmony;
@@ -87,5 +89,12 @@ public static class SettingTexts
     public static string OnOff(bool on)
     {
         return on ? "på" : "av";
+    }
+
+    /// <summary>A length in minutes and seconds, e.g. "1:05".</summary>
+    public static string Duration(long samples, int sampleRate)
+    {
+        long seconds = samples / sampleRate;
+        return string.Create(CultureInfo.InvariantCulture, $"{seconds / 60}:{seconds % 60:00}");
     }
 }

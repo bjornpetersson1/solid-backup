@@ -16,8 +16,7 @@ public class InputMonitorTests
 {
     private static readonly AppSettings Settings = Chain.Settings() with { MonitorOn = true, MonitorLevelPercent = 100 };
 
-    // max(5 ms, 3 × BufferSize) at the test settings' rate and buffer size.
-    private static readonly int MaxDelay = Math.Max(Settings.SampleRate / 200, 3 * Settings.BufferSize);
+    private static readonly int MaxDelay = (int)InputMonitor.MaxDelay(Settings.BufferSize, Settings.SampleRate);
 
     // The monitor fades in at its start and may correct its delay once, at the end of its first window (a quarter of a
     // second). The mix is checked before and after that correction, each part with its own delay, leaving out only the

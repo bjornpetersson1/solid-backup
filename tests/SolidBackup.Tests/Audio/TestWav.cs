@@ -31,6 +31,18 @@ internal static class TestWav
         return Build(Float, sampleRate, channels, 32, data);
     }
 
+    /// <summary>24-bit PCM, little-endian, from samples in ±1.</summary>
+    public static byte[] Pcm24(int sampleRate, int channels, params float[] interleaved)
+    {
+        return Build(Pcm, sampleRate, channels, 24, [.. interleaved.SelectMany(sample => BitConverter.GetBytes((int)(sample * 8388607)).Take(3))]);
+    }
+
+    /// <summary>32-bit PCM, little-endian, from samples in ±1.</summary>
+    public static byte[] Pcm32(int sampleRate, int channels, params float[] interleaved)
+    {
+        return Build(Pcm, sampleRate, channels, 32, [.. interleaved.SelectMany(sample => BitConverter.GetBytes((int)(sample * 2147483647.0)))]);
+    }
+
     public static byte[] Build(ushort formatTag, int sampleRate, int channels, int bitsPerSample, byte[] data, bool withListChunk = false)
     {
         using MemoryStream stream = new();
@@ -80,6 +92,6 @@ internal static class TestWav
     /// <summary>One sample of a 16-bit PCM WAV file with a 44-byte header, as a float.</summary>
     public static float Pcm16Sample(byte[] file, int frame, int channel, int channels)
     {
-        return System.Buffers.Binary.BinaryPrimitives.ReadInt16LittleEndian(file.AsSpan(44 + (((frame * channels) + channel) * 2))) / 32767f;
+        return BinaryPrimitives.ReadInt16LittleEndian(file.AsSpan(44 + (((frame * channels) + channel) * 2))) / 32767f;
     }
 }

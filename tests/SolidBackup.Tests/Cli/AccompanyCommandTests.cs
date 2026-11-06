@@ -135,7 +135,7 @@ public sealed class AccompanyCommandTests : IDisposable
         int exitCode = Command(console).Run(missing, Path.Combine(_folder, "out.wav"), new AccompanyOptions(new SettingOverrides()));
 
         Assert.Equal(1, exitCode);
-        Assert.Contains(RecordingFiles.MissingFileMessage(missing), console.Output);
+        Assert.Contains(WavFileMessages.Missing(missing), console.Output);
     }
 
     private static AccompanyCommand Command(TestConsole console)

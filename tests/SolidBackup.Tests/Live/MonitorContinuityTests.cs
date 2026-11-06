@@ -24,8 +24,7 @@ public class MonitorContinuityTests
     // A crossfade between two parts of the same sine stays within this many times the sine's own largest step.
     private const double StepBound = 1.5;
 
-    // max(5 ms, 3 × BufferSize).
-    private static readonly int MaxDelay = Math.Max(SampleRate / 200, 3 * BufferSize);
+    private static readonly int MaxDelay = (int)InputMonitor.MaxDelay(BufferSize, SampleRate);
 
     // One input sample per step of the ramp, so the output tells which input sample it plays.
     private const float RampStep = 1e-6f;

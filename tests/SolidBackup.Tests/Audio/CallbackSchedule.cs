@@ -47,6 +47,7 @@ public static class CallbackSchedule
                     burst = next - index;
                 }
             }
+
             double due = start + ((index + burst - 1) * period);
             for (int i = 0; i < burst; i++)
             {

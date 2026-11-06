@@ -15,9 +15,7 @@ public sealed class PlaybackScreen(IAnsiConsole console, TimeSpan? pollInterval 
 {
     public const int SeekSeconds = 5;
 
-    private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMilliseconds(50);
-
-    private readonly TimeSpan _pollInterval = pollInterval ?? DefaultPollInterval;
+    private readonly TimeSpan _pollInterval = pollInterval ?? StopKeys.PollInterval;
 
     public static string KeysText { get; } = $"mellanslag: paus · ←/→: {SeekSeconds} s · q/Esc: stopp";
 
@@ -44,19 +42,11 @@ public sealed class PlaybackScreen(IAnsiConsole console, TimeSpan? pollInterval 
         }
     }
 
-
-    /// <summary>Minutes and seconds, e.g. "1:05".</summary>
-    public static string Time(long samples, int sampleRate)
-    {
-        long seconds = samples / sampleRate;
-        return string.Create(CultureInfo.InvariantCulture, $"{seconds / 60}:{seconds % 60:00}");
-    }
-
     // The position line, e.g. "0:12 / 1:30 · mellanslag: paus · ←/→: 5 s · q/Esc: stopp".
     private static string Line(IAudioPlayback playback, int length, int sampleRate)
     {
         string state = playback.Paused ? " (pausad)" : string.Empty;
-        return $"{Time(playback.Position, sampleRate)} / {Time(length, sampleRate)}{state} · {KeysText}";
+        return $"{SettingTexts.Duration(playback.Position, sampleRate)} / {SettingTexts.Duration(length, sampleRate)}{state} · {KeysText}";
     }
 
     // Handles the keys pressed since the last look; false once q or Esc was pressed.

@@ -7,17 +7,12 @@ namespace SolidBackup.Cli;
 /// <summary>Reads and writes the commands' WAV files, showing a Swedish error instead of throwing.</summary>
 public static class RecordingFiles
 {
-    public static string MissingFileMessage(string path)
-    {
-        return $"Filen {path} finns inte.";
-    }
-
     /// <summary>The recording, or null after an error has been shown.</summary>
     public static WavAudio? Read(IAnsiConsole console, string path, WavChannel channel = WavChannel.Mixed)
     {
         if (!File.Exists(path))
         {
-            ConsoleMessages.Error(console, MissingFileMessage(path));
+            ConsoleMessages.Error(console, WavFileMessages.Missing(path));
             return null;
         }
 
@@ -27,11 +22,11 @@ public static class RecordingFiles
         }
         catch (InvalidDataException exception)
         {
-            ConsoleMessages.Error(console, $"Filen {path} kunde inte läsas: {exception.Message}");
+            ConsoleMessages.Error(console, WavFileMessages.Unreadable(path, exception.Message));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            ConsoleMessages.Error(console, $"Filen {path} kunde inte läsas.");
+            ConsoleMessages.Error(console, WavFileMessages.Unreadable(path));
         }
 
         return null;

@@ -1,4 +1,5 @@
 using SolidBackup.Analysis;
+using SolidBackup.Audio;
 using SolidBackup.Cli;
 using SolidBackup.Configuration;
 using SolidBackup.Harmony;
@@ -162,7 +163,7 @@ public sealed class HarmonizeCommandTests : IDisposable
         (int exitCode, string[] lines) = Run(path: missing);
 
         Assert.Equal(1, exitCode);
-        Assert.Equal([RecordingFiles.MissingFileMessage(missing)], lines);
+        Assert.Equal([WavFileMessages.Missing(missing)], lines);
     }
 
     [Fact]
