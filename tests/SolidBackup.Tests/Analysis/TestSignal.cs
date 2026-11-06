@@ -15,6 +15,21 @@ internal static class TestSignal
             .ToArray();
     }
 
+    /// <summary>
+    /// The largest sample-to-sample step from <paramref name="from"/> up to <paramref name="to"/>: a click or a cut
+    /// shows up as a step far beyond the signal's own.
+    /// </summary>
+    public static double LargestStep(float[] samples, int from, int to)
+    {
+        double largest = 0;
+        for (int i = Math.Max(1, from); i < to; i++)
+        {
+            largest = Math.Max(largest, Math.Abs(samples[i] - samples[i - 1]));
+        }
+
+        return largest;
+    }
+
     public static float[] Silence(double seconds)
     {
         return new float[(int)(SampleRate * seconds)];

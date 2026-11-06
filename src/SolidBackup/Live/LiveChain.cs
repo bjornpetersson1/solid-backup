@@ -62,7 +62,10 @@ public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
         _state.Publish(new LiveState(
             analysis.Estimate, analysis.LevelDbfs, analysis.GateOpen, frame.Sounding ? frame.Chord : null, _accompanist.Harmonizer.CurrentKey));
         _recorder?.OnInput(samples);
-        _monitor?.Write(samples);
+        if (!_monitorStopped)
+        {
+            _monitor?.Write(samples);
+        }
     }
 
     public void Render(Span<float> output)
@@ -101,6 +104,9 @@ public sealed class LiveChain : IAudioInputHandler, IAudioRenderer
 
     /// <summary>Whether the input is mixed into the output: there is a monitor and it has not been stopped.</summary>
     public bool Monitoring => _monitor is not null && !_monitorStopped;
+
+    /// <summary>The monitored input's gaps and overflows, or null while not monitoring.</summary>
+    public long? MonitorInterruptions => Monitoring ? _monitor!.Interruptions : null;
 
     /// <summary>From the next output buffer on the input is not mixed in, for good (the output became unsafe).</summary>
     public void StopMonitoring()

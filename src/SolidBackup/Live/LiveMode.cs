@@ -90,6 +90,6 @@ public sealed class LiveMode
         }
 
         RecordingStatus? recording = _recorder is { } recorder ? new RecordingStatus(recorder.Seconds, recorder.Overruns) : null;
-        return new LiveSnapshot(_lastState, _settings, Latency, _devices.Counters, recording);
+        return new LiveSnapshot(_lastState, _settings, Latency, _devices.Counters, recording, _chain.MonitorInterruptions);
     }
 }
