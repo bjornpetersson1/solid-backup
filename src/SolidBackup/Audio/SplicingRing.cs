@@ -55,7 +55,7 @@ public sealed class SplicingRing
     public bool Write(ReadOnlySpan<float> samples)
     {
         long written = _written;
-        bool kept = written + samples.Length - Volatile.Read(ref _published) <= _samples.Length;
+        bool kept = samples.Length <= Room;
         int start = (int)(written & _mask);
         int first = Math.Min(samples.Length, _samples.Length - start);
         samples[..first].CopyTo(_samples.AsSpan(start));
@@ -63,6 +63,20 @@ public sealed class SplicingRing
         Volatile.Write(ref _written, written + samples.Length);
         return kept;
     }
+
+    /// <summary>Producer: appends <paramref name="count"/> samples of silence, at most a whole ring.</summary>
+    public void WriteSilence(int count)
+    {
+        long written = _written;
+        int start = (int)(written & _mask);
+        int first = Math.Min(count, _samples.Length - start);
+        _samples.AsSpan(start, first).Clear();
+        _samples.AsSpan(0, count - first).Clear();
+        Volatile.Write(ref _written, written + count);
+    }
+
+    /// <summary>Producer: how many samples fit before unread ones would be overwritten.</summary>
+    public long Room => _samples.Length - (_written - Volatile.Read(ref _published));
 
     /// <summary>Consumer: the samples waiting, given <see cref="Written"/>.</summary>
     public long Waiting(long written)
@@ -127,7 +141,9 @@ public sealed class SplicingRing
     /// <summary>Consumer: publishes the read position to the producer, once per buffer.</summary>
     public void Publish()
     {
-        Volatile.Write(ref _published, _position);
+        // A drop still crossfading reads the samples it skips, so they are not free for the producer until it ends.
+        long free = Splicing && !_spliceBack ? Math.Min(_spliceFrom, _position) : _position;
+        Volatile.Write(ref _published, free);
     }
 
     // The side a splice fades out of: what was played, backwards, or the samples that would have come next.

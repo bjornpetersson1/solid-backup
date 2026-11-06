@@ -43,9 +43,11 @@ public sealed class RecordingSession(string path, SessionRecorder recorder)
         return $"Spelar in till {path}.";
     }
 
-    public static string RecordedMessage(string path, double seconds, long overruns)
+    public static string RecordedMessage(string path, double seconds, long overruns, long driftCorrections)
     {
-        return string.Create(CultureInfo.InvariantCulture, $"Inspelningen sparad: {path} ({seconds:0.0} s, tappade inspelningsbuffertar: {overruns}).");
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"Inspelningen sparad: {path} ({seconds:0.0} s, tappade inspelningsbuffertar: {overruns}, driftkorrigeringar: {driftCorrections}).");
     }
 
     public static string RecordingFolderMessage(string folder)
@@ -66,7 +68,7 @@ public sealed class RecordingSession(string path, SessionRecorder recorder)
             return false;
         }
 
-        console.WriteLine(RecordedMessage(path, recorder.Seconds, recorder.Overruns));
+        console.WriteLine(RecordedMessage(path, recorder.Seconds, recorder.Overruns, recorder.DriftCorrections));
         if (recorder.IsFull)
         {
             ConsoleMessages.Warning(console, FullMessage);

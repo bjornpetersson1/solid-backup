@@ -202,7 +202,7 @@ public class LiveCommandTests
         int exitCode = command.Run(new SettingOverrides(), record: true);
 
         Assert.Equal(0, exitCode);
-        Assert.Contains(RecordingSession.RecordedMessage("live.wav", Settings.BufferSize / (double)Settings.SampleRate, 0), console.Output);
+        Assert.Contains(RecordingSession.RecordedMessage("live.wav", Settings.BufferSize / (double)Settings.SampleRate, 0, 0), console.Output);
         Assert.Equal(44 + (Settings.BufferSize * 4), stream.Contents.Length);
     }
 
