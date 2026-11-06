@@ -47,7 +47,7 @@ public sealed class RecordingSession(string path, SessionRecorder recorder)
     {
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"Inspelningen sparad: {path} ({seconds:0.0} s, tappade inspelningsbuffertar: {overruns}, driftkorrigeringar: {driftCorrections}).");
+            $"Inspelningen sparad: {path} ({seconds:0.0} s, tappade inspelningsbuffertar: {overruns}, kanaljusteringar: {driftCorrections}).");
     }
 
     public static string RecordingFolderMessage(string folder)

@@ -71,7 +71,7 @@ The tests below tell these apart.
   - A new drop waits until the last one's crossfade has played, so two never overlap into a jump.
   - `Drain()` throws when the recorder has its own writer thread or has stopped.
   - A drop still crossfading keeps the samples it skips from the producer (`SplicingRing.Publish`).
-  - The stop message counts the drift corrections (`driftkorrigeringar`), so the manual check can tell how many drops a recording had.
+  - The stop message counts the drift corrections (`kanaljusteringar`, so as not to be confused with pass-through's own `driftkorrigeringar`), so the manual check can tell how many drops a recording had.
   - The README states the tolerance as max(10 ms, one buffer).
   - The tests now check the criteria as written:
     - the input callbacks come bunched after every onset (`CallbackSchedule`'s `burstsFrom`);
