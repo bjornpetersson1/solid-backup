@@ -4,7 +4,7 @@
 - **Labels:** `E8 Playtest 2`
 - **Phase:** 8. Playtest 2
 - **Depends on:** none open (builds on E7-3 (#72))
-- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 1147 tests passed); hearing no crackle live with one and with two devices, and `avbrott 0` after a few minutes, are manual checks for the owner
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 1150 tests passed); hearing no crackle live with one and with two devices, and `avbrott 0` after a few minutes, are manual checks for the owner
 
 ## Summary
 With monitoring on, the microphone crackles in the headphones. The cause is in the hand-over between the input's and the output's callbacks (`Live.InputMonitor`). This issue gives the hand-over a small jitter buffer and smooth drift correction, so the monitored signal stays continuous. It also adds an interruption counter to the dashboard, so the fix can be checked live.
@@ -82,6 +82,7 @@ Callbacks seldom alternate perfectly. They arrive in bursts, and with two device
   - `SplicingRing.Publish` hands the read position over through its own field, once per buffer.
   - Once monitoring has stopped, the input's callback no longer writes into the monitor.
   - The chain test checks the mix from the end of the fade-in, in two parts (before and after the settling correction), each with its own delay within the bound. It no longer skips the first 0.3 s.
+- **PR review fixes:** `SplicingRing.Splice` limits a drop to what waits beyond one crossfade (a drop crossfades out of the samples it skips) and says whether it moved; the monitor counts a correction only when it did (`SplicingRingTests`). `MonitorContinuityTests.MaxDelay` is computed as max(5 ms, 3 × `BufferSize`).
 - **Declined code review finding:** "the approved criteria were loosened" (bursts of 3 instead of 4, one settling correction). Both changes were asked of and approved by the owner during implementation (recorded above), not made to get to green.
 - **Departs from E7-3:** E7-3's delay bound of two buffers and its "silence for the missing samples" and "skip the oldest samples" rules are replaced by the rules above.
 

@@ -77,13 +77,24 @@ public sealed class SplicingRing
         _spliceDone = _crossfadeLength;
     }
 
-    /// <summary>Consumer: moves the read position ahead (a drop) or back (a repeat), crossfading from where it was.</summary>
-    public void Splice(long move)
+    /// <summary>
+    /// Consumer: moves the read position ahead (a drop) or back (a repeat), crossfading from where it was. A drop
+    /// crossfades out of the samples it skips, so it is limited to what waits beyond one crossfade, given
+    /// <see cref="Written"/>; with less waiting there is nothing to drop. False when the position did not move.
+    /// </summary>
+    public bool Splice(long move, long written)
     {
+        move = Math.Min(move, Math.Max(0, Waiting(written) - _crossfadeLength));
+        if (move == 0)
+        {
+            return false;
+        }
+
         _spliceBack = move < 0;
         _spliceFrom = _spliceBack ? _readCount - 1 : _position;
         _position += move;
         _spliceDone = 0;
+        return true;
     }
 
     /// <summary>Consumer: the next sample; call only while <see cref="Waiting"/> is above zero.</summary>

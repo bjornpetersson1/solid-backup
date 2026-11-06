@@ -25,7 +25,7 @@ public class MonitorContinuityTests
     private const double StepBound = 1.5;
 
     // max(5 ms, 3 × BufferSize).
-    private const int MaxDelay = SampleRate / 200;
+    private static readonly int MaxDelay = Math.Max(SampleRate / 200, 3 * BufferSize);
 
     // One input sample per step of the ramp, so the output tells which input sample it plays.
     private const float RampStep = 1e-6f;

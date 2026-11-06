@@ -190,7 +190,7 @@ public sealed class InputMonitor
                 return;
             }
 
-            Correct(waiting - (_bufferSize + _lowMargin));
+            Correct(waiting - (_bufferSize + _lowMargin), written);
             _repeatedAt = written;
             return;
         }
@@ -200,16 +200,18 @@ public sealed class InputMonitor
             long spare = least - _bufferSize;
             if (spare < _lowMargin || spare > _highMargin)
             {
-                Correct(spare - _targetMargin);
+                Correct(spare - _targetMargin, written);
             }
         }
     }
 
-    private void Correct(long move)
+    private void Correct(long move, long written)
     {
-        _ring.Splice(move);
         _window.Reset();
-        Interlocked.Increment(ref _corrections);
+        if (_ring.Splice(move, written))
+        {
+            Interlocked.Increment(ref _corrections);
+        }
     }
 
     private void FadeOut()
