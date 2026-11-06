@@ -1,5 +1,4 @@
-using System.Numerics;
-
+using SolidBackup.Analysis;
 using SolidBackup.Audio;
 
 namespace SolidBackup.Recording;
@@ -10,8 +9,8 @@ namespace SolidBackup.Recording;
 /// a background thread interleaves the two and writes them to the file. When the writer has fallen so far behind
 /// that a ring is full, that side's buffer is dropped and counted as an overrun: the audio never waits for the disk.
 /// The side then writes silence in the dropped buffer's place as soon as there is room, so the two channels stay in
-/// step. Two devices run on two clocks, so the writer also drops frames from a side that stays ahead (as
-/// <see cref="HandOverBuffer"/> does for pass-through). Stopping writes what is left and finishes the file.
+/// step. Two devices run on two clocks, so the writer also drops frames from a side that stays well ahead, with a
+/// crossfade (E8-2): a hard skip would click in the recording. Stopping writes what is left and finishes the file.
 /// </summary>
 public sealed class SessionRecorder : IAudioTap, IDisposable
 {
@@ -21,8 +20,12 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
     // The most frames interleaved and written at once; more waiting is written in several pieces.
     private const int WriteFrames = 8192;
 
-    // How long one side must stay ahead of the other before the writer drops the lead; shorter leads are input bursts.
-    private const double DriftWindowSeconds = 0.5;
+    // How long one side must stay ahead of the other before the writer drops the lead; shorter leads are bursts.
+    private const double DriftWindowMs = 500;
+
+    // How far ahead one side may stay before its lead is dropped: beyond the bursts in which callbacks arrive (E8-2),
+    // so only a clock that runs faster leads to a correction.
+    private const double DriftToleranceMs = 10;
 
     // Long enough to write in large pieces, far shorter than the ring. The audio thread never signals the writer,
     // since setting an event could make a system call.
@@ -34,28 +37,42 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
     private readonly float[] _interleaved;
     private readonly int _sampleRate;
     private readonly int _bufferSize;
-    private readonly Thread _thread;
+    private readonly Thread? _thread;
     private readonly ManualResetEventSlim _stopping = new();
-    private readonly long _driftWindowFrames;
-    private long _windowStart;
-    private long _windowMinimumLead = long.MaxValue;
-    private long _windowMaximumLead = long.MinValue;
+    private readonly long _driftTolerance;
+
+    // The least lead of the input over a window, and the least lead of the output.
+    private readonly FillWindow _inputLead;
+    private readonly FillWindow _outputLead;
+    private long _measuredUpTo;
+    private long _driftCorrections;
     private Exception? _failure;
     private bool _stopped;
 
     /// <param name="destination">Where the WAV file goes; writable and seekable, closed when the recorder stops.</param>
-    public SessionRecorder(Stream destination, int sampleRate, int bufferSize)
+    /// <param name="background">
+    /// Write on a background thread; without it the caller writes with <see cref="Drain"/>, so a test decides when the
+    /// writer runs.
+    /// </param>
+    public SessionRecorder(Stream destination, int sampleRate, int bufferSize, bool background = true)
     {
         _sampleRate = sampleRate;
         _bufferSize = bufferSize;
-        int ringLength = (int)BitOperations.RoundUpToPowerOf2((uint)Math.Max(sampleRate * RingSeconds, bufferSize * 8));
-        _input = new Ring(ringLength);
-        _output = new Ring(ringLength);
+        int ringLength = (int)Math.Max(sampleRate * RingSeconds, bufferSize * 8);
+        int crossfade = Crossfade.Length(sampleRate);
+        _input = new Ring(ringLength, crossfade);
+        _output = new Ring(ringLength, crossfade);
         _interleaved = new float[WriteFrames * 2];
-        _driftWindowFrames = (long)(sampleRate * DriftWindowSeconds);
+        int driftWindow = (int)Duration.Samples(DriftWindowMs, sampleRate);
+        _inputLead = new FillWindow(driftWindow);
+        _outputLead = new FillWindow(driftWindow);
+        _driftTolerance = Math.Max(bufferSize, Duration.Samples(DriftToleranceMs, sampleRate));
         _writer = new StereoWavWriter(destination, sampleRate, _interleaved.Length);
-        _thread = new Thread(WriteUntilStopped) { IsBackground = true, Name = "Recording writer" };
-        _thread.Start();
+        if (background)
+        {
+            _thread = new Thread(WriteUntilStopped) { IsBackground = true, Name = "Recording writer" };
+            _thread.Start();
+        }
     }
 
     /// <summary>
@@ -63,6 +80,9 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
     /// pair dropped together (<see cref="OnBuffer"/>) counts once.
     /// </summary>
     public long Overruns => Math.Max(_input.Overruns, _output.Overruns);
+
+    /// <summary>Crossfaded drops that kept the two channels in step.</summary>
+    public long DriftCorrections => Interlocked.Read(ref _driftCorrections);
 
     /// <summary>True when the recording reached the WAV format's size limit (about 6 hours) and the rest was not saved.</summary>
     public bool IsFull => _writer.IsFull;
@@ -101,7 +121,15 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
 
         _stopped = true;
         _stopping.Set();
-        _thread.Join();
+        if (_thread is null)
+        {
+            WriteRemaining();
+        }
+        else
+        {
+            _thread.Join();
+        }
+
         _stopping.Dispose();
         try
         {
@@ -131,6 +159,40 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
         }
     }
 
+    /// <summary>
+    /// One pass of the writer, for a recorder made without a background thread: keeps the channels in step and writes
+    /// what both sides have.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The recorder writes on its own thread, or has stopped.</exception>
+    public void Drain()
+    {
+        if (_thread is not null || _stopped)
+        {
+            throw new InvalidOperationException("Drain is only for a recorder without a background thread that has not stopped.");
+        }
+
+        Pass();
+    }
+
+    private void Pass()
+    {
+        CorrectDrift();
+        WriteAvailable();
+    }
+
+    // Without a background thread: what is left, failing like the thread would.
+    private void WriteRemaining()
+    {
+        try
+        {
+            WriteAvailable();
+        }
+        catch (Exception exception)
+        {
+            _failure = exception;
+        }
+    }
+
     // Drain, sleep until there is more or the recording stops, and drain once more at the end.
     private void WriteUntilStopped()
     {
@@ -138,8 +200,7 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
         {
             do
             {
-                CorrectDrift();
-                WriteAvailable();
+                Pass();
             }
             while (!_stopping.Wait(IdleWait));
 
@@ -152,30 +213,44 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
         }
     }
 
-    // A side that has stayed more than a buffer ahead of the other for a whole window runs on a faster clock; its
-    // lead beyond one buffer is dropped, so the channels never drift apart by more than that.
+    // A side that has stayed more than the tolerance ahead of the other for a whole window runs on a faster clock; its
+    // lead beyond one buffer is dropped with a crossfade, so the channels never drift apart by more than that.
     private void CorrectDrift()
     {
+        long written = _input.Written;
+        int frames = (int)(written - _measuredUpTo);
+        _measuredUpTo = written;
         long lead = (long)_input.Available - _output.Available;
-        _windowMinimumLead = Math.Min(_windowMinimumLead, lead);
-        _windowMaximumLead = Math.Max(_windowMaximumLead, lead);
-        if (_input.Written - _windowStart < _driftWindowFrames)
+
+        // Both windows count the same frames, so they end together.
+        _outputLead.Add(-lead, frames, out long outputLead);
+        if (!_inputLead.Add(lead, frames, out long inputLead))
         {
             return;
         }
 
-        if (_windowMinimumLead > _bufferSize)
+        // A drop still crossfading must play out before the next, or its own move would become a jump.
+        if (_input.Splicing || _output.Splicing)
         {
-            _input.Skip((int)(_windowMinimumLead - _bufferSize));
-        }
-        else if (_windowMaximumLead < -_bufferSize)
-        {
-            _output.Skip((int)(-_windowMaximumLead - _bufferSize));
+            return;
         }
 
-        _windowStart = _input.Written;
-        _windowMinimumLead = long.MaxValue;
-        _windowMaximumLead = long.MinValue;
+        if (inputLead > _driftTolerance)
+        {
+            Drop(_input, inputLead - _bufferSize);
+        }
+        else if (outputLead > _driftTolerance)
+        {
+            Drop(_output, outputLead - _bufferSize);
+        }
+    }
+
+    private void Drop(Ring side, long frames)
+    {
+        if (side.Drop(frames))
+        {
+            Interlocked.Increment(ref _driftCorrections);
+        }
     }
 
     // Writes the frames both sides have, as left/right pairs, in pieces of at most WriteFrames.
@@ -190,13 +265,11 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
         }
     }
 
-    // One side's samples, from its one audio thread to the writer thread.
-    private sealed class Ring(int length)
+    // One side's samples, from its one audio thread to the writer thread, through a splicing ring so the writer can
+    // drop a lead without a click.
+    private sealed class Ring(int length, int crossfade)
     {
-        private readonly float[] _samples = new float[length];
-        private readonly int _mask = length - 1;
-        private long _written;
-        private long _read;
+        private readonly SplicingRing _samples = new(length, crossfade);
         private long _overruns;
 
         // The audio thread's own: frames dropped that still need silence in their place.
@@ -205,9 +278,11 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
         public long Overruns => Interlocked.Read(ref _overruns);
 
         // Writer thread: the frames written so far, and those waiting.
-        public long Written => Volatile.Read(ref _written);
+        public long Written => _samples.Written;
 
-        public int Available => (int)(Volatile.Read(ref _written) - _read);
+        public int Available => (int)_samples.Waiting(_samples.Written);
+
+        public bool Splicing => _samples.Splicing;
 
         /// <summary>
         /// Audio thread: first as much of the owed silence as fits, then the buffer if there is room for all of it;
@@ -215,63 +290,40 @@ public sealed class SessionRecorder : IAudioTap, IDisposable
         /// </summary>
         public void Write(ReadOnlySpan<float> samples)
         {
-            long writeAt = _written;
-            long room = _samples.Length - (writeAt - Volatile.Read(ref _read));
+            long room = _samples.Room;
             int silence = (int)Math.Min(_silenceOwed, room);
             if (silence > 0)
             {
-                Copy(writeAt, default, silence);
-                writeAt += silence;
-                room -= silence;
+                _samples.WriteSilence(silence);
                 _silenceOwed -= silence;
+                room -= silence;
             }
 
             if (_silenceOwed == 0 && samples.Length <= room)
             {
-                Copy(writeAt, samples, samples.Length);
-                writeAt += samples.Length;
-            }
-            else
-            {
-                Interlocked.Increment(ref _overruns);
-                _silenceOwed += samples.Length;
+                _samples.Write(samples);
+                return;
             }
 
-            Volatile.Write(ref _written, writeAt);
+            Interlocked.Increment(ref _overruns);
+            _silenceOwed += samples.Length;
         }
 
         /// <summary>Writer thread: copies <paramref name="frames"/> frames into every second slot of <paramref name="interleaved"/> from <paramref name="channel"/>.</summary>
         public void ReadInto(float[] interleaved, int channel, int frames)
         {
-            long readAt = _read;
-            for (int frame = 0; frame < frames; frame++, readAt++)
+            for (int frame = 0; frame < frames; frame++)
             {
-                interleaved[(frame * 2) + channel] = _samples[readAt & _mask];
+                interleaved[(frame * 2) + channel] = _samples.Next();
             }
 
-            Volatile.Write(ref _read, readAt);
+            _samples.Publish();
         }
 
-        /// <summary>Writer thread: drops up to <paramref name="frames"/> waiting frames.</summary>
-        public void Skip(int frames)
+        /// <summary>Writer thread: drops up to <paramref name="frames"/> waiting frames with a crossfade; false if none.</summary>
+        public bool Drop(long frames)
         {
-            Volatile.Write(ref _read, _read + Math.Min(frames, Available));
-        }
-
-        // Copies the samples, or silence for an empty span, into the ring at a write position.
-        private void Copy(long writeAt, ReadOnlySpan<float> samples, int count)
-        {
-            int start = (int)(writeAt & _mask);
-            int first = Math.Min(count, _samples.Length - start);
-            if (samples.IsEmpty)
-            {
-                _samples.AsSpan(start, first).Clear();
-                _samples.AsSpan(0, count - first).Clear();
-                return;
-            }
-
-            samples[..first].CopyTo(_samples.AsSpan(start));
-            samples[first..count].CopyTo(_samples);
+            return _samples.Splice(frames, _samples.Written);
         }
     }
 }

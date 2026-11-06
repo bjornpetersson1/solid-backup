@@ -70,6 +70,13 @@ internal static class TestWav
         return path;
     }
 
+    /// <summary>One channel of a stereo 16-bit PCM WAV file with a 44-byte header, as floats.</summary>
+    public static float[] Pcm16Channel(byte[] file, int channel)
+    {
+        int frames = (int)BinaryPrimitives.ReadUInt32LittleEndian(file.AsSpan(40)) / 4;
+        return [.. Enumerable.Range(0, frames).Select(frame => Pcm16Sample(file, frame, channel, channels: 2))];
+    }
+
     /// <summary>One sample of a 16-bit PCM WAV file with a 44-byte header, as a float.</summary>
     public static float Pcm16Sample(byte[] file, int frame, int channel, int channels)
     {
