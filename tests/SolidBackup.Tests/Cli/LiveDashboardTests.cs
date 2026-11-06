@@ -89,6 +89,28 @@ public class LiveDashboardTests
     }
 
     [Theory]
+    [InlineData(80)]
+    [InlineData(120)]
+    public void WhileMonitoring_TheInterruptionsAreCountedOnTheMonitoringRow(int width)
+    {
+        LiveSnapshot monitoring = Playing with { Settings = Playing.Settings with { MonitorOn = true }, MonitorInterruptions = 3 };
+
+        string[] lines = Rendered(monitoring, new DashboardContext(false, OnSpeakers: false, Monitoring: true), width);
+
+        Assert.Contains(lines, line => line.Contains("Medhörning") && line.Contains("på, 70 % · avbrott 3"));
+    }
+
+    [Fact]
+    public void WithoutMonitoring_NoInterruptionsAreShown()
+    {
+        LiveSnapshot stopped = Playing with { Settings = Playing.Settings with { MonitorOn = true }, MonitorInterruptions = null };
+
+        string[] lines = Rendered(stopped, new DashboardContext(false, OnSpeakers: false, Monitoring: false), 120);
+
+        Assert.DoesNotContain(lines, line => line.Contains("avbrott"));
+    }
+
+    [Theory]
     [InlineData(ChordQuality.MinorMajor7No5, "F#m(maj7,no5)")]
     [InlineData(ChordQuality.Cluster, "F#(b9,9)")]
     [InlineData(ChordQuality.Dominant7No3, "F#7(no3)")]

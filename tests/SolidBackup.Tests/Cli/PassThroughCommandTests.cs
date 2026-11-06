@@ -198,7 +198,7 @@ public class PassThroughCommandTests
 
         Assert.Equal(0, exitCode);
         Assert.Contains(RecordingSession.RecordingMessage("inspelning.wav"), console.Output);
-        Assert.Contains(RecordingSession.RecordedMessage("inspelning.wav", Settings.BufferSize / (double)Settings.SampleRate, 0), console.Output);
+        Assert.Contains(RecordingSession.RecordedMessage("inspelning.wav", Settings.BufferSize / (double)Settings.SampleRate, 0, 0), console.Output);
         Assert.Equal(44 + (Settings.BufferSize * 4), stream.Contents.Length);
     }
 

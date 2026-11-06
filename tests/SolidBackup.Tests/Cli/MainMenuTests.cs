@@ -126,7 +126,7 @@ public sealed class MainMenuTests : IDisposable
 
         Menu(console).Run();
 
-        Assert.Contains(MainMenu.BpmRangeMessage, console.Output);
+        Assert.Contains(SettingPrompts.BpmRangeMessage, console.Output);
         Assert.Equal(100, Assert.Single(_started).Bpm);
     }
 
@@ -144,7 +144,7 @@ public sealed class MainMenuTests : IDisposable
 
         Menu(console).Run();
 
-        Assert.Contains(MainMenu.MonitorLevelMessage, console.Output);
+        Assert.Contains(SettingPrompts.MonitorLevelMessage, console.Output);
         Assert.Equal((true, 40), (Assert.Single(_started).MonitorOn, _started[0].MonitorLevelPercent));
     }
 
@@ -269,7 +269,7 @@ public sealed class MainMenuTests : IDisposable
         TestConsole console = TestConsoles.Wide();
         Choose(console, Quit);
 
-        int exitCode = new MainMenu(console, Store(), () => throw new AudioDeviceException("PortAudio kunde inte läsa enheterna."), TestPreflight.Create(), StartLive).Run();
+        int exitCode = new MainMenu(console, Store(), () => throw new AudioDeviceException("PortAudio kunde inte läsa enheterna."), TestPreflight.Create(), StartLive, NoRecordings, NoImport).Run();
 
         Assert.Equal(0, exitCode);
         Assert.Contains("Ljudfel: PortAudio kunde inte läsa enheterna.", console.Output);
@@ -282,7 +282,7 @@ public sealed class MainMenuTests : IDisposable
         console.Input.PushKey(ConsoleKey.Enter);
 
         // Live mode returns once its audio is closed, saying Ctrl+C stopped it; no Avsluta is needed.
-        int exitCode = new MainMenu(console, Store(), () => new FakeCatalog(), TestPreflight.Create(), _ => new LiveExit(0, Interrupted: true)).Run();
+        int exitCode = new MainMenu(console, Store(), () => new FakeCatalog(), TestPreflight.Create(), _ => new LiveExit(0, Interrupted: true), NoRecordings, NoImport).Run();
 
         Assert.Equal(0, exitCode);
     }
@@ -300,7 +300,7 @@ public sealed class MainMenuTests : IDisposable
         {
             runs++;
             return new LiveExit(1, Interrupted: false);
-        }).Run();
+        }, NoRecordings, NoImport).Run();
 
         Assert.Equal(0, exitCode);
         Assert.Equal(1, runs);
@@ -314,7 +314,7 @@ public sealed class MainMenuTests : IDisposable
         console.Input.PushKey(ConsoleKey.Enter);
 
         // A recording that could not be saved is not reported as success.
-        int exitCode = new MainMenu(console, Store(), () => new FakeCatalog(), TestPreflight.Create(), _ => new LiveExit(1, Interrupted: true)).Run();
+        int exitCode = new MainMenu(console, Store(), () => new FakeCatalog(), TestPreflight.Create(), _ => new LiveExit(1, Interrupted: true), NoRecordings, NoImport).Run();
 
         Assert.Equal(1, exitCode);
     }
@@ -335,7 +335,7 @@ public sealed class MainMenuTests : IDisposable
             // The headphones are unplugged while playing.
             devices = [TestDevices.Microphone, speakersAsDefault];
             return new LiveExit(0, Interrupted: false);
-        }).Run();
+        }, NoRecordings, NoImport).Run();
 
         // Not before live mode, with the headphones; once after it.
         Assert.Single(console.Output.Split(AudioPreflight.SpeakerWarning).Skip(1));
@@ -442,7 +442,19 @@ public sealed class MainMenuTests : IDisposable
 
     private MainMenu Menu(TestConsole console, AudioPreflight? preflight = null)
     {
-        return new MainMenu(console, Store(), () => new FakeCatalog(), preflight ?? TestPreflight.Create(), StartLive);
+        return new MainMenu(console, Store(), () => new FakeCatalog(), preflight ?? TestPreflight.Create(), StartLive, NoRecordings, NoImport);
+    }
+
+    // No test here imports a clip.
+    private static void NoImport(AppSettings settings)
+    {
+        throw new InvalidOperationException("Importera klipp is not opened.");
+    }
+
+    // No test here opens Inspelningar.
+    private static void NoRecordings(AppSettings settings)
+    {
+        throw new InvalidOperationException("Inspelningar is not opened.");
     }
 
     private static int Item(string choice)

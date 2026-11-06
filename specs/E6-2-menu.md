@@ -79,5 +79,6 @@ The start menu: the app started without arguments shows the current choices and 
 - **The whole `CorpusMeasurementTests` class stays in the `Timing` collection** (code review finding declined): its measurement is computed once (`Lazy`) and shared by every test in the class, so whichever test runs first times the analysis. Moving only the real-time test would let an accuracy test compute it under the parallel load again.
 
 - **PR review fixes:** a test that a failed live run shows the menu again; the menu takes `Func<AppSettings, LiveExit>`, since whether to record is `RecordOn` in the settings it passes.
+- **Superseded in part by E8-4:** during Importera klipp, Ctrl+C cancels the import and returns to the menu rather than quitting at once, so a conversion or a half-written result is cleaned up.
 
 ## Open Questions

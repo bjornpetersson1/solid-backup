@@ -12,7 +12,8 @@ public static class SettingsValidator
 {
     private const double MinLevelDbfs = -90;
 
-    private static readonly int[] SupportedSampleRates = [44_100, 48_000];
+    /// <summary>The sample rates the app runs at.</summary>
+    public static IReadOnlyList<int> SupportedSampleRates { get; } = [44_100, 48_000];
 
     public static SettingsError? Validate(AppSettings settings)
     {

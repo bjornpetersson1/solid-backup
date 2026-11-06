@@ -120,6 +120,19 @@ public class SessionRecorderTests
     }
 
     [Fact]
+    public void Drain_IsOnlyForARecorderWithoutABackgroundThreadThatHasNotStopped()
+    {
+        SessionRecorder background = new(new KeptStream(), SampleRate, BufferSize);
+        SessionRecorder manual = new(new KeptStream(), SampleRate, BufferSize, background: false);
+        manual.Drain();
+        manual.Stop();
+
+        Assert.Throws<InvalidOperationException>(background.Drain);
+        Assert.Throws<InvalidOperationException>(manual.Drain);
+        background.Stop();
+    }
+
+    [Fact]
     public void AudioSide_AllocatesNothing()
     {
         SessionRecorder recorder = new(new KeptStream(), SampleRate, BufferSize);

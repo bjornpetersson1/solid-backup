@@ -37,7 +37,6 @@ public class WavReaderTests
     }
 
     [Theory]
-    [InlineData(TestWav.Pcm, 24)]
     [InlineData(TestWav.Pcm, 8)]
     [InlineData(TestWav.Float, 64)]
     [InlineData((ushort)2, 16)]
@@ -48,6 +47,18 @@ public class WavReaderTests
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() => Read(wav));
 
         Assert.StartsWith("WAV-formatet stöds inte", exception.Message);
+    }
+
+    [Fact]
+    public void Read_24And32BitPcm_GivesTheSamples()
+    {
+        // Half scale up and down in 24 bits (0x400000) and in 32 bits (0x40000000), little-endian.
+        byte[] pcm24 = TestWav.Build(TestWav.Pcm, 96_000, 1, 24, [0x00, 0x00, 0x40, 0x00, 0x00, 0xC0]);
+        byte[] pcm32 = TestWav.Build(TestWav.Pcm, 8_000, 1, 32, [0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0xC0]);
+
+        Assert.Equal([0.5f, -0.5f], Read(pcm24).Samples);
+        Assert.Equal([0.5f, -0.5f], Read(pcm32).Samples);
+        Assert.Equal(96_000, Read(pcm24).SampleRate);
     }
 
     [Fact]
@@ -79,6 +90,44 @@ public class WavReaderTests
         byte[] wav = TestWav.Pcm16(48_000, 1, 0.5f)[..30];
 
         Assert.Throws<InvalidDataException>(() => Read(wav));
+    }
+
+    [Theory]
+    [InlineData(WavChannel.Mixed, 0.125f)]
+    [InlineData(WavChannel.Left, 0.5f)]
+    [InlineData(WavChannel.Right, -0.25f)]
+    public void Read_AStereoFile_GivesTheChosenChannel(WavChannel channel, float expected)
+    {
+        byte[] wav = TestWav.Float32(48_000, 2, 0.5f, -0.25f, 0.5f, -0.25f);
+
+        using MemoryStream stream = new(wav);
+        WavAudio audio = WavReader.Read(stream, channel);
+
+        Assert.Equal([expected, expected], audio.Samples);
+    }
+
+    [Fact]
+    public void Read_AMonoFile_GivesItsOneChannelWhicheverIsChosen()
+    {
+        using MemoryStream stream = new(TestWav.Float32(48_000, 1, 0.5f, 0.25f));
+
+        Assert.Equal([0.5f, 0.25f], WavReader.Read(stream, WavChannel.Right).Samples);
+    }
+
+    [Fact]
+    public void ReadInfo_GivesTheFormatAndLength()
+    {
+        string path = TestWav.WriteTemp(TestWav.Pcm16(22_050, 2, new float[2 * 44_100]));
+        try
+        {
+            WavInfo info = WavReader.ReadInfo(path);
+
+            Assert.Equal(new WavInfo(22_050, 2, 44_100), info);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     private static WavAudio Read(byte[] wav)

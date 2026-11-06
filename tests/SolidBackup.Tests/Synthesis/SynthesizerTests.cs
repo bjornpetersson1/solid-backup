@@ -2,6 +2,8 @@ using SolidBackup.Analysis;
 using SolidBackup.Harmony;
 using SolidBackup.Synthesis;
 
+using SolidBackup.Tests.Analysis;
+
 namespace SolidBackup.Tests.Synthesis;
 
 public class SynthesizerTests
@@ -169,7 +171,7 @@ public class SynthesizerTests
         float[] after = Render(synthesizer, Ms(100));
 
         float[] around = [before[^1], .. after];
-        Assert.True(LargestStep(around, 1, around.Length) <= LargestStep(before, Ms(100), before.Length) * 1.1);
+        Assert.True(TestSignal.LargestStep(around, 1, around.Length) <= TestSignal.LargestStep(before, Ms(100), before.Length) * 1.1);
         Assert.True(after[^Ms(30)..].Max(Math.Abs) < before.Max(Math.Abs) * 0.15);
     }
 
@@ -203,9 +205,9 @@ public class SynthesizerTests
 
         for (int i = 0; i < events.Length; i++)
         {
-            double steadyBefore = i > 0 ? LargestStep(samples, events[i - 1] + attack, events[i]) : 0;
-            double steadyAfter = i < events.Length - 1 ? LargestStep(samples, events[i] + attack, events[i + 1]) : 0;
-            double atEvent = LargestStep(samples, events[i], events[i] + Ms(20));
+            double steadyBefore = i > 0 ? TestSignal.LargestStep(samples, events[i - 1] + attack, events[i]) : 0;
+            double steadyAfter = i < events.Length - 1 ? TestSignal.LargestStep(samples, events[i] + attack, events[i + 1]) : 0;
+            double atEvent = TestSignal.LargestStep(samples, events[i], events[i] + Ms(20));
 
             Assert.True(
                 atEvent <= Math.Max(steadyBefore, steadyAfter),
@@ -230,7 +232,7 @@ public class SynthesizerTests
 
         Assert.Equal(0, synthesizer.Sounding(48));
         float[] aroundTheSteal = [before[^1], .. after];
-        Assert.True(LargestStep(aroundTheSteal, 1, aroundTheSteal.Length) <= LargestStep(before, Ms(100), before.Length) * 1.1, "The stolen voice stopped with a click.");
+        Assert.True(TestSignal.LargestStep(aroundTheSteal, 1, aroundTheSteal.Length) <= TestSignal.LargestStep(before, Ms(100), before.Length) * 1.1, "The stolen voice stopped with a click.");
     }
 
     [Fact]
@@ -429,17 +431,6 @@ public class SynthesizerTests
         }
 
         return samples;
-    }
-
-    private static double LargestStep(float[] samples, int from, int to)
-    {
-        double largest = 0;
-        for (int i = Math.Max(1, from); i < to; i++)
-        {
-            largest = Math.Max(largest, Math.Abs(samples[i] - samples[i - 1]));
-        }
-
-        return largest;
     }
 
     private static int Ms(double ms)

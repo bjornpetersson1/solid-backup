@@ -15,7 +15,16 @@ public interface IAudioPlayback : IDisposable
     /// <summary>Output underflows reported by the device while playing.</summary>
     long Underflows { get; }
 
+    /// <summary>The sample played next, from 0 to the samples' length.</summary>
+    int Position { get; }
+
+    /// <summary>While true, silence is played and the position stays where it is.</summary>
+    bool Paused { get; set; }
+
     void Start(float[] samples);
+
+    /// <summary>Plays on from <paramref name="position"/>, clamped to the samples.</summary>
+    void Seek(int position);
 
     /// <summary>Stops playing; calling it again does nothing.</summary>
     void Stop();

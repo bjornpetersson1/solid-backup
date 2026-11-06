@@ -22,7 +22,8 @@ The experiment should show whether a local console app can follow a single live 
 - Key: chosen in the menu, either a fixed key (a tonic and a mode) or `auto`, where the app estimates the key from what you sing, shows it, and follows a modulation
 - Rhythm accompaniment: chords can be played in a pattern (held, arpeggio, strum) at a fixed tempo chosen in the menu (`docs/rhythm.md`)
 - A built-in synthesizer (oscillators, envelope, a few sounds such as pad, organ and pluck), with no external instruments
-- Recording a session to WAV (the microphone signal and the chords)
+- Recording a session to WAV (the microphone signal and the chords), and listening to, renaming and deleting the recordings in the menu
+- Importing an audio clip and running it through the same chain as live mode, with the features chosen for the run
 - An interactive menu at start, where you choose devices, key, sound, rhythm pattern and which level features are on. The choices are saved and become the defaults next time.
 - A live dashboard while playing: the detected note (e.g. `A4 +12 cent`), a level meter, the current chord, the key, which features are on, and the measured latency
 - Measurement against targets (see Measurement), tested on generated tones and recorded WAV files
@@ -85,7 +86,7 @@ The system has three flows: setup, live play and measurement.
 
 ## Parts and issues
 
-Seven parts (E1–E7). Each item is meant to be one issue that takes roughly half a day to a full day, and "Done when" is its acceptance criterion.
+Eight parts (E1–E8). Each item is meant to be one issue that takes roughly half a day to a full day, and "Done when" is its acceptance criterion.
 
 ### E1 Project foundation
 
@@ -168,6 +169,19 @@ The owner's feedback from playing live after E6 (Nov 2, 2026).
 - [ ] **E7-4 Free style with three-tone chords**: Free chooses among every three-tone chord and moves the root at least every other change.
   - Done when: every Free chord has three pitch classes and contains the note, no two changes in a row keep the root, and the new Free examples in `docs/harmony.md` are tests that pass.
 
+### E8 Playtest 2
+
+The owner's feedback from playing live after E7 (Nov 5, 2026).
+
+- [ ] **E8-1 Crackle in input monitoring**: the monitored microphone signal is heard without crackle.
+  - Done when: the cause is found, a test feeding a sine through monitoring gives a continuous output with no dropped or repeated buffers and no clipping at the default level, and 0 bytes are allocated per callback.
+- [ ] **E8-2 Crackle in the synth in recordings**: the chords in a recording sound as they did live, without crackle.
+  - Done when: the cause is found, a recorded session's output channel equals what the output received (within 16-bit rounding), chord changes and note starts and stops give no discontinuities beyond the envelope, and recording still causes no dropouts.
+- [ ] **E8-3 Manage recordings in the app**: the menu lists the recordings and can play, rename and delete them.
+  - Done when: the list shows every recording, newest first; playback sends the file unchanged to the output and can be stopped; delete asks first; rename refuses invalid and taken names; errors are Swedish messages, not crashes.
+- [ ] **E8-4 Import an audio clip**: an audio file is imported and run through the chain with the features chosen for the run, then heard and saved.
+  - Done when: common WAV formats are imported and unsupported ones give a Swedish error; switching a feature off changes only that feature in the result; the result equals `accompany` with the same settings; the result can be heard and saved among the recordings.
+
 ## Order and dependencies
 
 Verify the audio stack first, because everything else assumes that PortAudio works with low latency from .NET on macOS. The music theory discussion (E4-1) can be held in parallel with E2 and E3.
@@ -181,6 +195,7 @@ Verify the audio stack first, because everything else assumes that PortAudio wor
 | 5. Sound | E5-1 to E5-6 | E4-2; E5-4 (E5-6) | Chords are heard with the chosen sound, dynamics and pattern |
 | 6. Live mode | E6-1 to E6-3 | Phase 5 | The demo can be run from the menu |
 | 7. Playtest | E7-1 to E7-4 | Phase 6 | The owner's playtest feedback is in the menu and the rules: calmer chord changes, autoplay, monitoring and a more varied Free |
+| 8. Playtest 2 | E8-1 to E8-4 | Phase 7; E8-3 (E8-4) | Monitoring and recordings are free of crackle, and recordings and imported clips can be handled from the menu |
 
 ## Measurement
 

@@ -1,4 +1,5 @@
 using SolidBackup.Accompaniment;
+using SolidBackup.Audio;
 using SolidBackup.Configuration;
 using SolidBackup.Live;
 using SolidBackup.Recording;
@@ -15,6 +16,20 @@ public class InputMonitorTests
 {
     private static readonly AppSettings Settings = Chain.Settings() with { MonitorOn = true, MonitorLevelPercent = 100 };
 
+    private static readonly int MaxDelay = (int)InputMonitor.MaxDelay(Settings.BufferSize, Settings.SampleRate);
+
+    // The monitor fades in at its start and may correct its delay once, at the end of its first window (a quarter of a
+    // second). The mix is checked before and after that correction, each part with its own delay, leaving out only the
+    // fade-in and the correction's buffer and crossfade.
+    private static readonly int Crossfades = Crossfade.Length(Settings.SampleRate);
+    private static readonly int FirstWindowEnd = Settings.SampleRate / 4;
+    private static readonly (int From, int To)[] Parts =
+    [
+        // The window counts whole buffers, so the correction can start in the buffer before its end.
+        ((3 * Settings.BufferSize) + Crossfades, FirstWindowEnd - Settings.BufferSize),
+        (FirstWindowEnd + (4 * Settings.BufferSize) + Crossfades, int.MaxValue),
+    ];
+
     // C4 and E4, then a pause: the chords are quiet enough to stay below the soft limit's knee.
     private static readonly float[] Voice = Chain.Join(Chain.Tone(60, -26, 0.5), Chain.Tone(64, -26, 0.5), TestSignal.Silence(0.2));
 
@@ -25,15 +40,18 @@ public class InputMonitorTests
 
     [Theory]
     [MemberData(nameof(Orders))]
-    public void TheOutput_IsTheChordsPlusTheInputAtTheLevel_DelayedByAtMostTwoBuffers(string order)
+    public void TheOutput_IsTheChordsPlusTheInputAtTheLevel_DelayedByAtMostFiveMilliseconds(string order)
     {
         float[] chords = Chords(order);
         float[] mixed = Run(Settings, Voice, order);
 
-        int delay = Delay(chords, mixed, Voice, gain: 1);
+        foreach ((int From, int To) part in Parts)
+        {
+            int delay = Delay(chords, mixed, Voice, gain: 1, part);
 
-        Assert.InRange(delay, 0, 2 * Settings.BufferSize);
-        AssertMixed(chords, mixed, Voice, gain: 1, delay);
+            Assert.InRange(delay, 0, MaxDelay);
+            AssertMixed(chords, mixed, Voice, gain: 1, delay, part);
+        }
     }
 
     [Theory]
@@ -45,7 +63,12 @@ public class InputMonitorTests
         float[] chords = Chords("in out");
         float[] mixed = Run(Settings with { MonitorLevelPercent = percent }, Voice, "in out");
 
-        AssertMixed(chords, mixed, Voice, gain: percent / 100f, delay: 0);
+        // The delay does not depend on the level, so it is found at full level.
+        float[] full = Run(Settings, Voice, "in out");
+        foreach ((int From, int To) part in Parts)
+        {
+            AssertMixed(chords, mixed, Voice, gain: percent / 100f, Delay(chords, full, Voice, gain: 1, part), part);
+        }
     }
 
     [Fact]
@@ -61,31 +84,63 @@ public class InputMonitorTests
     }
 
     [Fact]
-    public void AnInputThatRunsAhead_SkipsItsOldestSamples()
+    public void Playing_WaitsForABufferAndAMargin_ThenFadesIn()
     {
-        InputMonitor monitor = new(bufferSize: 4, levelPercent: 100);
-        for (int buffer = 1; buffer <= 5; buffer++)
-        {
-            monitor.Write([buffer, buffer, buffer, buffer]);
-        }
-
-        float[] output = new float[4];
+        InputMonitor monitor = new(bufferSize: 64, levelPercent: 100, sampleRate: 48000);
+        float[] output = new float[64];
+        monitor.Write(Enumerable.Repeat(0.4f, 64).ToArray());
         monitor.MixInto(output);
+        Assert.All(output, sample => Assert.Equal(0, sample));
 
-        // Buffers 1–3 are skipped; buffer 4 plays and buffer 5 waits, one buffer beyond the one being played.
-        Assert.Equal(Enumerable.Repeat((float)Synthesizer.Saturate(4), 4), output);
+        monitor.Write(Enumerable.Repeat(0.4f, 64).ToArray());
+        monitor.MixInto(output);
+        Assert.True(output[0] > 0 && output[0] < 0.01f);
+        Assert.True(output.Zip(output.Skip(1)).All(pair => pair.First < pair.Second));
+
+        monitor.Write(Enumerable.Repeat(0.4f, 64).ToArray());
+        Array.Clear(output);
+        monitor.MixInto(output);
+        Assert.Equal(0.4f, output[^1]);
     }
 
     [Fact]
-    public void AnInputThatRunsBehind_PlaysSilenceForTheMissingSamples()
+    public void AStalledOutput_ResumesWithTheLatestInput_CountingAnOverflow()
     {
-        InputMonitor monitor = new(bufferSize: 4, levelPercent: 50);
-        monitor.Write([0.2f, 0.4f]);
+        InputMonitor monitor = new(bufferSize: 64, levelPercent: 100, sampleRate: 48000);
+        for (int buffer = 1; buffer <= 40; buffer++)
+        {
+            monitor.Write(Enumerable.Repeat(buffer / 100f, 64).ToArray());
+        }
 
-        float[] output = new float[4];
+        float[] output = new float[64];
         monitor.MixInto(output);
 
-        Assert.Equal([0.1f, 0.2f, 0, 0], output);
+        // The latest buffer, fading in as playing starts again.
+        float fadeIn = 64f / (Crossfade.Length(48000) + 1);
+        Assert.Equal(0.40f * fadeIn, output[^1], 1e-6f);
+        Assert.True(monitor.Overflows > 0);
+        Assert.Equal(monitor.Overflows, monitor.Interruptions);
+    }
+
+    [Fact]
+    public void FadingOut_RampsTheInputToSilenceOverTheBuffer()
+    {
+        InputMonitor monitor = new(bufferSize: 64, levelPercent: 100, sampleRate: 48000);
+        float[] output = new float[64];
+        for (int buffer = 0; buffer < 4; buffer++)
+        {
+            monitor.Write(Enumerable.Repeat(0.4f, 64).ToArray());
+            Array.Clear(output);
+            monitor.MixInto(output);
+        }
+
+        monitor.Write(Enumerable.Repeat(0.4f, 64).ToArray());
+        Array.Clear(output);
+        monitor.MixInto(output, fadeOut: true);
+
+        Assert.Equal(0.4f, output[0]);
+        Assert.True(output[^1] < 0.01f);
+        Assert.True(output.Zip(output.Skip(1)).All(pair => pair.First >= pair.Second));
     }
 
     [Fact]
@@ -121,31 +176,16 @@ public class InputMonitorTests
     }
 
     [Fact]
-    public void AStalledOutput_ResumesWithTheLatestInput()
+    public void TheSnapshot_CountsTheMonitorsInterruptions_OnlyWhileMonitoring()
     {
-        // A ring of 32 samples; twelve buffers of 4 overwrite the oldest.
-        InputMonitor monitor = new(bufferSize: 4, levelPercent: 100);
-        for (int buffer = 1; buffer <= 12; buffer++)
-        {
-            monitor.Write([buffer / 100f, buffer / 100f, buffer / 100f, buffer / 100f]);
-        }
+        LiveMode monitoring = new(new FakeDevices(), Settings, chainDelayMs: null, outputSafe: true);
+        LiveMode off = new(new FakeDevices(), Settings with { MonitorOn = false }, chainDelayMs: null, outputSafe: true);
 
-        float[] output = new float[4];
-        monitor.MixInto(output);
+        Assert.Equal(0, monitoring.Snapshot().MonitorInterruptions);
+        Assert.Null(off.Snapshot().MonitorInterruptions);
 
-        Assert.Equal(Enumerable.Repeat(0.11f, 4), output);
-    }
-
-    [Fact]
-    public void FadingOut_RampsTheInputToSilenceOverTheBuffer()
-    {
-        InputMonitor monitor = new(bufferSize: 4, levelPercent: 100);
-        monitor.Write([0.4f, 0.4f, 0.4f, 0.4f]);
-
-        float[] output = new float[4];
-        monitor.MixInto(output, fadeOut: true);
-
-        Assert.Equal([0.4f, 0.3f, 0.2f, 0.1f], output);
+        monitoring.StopMonitoring();
+        Assert.Null(monitoring.Snapshot().MonitorInterruptions);
     }
 
     [Fact]
@@ -175,8 +215,11 @@ public class InputMonitorTests
         LiveChain chain = new(new Accompanist(Settings), monitor: InputMonitor.FromSettings(Settings, outputSafe: true));
         float[] loud = [.. Enumerable.Repeat(0.5f, Settings.BufferSize)];
         float[] output = new float[Settings.BufferSize];
-        chain.OnBuffer(loud);
-        chain.Render(output);
+        for (int buffer = 0; buffer < 4; buffer++)
+        {
+            chain.OnBuffer(loud);
+            chain.Render(output);
+        }
 
         chain.FadeOut();
         chain.OnBuffer(loud);
@@ -225,21 +268,34 @@ public class InputMonitorTests
     }
 
     // The shift of the input in the mixed output, in samples: the one that explains the difference best.
-    private static int Delay(float[] chords, float[] mixed, float[] voice, float gain)
+    private static int Delay(float[] chords, float[] mixed, float[] voice, float gain, (int From, int To) part)
     {
-        return Enumerable.Range(0, (2 * Settings.BufferSize) + 1).MinBy(delay => Error(chords, mixed, voice, gain, delay));
+        int best = 0;
+        double bestError = double.MaxValue;
+        for (int delay = 0; delay <= MaxDelay; delay++)
+        {
+            double error = Error(chords, mixed, voice, gain, delay, part, bestError);
+            if (error < bestError)
+            {
+                (best, bestError) = (delay, error);
+            }
+        }
+
+        return best;
     }
 
-    private static void AssertMixed(float[] chords, float[] mixed, float[] voice, float gain, int delay)
+    private static void AssertMixed(float[] chords, float[] mixed, float[] voice, float gain, int delay, (int From, int To) part)
     {
-        Assert.InRange(Error(chords, mixed, voice, gain, delay), 0, 1e-6);
+        Assert.InRange(Error(chords, mixed, voice, gain, delay, part), 0, 1e-6);
     }
 
-    // The largest difference from chords + gain × the delayed voice, over the samples below the soft limit's knee.
-    private static double Error(float[] chords, float[] mixed, float[] voice, float gain, int delay)
+    // The largest difference from chords + gain × the delayed voice, over the part's samples below the soft limit's
+    // knee. Stops early once it is past giveUpAt, as a delay search only needs to know it is worse.
+    private static double Error(
+        float[] chords, float[] mixed, float[] voice, float gain, int delay, (int From, int To) part, double giveUpAt = double.MaxValue)
     {
         double worst = 0;
-        for (int i = 0; i < mixed.Length; i++)
+        for (int i = part.From; i < Math.Min(part.To, mixed.Length) && worst < giveUpAt; i++)
         {
             if (Math.Abs(mixed[i]) >= Synthesizer.SaturationStart)
             {
