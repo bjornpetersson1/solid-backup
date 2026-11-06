@@ -8,6 +8,7 @@ using SolidBackup.Audio.Devices;
 using SolidBackup.Audio.MacOS;
 using SolidBackup.Audio.PortAudio;
 using SolidBackup.Configuration;
+using SolidBackup.Import;
 
 using Spectre.Console;
 
@@ -293,7 +294,8 @@ public static class AppCommand
         AudioPreflight preflight = CreatePreflight();
         LiveCommand live = new(console, LoadSettings, PortAudioDevices.Open, preflight, returnsToMenu: true);
         RecordingsMenu recordings = new(console, PortAudioPlayback.Open);
-        return new MainMenu(console, CreateStore(), PortAudioSession.Open, preflight, settings => live.Play(settings, settings.RecordOn), recordings.Run);
+        ImportMenu imports = new(console, new AfconvertConverter(), recordings, () => DateTime.Now);
+        return new MainMenu(console, CreateStore(), PortAudioSession.Open, preflight, settings => live.Play(settings, settings.RecordOn), recordings.Run, imports.Run);
     }
 
     private static SettingsLoadResult LoadSettings()

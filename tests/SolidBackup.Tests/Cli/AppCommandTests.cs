@@ -141,7 +141,8 @@ public class AppCommandTests
 
         SettingsStore store = new(SettingsStore.BundledDefaultsPath, Path.Combine(Path.GetTempPath(), $"solid-backup-{Guid.NewGuid():N}.json"));
         MainMenu menu = new(console, store, () => new FakeCatalog(), TestPreflight.Create(), _ => throw new InvalidOperationException("Live mode is not started."),
-            _ => throw new InvalidOperationException("Inspelningar is not opened."));
+            _ => throw new InvalidOperationException("Inspelningar is not opened."),
+            _ => throw new InvalidOperationException("Importera klipp is not opened."));
 
         int exitCode = AppCommand.Run([], () => console, createMenu: _ => menu);
 

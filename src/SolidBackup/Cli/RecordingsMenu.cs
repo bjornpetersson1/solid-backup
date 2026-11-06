@@ -143,7 +143,7 @@ public sealed class RecordingsMenu(IAnsiConsole console, Func<AppSettings, IAudi
     private void Rename(RecordingEntry entry)
     {
         console.MarkupLine($"Nu heter den {Markup.Escape(entry.Name)}.");
-        string? name = AskLine("Nytt namn (utan .wav, Esc avbryter): ");
+        string? name = LineInput.Ask(console, "Nytt namn (utan .wav, Esc avbryter): ");
         while (!string.IsNullOrWhiteSpace(name) && name.Trim() != entry.Name)
         {
             if (RecordingLibrary.NameProblem(entry, name) is not { } problem)
@@ -157,43 +157,7 @@ public sealed class RecordingsMenu(IAnsiConsole console, Func<AppSettings, IAudi
             }
 
             ConsoleMessages.Error(console, problem);
-            name = AskLine("Nytt namn (utan .wav, tomt eller Esc avbryter): ");
-        }
-    }
-
-    // A line typed after the prompt, or null for Esc. Spectre's text prompt cannot be left with Esc.
-    private string? AskLine(string prompt)
-    {
-        console.Write(prompt);
-        System.Text.StringBuilder line = new();
-        while (true)
-        {
-            if (console.Input.ReadKey(intercept: true) is not { } key)
-            {
-                continue;
-            }
-
-            switch (key.Key)
-            {
-                case ConsoleKey.Escape:
-                    console.WriteLine();
-                    return null;
-                case ConsoleKey.Enter:
-                    console.WriteLine();
-                    return line.ToString();
-                case ConsoleKey.Backspace when line.Length > 0:
-                    line.Length--;
-                    console.Write("\b \b");
-                    break;
-                default:
-                    if (!char.IsControl(key.KeyChar))
-                    {
-                        line.Append(key.KeyChar);
-                        console.Write(key.KeyChar.ToString());
-                    }
-
-                    break;
-            }
+            name = LineInput.Ask(console, "Nytt namn (utan .wav, tomt eller Esc avbryter): ");
         }
     }
 
