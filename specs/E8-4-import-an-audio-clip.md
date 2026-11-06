@@ -4,7 +4,7 @@
 - **Labels:** `E8 Playtest 2`
 - **Phase:** 8. Playtest 2
 - **Depends on:** E8-3 (#83) for the recordings list and playback; builds on E6-2 (#20) and the `accompany` command
-- **Status:** Approved
+- **Status:** Implemented — all automated acceptance criteria verified (format, build with 0 warnings, 1244 tests passed, the afconvert integration test included on macOS); importing an iPhone voice memo and hearing it accompanied is a manual check for the owner
 
 ## Summary
 A menu item, **Importera klipp**, takes an audio file by path: a WAV file, or anything macOS can convert, such as an iPhone voice memo. It then lets you choose, for this run only, the settings and features to apply, and runs the clip through the same chain as live mode. The result is saved as a recording (clip left, chords right), so it can be heard at once and later under **Inspelningar** (E8-3).
@@ -57,14 +57,14 @@ A menu item, **Importera klipp**, takes an audio file by path: a WAV file, or an
 6. **Manual check (owner):** a melody recorded on another device (e.g. an iPhone voice memo) is imported, accompanied with chosen settings and heard from the menu.
 
 ## Tasks
-- [ ] Path parsing (quotes, escaped spaces, `~`).
-- [ ] WAV import for 16/24/32-bit PCM and 32-bit float at any rate, mono or stereo, extending `WavReader` where needed.
-- [ ] A converter abstraction with an `afconvert` implementation (temporary file, deleted after) and a fake for tests.
-- [ ] A run-settings menu that reuses the main menu's prompts on a copy of the settings and does not save.
-- [ ] Rendering through `AccompanyCommand.Accompany`'s chain, with progress and cancel, into a stereo result (clip, chords).
-- [ ] Save to `RecordingFolder` with a unique name, then offer E8-3's playback.
-- [ ] The **Importera klipp** item in the main menu, and the Swedish texts.
-- [ ] README: the menu paragraph mentions **Importera klipp** and the supported formats.
+- [x] Path parsing (quotes, escaped spaces, `~`).
+- [x] WAV import for 16/24/32-bit PCM and 32-bit float at any rate, mono or stereo, extending `WavReader` where needed.
+- [x] A converter abstraction with an `afconvert` implementation (temporary file, deleted after) and a fake for tests.
+- [x] A run-settings menu that reuses the main menu's prompts on a copy of the settings and does not save.
+- [x] Rendering through `AccompanyCommand.Accompany`'s chain, with progress and cancel, into a stereo result (clip, chords).
+- [x] Save to `RecordingFolder` with a unique name, then offer E8-3's playback.
+- [x] The **Importera klipp** item in the main menu, and the Swedish texts.
+- [x] README: the menu paragraph mentions **Importera klipp** and the supported formats.
 
 ## Decisions
 - **WAV plus what macOS can read** (owner, recommended): `/usr/bin/afconvert` ships with macOS and runs locally. No new NuGet dependency and no network call. It is the only external process the app starts.
@@ -74,6 +74,36 @@ A menu item, **Importera klipp**, takes an audio file by path: a WAV file, or an
 - **The clip's own rate for WAV, `SampleRate` for converted files** (default): this matches `accompany`, which uses the recording's rate. Converted files get the app's configured rate.
 - **At most 20 minutes** (default): the whole clip and result are held in memory (about 0.5 GB of floats at 96 kHz stereo for 20 minutes). Longer clips are refused with a Swedish message.
 - **The result's name** (default): the clip's name plus a timestamp, so imports are recognisable in the list and never overwrite anything.
+
+- **Where it lives** (implementation): `Import.ClipPath` parses the typed path. `Import.ClipImporter` loads WAV, or converts through an `Import.IAudioConverter` (`AfconvertConverter`, or a fake in tests); every failure is an `ImportFailedException` with a Swedish message. `Import.ClipRecording` saves the result through `Recording.RecordingFile` (now with a name prefix) and `StereoWavWriter`. `Cli.ImportMenu` is the menu, and `MainMenu` opens it as an `Action<AppSettings>`, after Inspelningar.
+- **The main menu's prompts are shared** (implementation): key, style, sound, rhythm, chord changes, level features and autoplay moved from `MainMenu` to `Cli.SettingPrompts`, with the rows of the settings table. The run menu uses the same prompts and rows.
+- **Rendering** (implementation): `AccompanyCommand.Accompany` has an overload with a progress callback and a cancellation, through a tap on the pipeline that stops the memory input once cancelled. The menu runs it on a worker thread and shows `Spelar in ackorden till klippet … 42% (Esc avbryter)`. Keys pressed before the run starts count too, so Esc is never lost to a quick run. Nothing is saved when it is cancelled.
+- **WAV formats** (implementation): `WavReader` now also reads 24- and 32-bit PCM, so imports and every other WAV read take them.
+- **afconvert** (implementation): `afconvert -f WAVE -d LEI16@<SampleRate> -c 1 <clip> <temporary>.wav`, with a 2-minute timeout. A missing program, a failure (with afconvert's own message) or a timeout is a Swedish error. The temporary file is deleted in every case. The integration test is an `AfconvertFact`, skipped where `/usr/bin/afconvert` is missing, as on CI's Linux.
+- **Tests on the corpus** (implementation): the menu tests import the first six seconds of the corpus's singing followed by two seconds of silence, in C Ionian with every level feature and autoplay on, so each switch has something to change.
+
+- **WAV at another rate is converted** (owner, during code review): the app runs only at 44.1 and 48 kHz (`SettingsValidator.SupportedSampleRates`), so a WAV at any other rate could be loaded but never run. A WAV at 44.1 or 48 kHz is read at its own rate, as before. Any other WAV goes through afconvert to `SampleRate`, like the other formats, and its result is saved at that rate. This departs from criterion 1's "the file's own sample rate is used" for those rates.
+- **Code review fixes:**
+  - A WAV's length is checked from its header before it is decoded, so a clip of hours is refused at once, not after loading it into memory.
+  - From the path on, Ctrl+C cancels the import rather than ending the app; the main menu's quit is off meanwhile. A conversion is stopped and its temporary file deleted, and nothing half-written is left.
+  - A conversion runs on a worker thread with `Läser in klippet … (Esc avbryter)`, and Esc stops it. A WAV at the app's rate is read at once, without it.
+  - Any failure of the worker that renders the chords is a Swedish error that returns to the menu, not a crash.
+  - The progress line ends at 100 %.
+  - The result's name keeps at most 80 characters of the clip's name.
+  - `ClipPath` keeps an escaped trailing space and undoes the shell's `'\''` inside single quotes.
+  - Any process error from afconvert, or a temporary file that cannot be deleted, is a Swedish error or is ignored, and never escapes the menu.
+  - The afconvert check for the integration test is in `AfconvertFact` only.
+  - Conversion through the menu has no test of its own: while converting, the menu reads every key looking for Esc, and Spectre's test console cannot wait for keys pressed later. `ClipImporterTests` covers the conversion, and the menu's worker loop is the one the rendering tests drive.
+- **Clean code:**
+  - Cancellation and progress go through `MemoryAudioInput`, which already owns the loop over the buffers, rather than a tap reaching back into the input.
+  - `StopKeys.Pressed` is shared.
+  - `RecordingLibrary.Entry` builds a list entry for a path, in the list and after a save.
+  - afconvert's standard output is not read, so the timeout can act on a hung conversion.
+  - The tests run the menu's flow on a two-second clip and compute the all-on chords once.
+- **Declined clean-code findings:**
+  - **Shared "Filen … finns inte / kunde inte läsas" messages with `RecordingFiles`:** that helper is in `Cli` and the importer is not, and the importer names the clip chosen rather than its temporary WAV.
+  - **Dropping `AfconvertConverter`'s `program` parameter:** the test of a missing afconvert uses it.
+  - **Replacing the keys the tests press from the `now` callback with a gated console input:** Spectre's `TestConsole` takes its input as it is. Saving the result is the one moment between rendering, which reads every key looking for Esc, and the prompt after it, and the callback is commented as such.
 
 ## Open Questions
 - None.

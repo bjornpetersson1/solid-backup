@@ -48,12 +48,26 @@ public sealed class AccompanyCommand(IAnsiConsole console, Func<SettingsLoadResu
     /// <summary>The voice plus the accompaniment, or the accompaniment alone, through the same pipeline as live audio.</summary>
     public static float[] Accompany(float[] voice, AppSettings settings, bool noVoice)
     {
+        return Accompany(voice, settings, noVoice, progress: null, CancellationToken.None)
+            ?? throw new InvalidOperationException("An accompaniment without a cancellation cannot be cancelled.");
+    }
+
+    /// <summary>
+    /// As <see cref="Accompany(float[], AppSettings, bool)"/>, telling <paramref name="progress"/> how far it has come
+    /// (0 to 1) after each buffer; null once <paramref name="cancellation"/> stops it.
+    /// </summary>
+    public static float[]? Accompany(float[] voice, AppSettings settings, bool noVoice, Action<double>? progress, CancellationToken cancellation)
+    {
         int buffers = (voice.Length + settings.BufferSize - 1) / settings.BufferSize;
-        using MemoryAudioInput input = new(voice, settings.SampleRate, settings.BufferSize);
+        using MemoryAudioInput input = new(voice, settings.SampleRate, settings.BufferSize, progress, cancellation);
         using MemoryAudioOutput accompaniment = new(settings.SampleRate, settings.BufferSize, buffers * settings.BufferSize);
         AudioPipeline pipeline = new(input, accompaniment, new Accompanist(settings));
         pipeline.Start();
         pipeline.Stop();
+        if (cancellation.IsCancellationRequested)
+        {
+            return null;
+        }
 
         // The input pads its last buffer with silence; the result is as long as the voice.
         float[] output = accompaniment.Samples[..voice.Length].ToArray();

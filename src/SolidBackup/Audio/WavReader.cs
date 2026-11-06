@@ -15,7 +15,7 @@ public enum WavChannel
 /// <summary>A WAV file's format and length, read from its header without decoding the audio.</summary>
 public sealed record WavInfo(int SampleRate, int Channels, long Frames);
 
-/// <summary>Reads 16-bit PCM and 32-bit IEEE float WAV files, mono or stereo.</summary>
+/// <summary>Reads 16-, 24- and 32-bit PCM and 32-bit IEEE float WAV files, mono or stereo.</summary>
 public static class WavReader
 {
     private const ushort PcmFormat = 1;
@@ -112,12 +112,12 @@ public static class WavReader
 
     private static void Validate(WavFormat format)
     {
-        bool supported = (format.FormatTag, format.BitsPerSample) is (PcmFormat, 16) or (FloatFormat, 32);
+        bool supported = (format.FormatTag, format.BitsPerSample) is (PcmFormat, 16 or 24 or 32) or (FloatFormat, 32);
         if (!supported)
         {
             throw new InvalidDataException(
                 $"WAV-formatet stöds inte (formatkod {format.FormatTag}, {format.BitsPerSample} bitar); "
-                + "bara 16 bitars PCM och 32 bitars flyttal stöds.");
+                + "bara 16, 24 och 32 bitars PCM och 32 bitars flyttal stöds.");
         }
 
         if (format.Channels is not (1 or 2))
@@ -142,15 +142,26 @@ public static class WavReader
             for (int channel = first; channel < first + count; channel++)
             {
                 ReadOnlySpan<byte> bytes = data.AsSpan((frame * format.BlockAlign) + (channel * bytesPerSample), bytesPerSample);
-                sum += format.FormatTag == PcmFormat
-                    ? BinaryPrimitives.ReadInt16LittleEndian(bytes) / 32768f
-                    : BinaryPrimitives.ReadSingleLittleEndian(bytes);
+                sum += Sample(bytes, format);
             }
 
             samples[frame] = sum / count;
         }
 
         return new WavAudio(format.SampleRate, samples);
+    }
+
+    private static float Sample(ReadOnlySpan<byte> bytes, WavFormat format)
+    {
+        return (format.FormatTag, format.BitsPerSample) switch
+        {
+            (FloatFormat, _) => BinaryPrimitives.ReadSingleLittleEndian(bytes),
+            (_, 16) => BinaryPrimitives.ReadInt16LittleEndian(bytes) / 32768f,
+
+            // Three bytes, little-endian: shifted into the top of an int, so the sign comes along.
+            (_, 24) => ((bytes[0] << 8) | (bytes[1] << 16) | (bytes[2] << 24)) / 2147483648f,
+            _ => BinaryPrimitives.ReadInt32LittleEndian(bytes) / 2147483648f,
+        };
     }
 
     // Streaming writers leave the size as 0xFFFFFFFF; the data then runs to the end of the file.

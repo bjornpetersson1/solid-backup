@@ -66,7 +66,8 @@ internal static class StopKeys
         return key.Key == ConsoleKey.Escape || char.ToLowerInvariant(key.KeyChar) == 'q';
     }
 
-    private static bool Pressed(IAnsiConsole console)
+    /// <summary>Whether q or Esc is among the keys pressed since the last look; the keys before it are read and dropped.</summary>
+    public static bool Pressed(IAnsiConsole console)
     {
         while (console.Input.IsKeyAvailable())
         {

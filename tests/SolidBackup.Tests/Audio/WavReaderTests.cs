@@ -37,7 +37,6 @@ public class WavReaderTests
     }
 
     [Theory]
-    [InlineData(TestWav.Pcm, 24)]
     [InlineData(TestWav.Pcm, 8)]
     [InlineData(TestWav.Float, 64)]
     [InlineData((ushort)2, 16)]
@@ -48,6 +47,18 @@ public class WavReaderTests
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() => Read(wav));
 
         Assert.StartsWith("WAV-formatet stöds inte", exception.Message);
+    }
+
+    [Fact]
+    public void Read_24And32BitPcm_GivesTheSamples()
+    {
+        // Half scale up and down in 24 bits (0x400000) and in 32 bits (0x40000000), little-endian.
+        byte[] pcm24 = TestWav.Build(TestWav.Pcm, 96_000, 1, 24, [0x00, 0x00, 0x40, 0x00, 0x00, 0xC0]);
+        byte[] pcm32 = TestWav.Build(TestWav.Pcm, 8_000, 1, 32, [0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0xC0]);
+
+        Assert.Equal([0.5f, -0.5f], Read(pcm24).Samples);
+        Assert.Equal([0.5f, -0.5f], Read(pcm32).Samples);
+        Assert.Equal(96_000, Read(pcm24).SampleRate);
     }
 
     [Fact]

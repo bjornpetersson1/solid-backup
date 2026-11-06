@@ -23,9 +23,15 @@ public static class RecordingLibrary
         }
 
         return [.. Directory.EnumerateFiles(folder, "*" + Extension)
-            .Select(path => new RecordingEntry(path, Path.GetFileNameWithoutExtension(path), File.GetLastWriteTime(path), TryReadInfo(path)))
+            .Select(Entry)
             .OrderByDescending(entry => entry.Written)
             .ThenBy(entry => entry.Name, StringComparer.Ordinal)];
+    }
+
+    /// <summary>The recording at <paramref name="path"/>, as the list shows it.</summary>
+    public static RecordingEntry Entry(string path)
+    {
+        return new RecordingEntry(path, Path.GetFileNameWithoutExtension(path), File.GetLastWriteTime(path), TryReadInfo(path));
     }
 
     public static string MissingMessage(RecordingEntry entry)
